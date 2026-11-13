@@ -73,27 +73,63 @@ class Stream:
         self.t_start = time.perf_counter()
         self.t_first: float | None = None
         self.t_done: float | None = None
+        self.winner: int | None = None
+        self.hedged = False
         self._cond = asyncio.Condition()
         self.task = asyncio.create_task(self._run())
 
+    async def _one(self, i: int, won: asyncio.Event):
+        """One request. The first request to produce a token wins; only the winner writes to the buffer."""
+        async with client().messages.stream(model=config.ANSWER_MODEL, max_tokens=160, system=SYSTEM,
+                                            **model_opts(config.ANSWER_MODEL),
+                                            messages=[{"role": "user",
+                                                       "content": build_prompt(self.question, self.docs)}]) as s:
+            async for text in s.text_stream:
+                if self.winner is None:
+                    self.winner = i
+                    self.t_first = time.perf_counter()
+                    won.set()
+                if self.winner != i:
+                    return
+                async with self._cond:
+                    self.tokens.append(text)
+                    self._cond.notify_all()
+
     async def _run(self):
+        """Hedged request: if no token within HEDGE_MS, send a duplicate and keep whichever answers first
+        (cuts the API's time-to-first-token tail; Haiku is cheap)."""
+        won = asyncio.Event()
+        tasks = [asyncio.create_task(self._one(0, won))]
         try:
-            async with client().messages.stream(model=config.ANSWER_MODEL, max_tokens=160, system=SYSTEM,
-                                                **model_opts(config.ANSWER_MODEL),
-                                                messages=[{"role": "user",
-                                                           "content": build_prompt(self.question, self.docs)}]) as s:
-                async for text in s.text_stream:
-                    if self.t_first is None:
-                        self.t_first = time.perf_counter()
-                    async with self._cond:
-                        self.tokens.append(text)
-                        self._cond.notify_all()
+            try:
+                await asyncio.wait_for(asyncio.shield(won.wait()), timeout=config.HEDGE_MS / 1000)
+            except asyncio.TimeoutError:
+                if not tasks[0].done():
+                    self.hedged = True
+                    tasks.append(asyncio.create_task(self._one(1, won)))
+            # finish when the winner finishes (or all fail)
+            while True:
+                done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+                if self.winner is not None and tasks[self.winner] in done:
+                    exc = tasks[self.winner].exception()
+                    if exc:
+                        raise exc
+                    break
+                if not pending:
+                    for t in done:
+                        if t.exception():
+                            raise t.exception()
+                    break
+                tasks = [t for t in tasks]  # keep indices stable
         except asyncio.CancelledError:
             self.error = "cancelled"
             raise
         except Exception as e:  # network / API errors surface in the UI, never crash the session
             self.error = f"{type(e).__name__}: {e}"[:300]
         finally:
+            for t in tasks:
+                if not t.done():
+                    t.cancel()
             self.done = True
             self.t_done = time.perf_counter()
             async with self._cond:

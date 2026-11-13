@@ -48,3 +48,4 @@ SEM_SILENCE_MS = int(os.environ.get("SEM_SILENCE_MS", "250"))
 SEM_STABLE_MS = int(os.environ.get("SEM_STABLE_MS", "420"))   # one Arc partial refresh (~0.4 s) must confirm the words
 SEM_COVER_S = float(os.environ.get("SEM_COVER_S", "0.3"))     # an ASR refresh this long after silence began covers the speech
 PENDING_CAP_S = float(os.environ.get("PENDING_CAP_S", "1.0"))   # max wait at the endpoint for an in-flight speculative search
+HEDGE_MS = int(os.environ.get("HEDGE_MS", "800"))   # duplicate the answer request if no token by then (both modes)

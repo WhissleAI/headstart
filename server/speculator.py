@@ -371,6 +371,7 @@ class Speculator:
             "stale": sum(1 for x in self.fires if x.state == "stale"),
             "drafts": len(self.drafts),
             "draft_reused": reuse_draft is not None,
+            "hedged": getattr(st, "hedged", False),
             "answer": st.text(),
             "sources": [d.title for d in docs],
             "error": st.error,

@@ -14,7 +14,7 @@ shall may might must i me my you your we our us it its it's this that these thos
 search look up hey ok okay so um uh like just and or but if then than also really very some any get got let let's
 lets know want need yeah yes no oh well right now wondering wonder curious quick question asked ask
 always ever forget forgot remember mind sure guess think kind sort actually basically literally anyone somebody
-someone thing things""".split())
+someone thing things they them their he she his her him it's say said says tell told""".split())
 # hey/ok wake fillers are already in STOP; these mark a spoken self-correction
 CORRECTION = [("i", "mean"), ("sorry",), ("no", "wait"), ("actually",), ("rather",), ("scratch", "that"),
               ("not", "that"), ("make", "that"), ("i", "meant")]
