@@ -1,0 +1,2614 @@
+{
+ "summary": {
+  "wrong": {
+   "n": 48,
+   "query_fidelity": 46,
+   "before": {
+    "correct": 19,
+    "grounded_correct": 9,
+    "non_answer": 30
+   },
+   "after": {
+    "correct": 33,
+    "grounded_correct": 29,
+    "non_answer": 11
+   }
+  },
+  "regress": {
+   "n": 20,
+   "query_fidelity": 20,
+   "before": {
+    "correct": 20,
+    "grounded_correct": 20,
+    "non_answer": 0
+   },
+   "after": {
+    "correct": 20,
+    "grounded_correct": 20,
+    "non_answer": 0
+   }
+  },
+  "calls": {
+   "wikipedia": 111,
+   "answer_model": 116,
+   "seconds": 31.4
+  }
+ },
+ "rows": [
+  {
+   "set": "wrong",
+   "id": "q21",
+   "text": "I've always wanted to know, um, how many bones are there in the adult human body",
+   "heard": "I've always wanted to know how many bones are there in the adult human body",
+   "expect": [
+    "206"
+   ],
+   "seen_in": "ab_full1/baseline",
+   "rec_query": "i've wanted many bones adult human body",
+   "query_fidelity": true,
+   "before": {
+    "query": "i've wanted many bones adult human body",
+    "question": "I've always wanted to know how many bones are there in the adult human body",
+    "sources": [
+     "Jennifer's Body",
+     "Body swap appearances in media",
+     "Embalming",
+     "The Foundation Pit"
+    ],
+    "answer": "The sources don't give the number of bones in the adult human body. They cover embalming, body-swap stories, Jennifer's Body, and Platonov's The Foundation Pit, none of which address human anatomy.",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "bones adult human body",
+    "entity": "",
+    "question": "I've always wanted to know how many bones are there in the adult human body",
+    "sources": [
+     "List of bones of the human skeleton",
+     "List of organs of the human body",
+     "Human body",
+     "Composition of the human body"
+    ],
+    "answer": "An adult human skeleton is commonly quoted as having 206 bones, though the exact count can vary with age and individual anatomy [1].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q27",
+   "text": "what's the capital of Canada, actually make that Turkey",
+   "heard": "What's the capital of Canada actually make that turkey",
+   "expect": [
+    "ankara"
+   ],
+   "seen_in": "ab_full1/baseline",
+   "rec_query": "capital turkey",
+   "query_fidelity": true,
+   "before": {
+    "query": "capital turkey",
+    "question": "What's the capital of Canada actually make that turkey",
+    "sources": [
+     "Capital punishment in Turkey",
+     "Capital Express (Turkey)",
+     "Outline of Turkey",
+     "Capital Express"
+    ],
+    "answer": "The sources don't name Turkey's capital directly, but they show Ankara is the capital, since the Capital Express ran between Istanbul and Ankara [2]. Turkey is a unitary constitutional republic founded in 1923 under Atatürk [3].",
+    "correct": true,
+    "non_answer": true
+   },
+   "after": {
+    "query": "capital turkey",
+    "entity": "turkey",
+    "question": "What's the capital of turkey",
+    "sources": [
+     "Capital punishment in Turkey",
+     "Capital Express (Turkey)",
+     "Outline of Turkey",
+     "Capital Express",
+     "Turkey"
+    ],
+    "answer": "Ankara is the capital of Turkey, and it is the country's second-largest city after Istanbul [5].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q29",
+   "text": "who founded Microsoft, sorry, I meant Amazon",
+   "heard": "Who founded Microsoft? Sorry. I met Amazon",
+   "expect": [
+    "bezos"
+   ],
+   "seen_in": "ab_full1/baseline",
+   "rec_query": "founded met amazon",
+   "query_fidelity": false,
+   "before": {
+    "query": "founded amazon",
+    "question": "Who founded Microsoft Sorry I met Amazon",
+    "sources": [
+     "Amazon River",
+     "Amazon rainforest",
+     "Amazon MGM Studios",
+     "History of Amazon"
+    ],
+    "answer": "The sources don't cover Microsoft, but they do say Amazon was founded by Jeff Bezos from his garage in Bellevue, Washington, on July 5, 1994 [4].",
+    "correct": true,
+    "non_answer": true
+   },
+   "after": {
+    "query": "founded amazon",
+    "entity": "amazon",
+    "question": "Who founded Amazon",
+    "sources": [
+     "Amazon River",
+     "Amazon rainforest",
+     "Amazon MGM Studios",
+     "History of Amazon",
+     "Amazon"
+    ],
+    "answer": "Amazon was founded by Jeff Bezos from his garage in Bellevue, Washington, on July 5, 1994 [4].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q30",
+   "text": "where was Mozart born, actually make that Beethoven",
+   "heard": "Where was Mozart born actually make that Beethoven",
+   "expect": [
+    "bonn"
+   ],
+   "seen_in": "ab_full1/headstart",
+   "rec_query": "mozart beethoven",
+   "query_fidelity": true,
+   "before": {
+    "query": "mozart beethoven",
+    "question": "Where was Mozart born actually make that Beethoven",
+    "sources": [
+     "Beethoven and Mozart",
+     "The Genius of Vivaldi, Mozart, Beethoven",
+     "Beethoven–Haydn–Mozart Memorial",
+     "The Classical Style"
+    ],
+    "answer": "The sources don't say where Beethoven was born. They only give his dates, 1770 to 1827, and his influence and relationship with Mozart [1].",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "born beethoven",
+    "entity": "beethoven",
+    "question": "Where was born Beethoven",
+    "sources": [
+     "Beethoven House",
+     "Johann van Beethoven",
+     "Ludwig van Beethoven the Elder",
+     "Ludwig van Beethoven"
+    ],
+    "answer": "Ludwig van Beethoven was born in Bonn, Germany [4]. His birthplace at Bonngasse 20 now houses the Beethoven-Haus museum [1].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q31",
+   "text": "what river runs through Paris, sorry, I mean London",
+   "heard": "What river runs through Paris, Sari, I mean London",
+   "expect": [
+    "thames"
+   ],
+   "seen_in": "ab_full1/headstart",
+   "rec_query": "river runs through paris london",
+   "query_fidelity": true,
+   "before": {
+    "query": "river runs through paris london",
+    "question": "What river runs through Paris, Sari, I mean London",
+    "sources": [
+     "Paris Marathon",
+     "Subterranean river",
+     "Transport in London",
+     "Walking in London"
+    ],
+    "answer": "The sources don't name a river running through London. They do note that the Paris Marathon finishes near the River Seine, which flows through Paris, and that London's walks include access to the River Thames [4].",
+    "correct": true,
+    "non_answer": true
+   },
+   "after": {
+    "query": "river runs through london",
+    "entity": "london",
+    "question": "What river runs through London",
+    "sources": [
+     "Upper Thames River Conservation Authority",
+     "Moselle Brook",
+     "Barnes, London",
+     "New River (London)",
+     "London"
+    ],
+    "answer": "The River Thames runs through London, flowing through the city from southeast England down to the North Sea [5]. Sources also mention the Thames as a watershed in Ontario, but the London in question is the English capital.",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q33",
+   "text": "who was the first president of France, no wait, of the United States",
+   "heard": "Who was the first president of France, no weight of the United States",
+   "expect": [
+    "washington"
+   ],
+   "seen_in": "ab_full1/baseline",
+   "rec_query": "first president france weight united states",
+   "query_fidelity": false,
+   "before": {
+    "query": "first president united states",
+    "question": "Who was the first president of France, no weight of the United States",
+    "sources": [
+     "President of the United States",
+     "Vice President–elect of the United States",
+     "Vice President of the United States",
+     "First Lady of the United States"
+    ],
+    "answer": "The sources don't name the first president of France, but they do say George Washington was the first president of the United States, taking office in 1789 [1].",
+    "correct": true,
+    "non_answer": true
+   },
+   "after": {
+    "query": "first president united states",
+    "entity": "united states",
+    "question": "Who was the first president of of the United States",
+    "sources": [
+     "President of the United States",
+     "Vice President–elect of the United States",
+     "Vice President of the United States",
+     "First Lady of the United States",
+     "United States"
+    ],
+    "answer": "George Washington was the first president of the United States, taking office in 1789 [1].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q41",
+   "text": "what is the longest river in Africa",
+   "heard": "What is the longest river in Africa",
+   "expect": [
+    "nile"
+   ],
+   "seen_in": "ab_full1/baseline",
+   "rec_query": "longest river africa",
+   "query_fidelity": true,
+   "before": {
+    "query": "longest river africa",
+    "question": "What is the longest river in Africa",
+    "sources": [
+     "List of river systems by length",
+     "Niger River",
+     "Congo River",
+     "Cavalla River"
+    ],
+    "answer": "The longest river in Africa is the Nile, which is longer than the Congo and Niger rivers. The sources don't directly state the Nile's length, though the Congo is described as the second-longest, shorter only than the Nile [3].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "longest river africa",
+    "entity": "africa",
+    "question": "What is the longest river in Africa",
+    "sources": [
+     "List of river systems by length",
+     "Niger River",
+     "Congo River",
+     "Cavalla River",
+     "Africa"
+    ],
+    "answer": "The longest river in Africa is the Nile, which is longer than both the Congo and the Niger [3][2]. The Cavalla, at 515 kilometres, is only the longest river in Liberia [4].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q42",
+   "text": "where is the headquarters of Toyota",
+   "heard": "Where is the headquarters of Toyota",
+   "expect": [
+    "aichi|toyota city"
+   ],
+   "seen_in": "ab_full1/headstart",
+   "rec_query": "headquarters toyota",
+   "query_fidelity": true,
+   "before": {
+    "query": "headquarters toyota",
+    "question": "Where is the headquarters of Toyota",
+    "sources": [
+     "Toyota Motor Sales, USA",
+     "Toyota, Aichi",
+     "Toyota Stadium (Japan)",
+     "Toyota Motor North America"
+    ],
+    "answer": "Toyota Motor North America is headquartered in Plano, Texas [4]. Its U.S. sales subsidiary, Toyota Motor Sales, USA, moved its headquarters there in spring 2017 from Torrance, California [1].",
+    "correct": false,
+    "non_answer": false
+   },
+   "after": {
+    "query": "headquarters toyota",
+    "entity": "toyota",
+    "question": "Where is the headquarters of Toyota",
+    "sources": [
+     "Toyota Motor Sales, USA",
+     "Toyota, Aichi",
+     "Toyota Stadium (Japan)",
+     "Toyota Motor North America",
+     "Toyota"
+    ],
+    "answer": "Toyota Motor Corporation is headquartered in Toyota City, Aichi, Japan [5]. Its North American operating subsidiary, Toyota Motor North America, is based in Plano, Texas [4].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q29",
+   "text": "who founded Microsoft, sorry, I meant Amazon",
+   "heard": "Who founded Microsoft Sorry I met Amazon",
+   "expect": [
+    "bezos"
+   ],
+   "seen_in": "ab_full3/baseline",
+   "rec_query": "founded amazon",
+   "query_fidelity": true,
+   "before": {
+    "query": "founded amazon",
+    "question": "Who founded Microsoft Sorry I met Amazon",
+    "sources": [
+     "Amazon River",
+     "Amazon rainforest",
+     "Amazon MGM Studios",
+     "History of Amazon"
+    ],
+    "answer": "The question seems to concern Amazon: it was founded by Jeff Bezos from his garage in Bellevue, Washington, on July 5, 1994 [4]. The sources don't cover Microsoft's founders.",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "founded amazon",
+    "entity": "amazon",
+    "question": "Who founded Amazon",
+    "sources": [
+     "Amazon River",
+     "Amazon rainforest",
+     "Amazon MGM Studios",
+     "History of Amazon",
+     "Amazon"
+    ],
+    "answer": "Amazon was founded by Jeff Bezos from his garage in Bellevue, Washington, on July 5, 1994. [4]",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q01",
+   "text": "who founded the company Nvidia",
+   "heard": "who founded the company and video",
+   "expect": [
+    "jensen",
+    "huang"
+   ],
+   "seen_in": "ab_snr20/baseline",
+   "rec_query": "founded company video",
+   "query_fidelity": true,
+   "before": {
+    "query": "founded company video",
+    "question": "who founded the company and video",
+    "sources": [
+     "SVS/Triumph Home Video",
+     "United Video",
+     "Toka (company)",
+     "Noise (video game company)"
+    ],
+    "answer": "The question is ambiguous, but the most prominent match is SVS/Triumph Home Video, which was founded in 1981 by John O'Donnell as Sony Video Software Operations [1]. Other companies in the results were founded by different people, such as Toka by Carlo Perconti and Lyes Belaidouni [3].",
+    "correct": false,
+    "non_answer": false
+   },
+   "after": {
+    "query": "founded company video",
+    "entity": "",
+    "question": "who founded the company and video",
+    "sources": [
+     "SVS/Triumph Home Video",
+     "United Video",
+     "Toka (company)",
+     "Noise (video game company)"
+    ],
+    "answer": "The question is ambiguous across these sources, so I'll take it as asking who founded SVS/Triumph Home Video. It was founded in 1981 as Sony Video Software Operations by John O'Donnell, a unit of Sony Consumer Products [1].",
+    "correct": false,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q04",
+   "text": "who painted the Mona Lisa",
+   "heard": "repainted the Mona Lysa",
+   "expect": [
+    "leonardo"
+   ],
+   "seen_in": "ab_snr20/headstart",
+   "rec_query": "repainted mona lysa",
+   "query_fidelity": true,
+   "before": {
+    "query": "repainted mona lysa",
+    "question": "repainted the Mona Lysa",
+    "sources": [],
+    "answer": "I couldn't find any sources on that. The Mona Lisa, painted by Leonardo da Vinci, has not been repainted by anyone, and it has hung in the Louvre since the early 1800s.",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "repainted mona lysa",
+    "entity": "mona lysa",
+    "question": "repainted the Mona Lysa",
+    "sources": [
+     "Loving Jezebel",
+     "Lussan, Gers"
+    ],
+    "answer": "The Mona Lisa was not repainted by anyone in the sources provided, and the sources don't cover it. The Mona Lisa was painted by Leonardo da Vinci in the early 16th century and hangs in the Louvre in Paris.",
+    "correct": true,
+    "non_answer": true
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q10",
+   "text": "who wrote the novel One Hundred Years of Solitude",
+   "heard": "To erode the novel 100 years of solitude",
+   "expect": [
+    "marquez"
+   ],
+   "seen_in": "ab_snr20/headstart",
+   "rec_query": "erode novel 100 years solitude",
+   "query_fidelity": true,
+   "before": {
+    "query": "erode novel 100 years solitude",
+    "question": "To erode the novel 100 years of solitude",
+    "sources": [
+     "Juana Maria",
+     "Sable Island",
+     "Llano Estacado",
+     "Cavite City"
+    ],
+    "answer": "The spoken question seems to be asking about One Hundred Years of Solitude, but none of the sources cover that novel or its author. The closest relevant source is about Juana Maria, the Lone Woman of San Nicolas Island, whose solitary story inspired Scott O'Dell's 1960 novel Island of the Blue Dolphins [1].",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "erode novel 100 years solitude",
+    "entity": "",
+    "question": "To erode the novel 100 years of solitude",
+    "sources": [
+     "Juana Maria",
+     "Sable Island",
+     "Llano Estacado",
+     "Cavite City"
+    ],
+    "answer": "The question seems to be about the novel One Hundred Years of Solitude, but the sources don't cover it. The novel was written by Colombian author Gabriel García Márquez and published in 1967.",
+    "correct": true,
+    "non_answer": true
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q11",
+   "text": "what is the chemical symbol for gold",
+   "heard": "What is the pinnacle single for gold",
+   "expect": [
+    "au"
+   ],
+   "seen_in": "ab_snr20/baseline",
+   "rec_query": "pinnacle single gold",
+   "query_fidelity": true,
+   "before": {
+    "query": "pinnacle single gold",
+    "question": "What is the pinnacle single for gold",
+    "sources": [
+     "Pinnacle vodka",
+     "Pinnacle (Las Vegas)",
+     "Pinnacles National Park",
+     "Gold Creek Dam"
+    ],
+    "answer": "I don't see a \"Pinnacle\" gold-related answer in these sources. The closest match is Pinnacles National Park in California, a protected area of eroded volcanic rock formations [3]. The Gold Creek Dam in Queensland, Australia is a separate water-supply dam [4].",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "pinnacle single gold",
+    "entity": "",
+    "question": "What is the pinnacle single for gold",
+    "sources": [
+     "Pinnacle vodka",
+     "Pinnacle (Las Vegas)",
+     "Pinnacles National Park",
+     "Gold Creek Dam"
+    ],
+    "answer": "The sources don't cover a \"Pinnacle\" gold single. Pinnacle is a vodka brand [1], a proposed Las Vegas condo hotel [2], and a California national park [3], so none matches.",
+    "correct": false,
+    "non_answer": true
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q18",
+   "text": "um, can you tell me who invented the telephone",
+   "heard": "Mm, can you tell me who invented the telephone",
+   "expect": [
+    "bell"
+   ],
+   "seen_in": "ab_snr20/headstart",
+   "rec_query": "mm invented telephone",
+   "query_fidelity": true,
+   "before": {
+    "query": "mm invented telephone",
+    "question": "Mm, can you tell me who invented the telephone",
+    "sources": [
+     "Phone connector (audio)",
+     "Audio headset",
+     "1927 in American television",
+     "Théâtrophone"
+    ],
+    "answer": "The sources don't name the inventor of the telephone. They do note that the phone connector was invented in the late 19th century for telephone switchboards [1], and that Clément Ader demonstrated an early telephonic system in Paris in 1881 [4].",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "invented telephone",
+    "entity": "",
+    "question": "Mm, can you tell me who invented the telephone",
+    "sources": [
+     "History of the telephone",
+     "The Telephone Cases",
+     "Reis telephone",
+     "Invention of the telephone"
+    ],
+    "answer": "Alexander Graham Bell is credited with the first telephone patent, granted in 1876 [1]. However, the invention was a culmination of work by several people, including Philipp Reis, who coined the word \"telephon\" [3][4].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q20",
+   "text": "hey, okay, so, who was the first person to walk on the moon",
+   "heard": "Hey, okay So who was the first person to walk on the moon",
+   "expect": [
+    "armstrong"
+   ],
+   "seen_in": "ab_snr20/baseline",
+   "rec_query": "first person walk moon",
+   "query_fidelity": true,
+   "before": {
+    "query": "first person walk moon",
+    "question": "Hey, okay So who was the first person to walk on the moon",
+    "sources": [
+     "A Walk on the Moon",
+     "List of Apollo astronauts",
+     "List of people who have flown to the Moon",
+     "List of species that have landed on the Moon"
+    ],
+    "answer": "The sources don't name the first person to walk on the Moon directly. They do say that twelve men walked on the lunar surface during six Apollo landing missions between December 1968 and December 1972 [2][3], and that Apollo 11 was the first Moon landing of 1969 [1].",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "first person walk moon",
+    "entity": "",
+    "question": "Hey, okay So who was the first person to walk on the moon",
+    "sources": [
+     "A Walk on the Moon",
+     "List of Apollo astronauts",
+     "List of people who have flown to the Moon",
+     "List of species that have landed on the Moon"
+    ],
+    "answer": "Neil Armstrong was the first person to walk on the Moon, during Apollo 11 in 1969. The sources here cover Apollo astronauts generally, but they don't name the first walker.",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q21",
+   "text": "I've always wanted to know, um, how many bones are there in the adult human body",
+   "heard": "Ivan was wanted to know how many phones are there in the adult human body",
+   "expect": [
+    "206"
+   ],
+   "seen_in": "ab_snr20/baseline",
+   "rec_query": "ivan wanted many phones adult human body",
+   "query_fidelity": true,
+   "before": {
+    "query": "ivan wanted many phones adult human body",
+    "question": "Ivan was wanted to know how many phones are there in the adult human body",
+    "sources": [
+     "Body of Proof season 3",
+     "Body swap appearances in media",
+     "Deus Ex: Human Revolution",
+     "Human rights in the United Arab Emirates"
+    ],
+    "answer": "The sources don't answer that. The closest related fact is that Body Swap stories, as in the 1972 novel Freaky Friday, feature two beings exchanging bodies [2].",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "ivan phones adult human body",
+    "entity": "ivan",
+    "question": "Ivan was wanted to know how many phones are there in the adult human body",
+    "sources": [
+     "Body of Proof season 3",
+     "Jack Frost (1964 film)",
+     "Body swap appearances in media",
+     "Deus Ex: Human Revolution",
+     "Ivan"
+    ],
+    "answer": "The sources don't cover phonemes or anatomy, so I can't cite a count from them. Adult humans have about 44 phonemes in English, though the total varies by language and is typically given as roughly 20 to 40 sounds for most languages. The human body has no \"phones\" in the sense of telephones, so the question most plausibly means the number of bones, which is 206 in an adult.",
+    "correct": true,
+    "non_answer": true
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q24",
+   "text": "um, I forget, who directed the movie Jaws",
+   "heard": "Um, I forget who directed the movie jewels",
+   "expect": [
+    "spielberg"
+   ],
+   "seen_in": "ab_snr20/headstart",
+   "rec_query": "directed movie jewels",
+   "query_fidelity": true,
+   "before": {
+    "query": "directed movie jewels",
+    "question": "Um, I forget who directed the movie jewels",
+    "sources": [
+     "The Family Jewels (film)",
+     "Run the Jewels",
+     "Jewels (miniseries)",
+     "Jewels of Brandenburg"
+    ],
+    "answer": "The 1992 NBC miniseries *Jewels* was directed by Roger Young [3]. If you meant the 1965 comedy *The Family Jewels*, Jerry Lewis directed it [1].",
+    "correct": false,
+    "non_answer": false
+   },
+   "after": {
+    "query": "directed movie jewels",
+    "entity": "",
+    "question": "Um, I forget who directed the movie jewels",
+    "sources": [
+     "The Family Jewels (film)",
+     "Run the Jewels",
+     "Jewels (miniseries)",
+     "Jewels of Brandenburg"
+    ],
+    "answer": "The 1992 miniseries \"Jewels\" was directed by Roger Young [3]. If you meant the 1965 comedy \"The Family Jewels,\" Jerry Lewis directed it [1].",
+    "correct": false,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q26",
+   "text": "who wrote Hamlet, sorry, I mean Pride and Prejudice",
+   "heard": "Ned, who wrote Hamlet, sorry, I mean pride and prejudice",
+   "expect": [
+    "austen"
+   ],
+   "seen_in": "ab_snr20/headstart",
+   "rec_query": "ned wrote pride prejudice",
+   "query_fidelity": true,
+   "before": {
+    "query": "ned wrote pride prejudice",
+    "question": "Ned, who wrote Hamlet, sorry, I mean pride and prejudice",
+    "sources": [
+     "Drew Forsythe",
+     "Carl Davis",
+     "Fag Rag",
+     "Hazell Dean"
+    ],
+    "answer": "Pride and Prejudice was written by Jane Austen, though the sources don't cover her. The sources do mention Carl Davis, who composed the music for the 1995 BBC Pride and Prejudice series [2], and Ned Rorem, who was an interviewee in Fag Rag [3].",
+    "correct": true,
+    "non_answer": true
+   },
+   "after": {
+    "query": "ned wrote pride prejudice",
+    "entity": "pride and prejudice",
+    "question": "Ned, who wrote pride and prejudice",
+    "sources": [
+     "Drew Forsythe",
+     "Carl Davis",
+     "Fag Rag",
+     "Hazell Dean",
+     "Pride and Prejudice"
+    ],
+    "answer": "Pride and Prejudice was written by English author Jane Austen [5]. The sources don't mention anyone named Ned as its author.",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q28",
+   "text": "when was Google founded, no wait, I mean Apple",
+   "heard": "When was Google founded No, wait I mean, Apple Five",
+   "expect": [
+    "1976"
+   ],
+   "seen_in": "ab_snr20/baseline",
+   "rec_query": "founded apple five",
+   "query_fidelity": true,
+   "before": {
+    "query": "founded apple five",
+    "question": "When was Google founded No, wait I mean, Apple Five",
+    "sources": [
+     "United States v. Ninety-Five Barrels Alleged Apple Cider Vinegar",
+     "Apple Corps",
+     "McIntosh (apple)",
+     "Apple A16"
+    ],
+    "answer": "The sources don't cover Google or Apple Inc.'s founding date. They do cover Apple Corps, the Beatles' British company founded in London in the 1960s, with its Apple Records division launched in 1968 [2].",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "founded apple five",
+    "entity": "apple five",
+    "question": "When was founded Apple Five",
+    "sources": [
+     "United States v. Ninety-Five Barrels Alleged Apple Cider Vinegar",
+     "Apple Corps",
+     "McIntosh (apple)",
+     "Apple A16"
+    ],
+    "answer": "Apple Corps, the Beatles' multimedia company, was founded in London in the 1960s [2]. The sources don't give a precise year, and the question most likely refers to Apple Computer, which was founded in 1976.",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q31",
+   "text": "what river runs through Paris, sorry, I mean London",
+   "heard": "What river runs through Paris, Sari, I mean, London",
+   "expect": [
+    "thames"
+   ],
+   "seen_in": "ab_snr20/baseline",
+   "rec_query": "river runs through paris london",
+   "query_fidelity": true,
+   "before": {
+    "query": "river runs through paris london",
+    "question": "What river runs through Paris, Sari, I mean, London",
+    "sources": [
+     "Paris Marathon",
+     "Subterranean river",
+     "Transport in London",
+     "Walking in London"
+    ],
+    "answer": "The River Thames runs through London. Sources mention it only in passing, noting that access to the Thames and its canals has improved for walkers [4]. The sources don't describe the Thames's full course.",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "river runs through london",
+    "entity": "london",
+    "question": "What river runs through London",
+    "sources": [
+     "Upper Thames River Conservation Authority",
+     "Moselle Brook",
+     "Barnes, London",
+     "New River (London)",
+     "London"
+    ],
+    "answer": "The River Thames runs through London, flowing through the city's centre and down to the North Sea [5]. Note that the Thames also runs through London, Ontario, where it is the Thames River [1].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q33",
+   "text": "who was the first president of France, no wait, of the United States",
+   "heard": "Who was the first president of France no way of United States",
+   "expect": [
+    "washington"
+   ],
+   "seen_in": "ab_snr20/baseline",
+   "rec_query": "first president france way united states",
+   "query_fidelity": true,
+   "before": {
+    "query": "first president france way united states",
+    "question": "Who was the first president of France no way of United States",
+    "sources": [
+     "France–United States relations",
+     "Vice President of the United States",
+     "African-American candidates for President of the United States",
+     "Powers of the president of the United States"
+    ],
+    "answer": "The sources don't name the first president of France or the first U.S. president, but they note France was the first country to have diplomatic ties with the United States, via the 1778 Treaty of Alliance [1]. The first U.S. president was not covered in these results.",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "first president united states",
+    "entity": "united states",
+    "question": "Who was the first president of of United States",
+    "sources": [
+     "President of the United States",
+     "Vice President–elect of the United States",
+     "Vice President of the United States",
+     "First Lady of the United States",
+     "United States"
+    ],
+    "answer": "The first president of the United States was George Washington, who took office in 1789 [1].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q08",
+   "text": "who was the first woman to win a Nobel Prize",
+   "heard": "Who was the first woman to win a Nobel Prize",
+   "expect": [
+    "curie"
+   ],
+   "seen_in": "ab_snr20_post/baseline",
+   "rec_query": "first woman win nobel prize",
+   "query_fidelity": true,
+   "before": {
+    "query": "first woman win nobel prize",
+    "question": "Who was the first woman to win a Nobel Prize",
+    "sources": [
+     "Nobel Memorial Prize in Economic Sciences",
+     "Nobel Prize in Physiology or Medicine",
+     "2009 Nobel Peace Prize",
+     "List of women Nobel laureates"
+    ],
+    "answer": "Marie Curie was the first woman to win a Nobel Prize, receiving the Physics prize in 1903 [4]. She later won the Chemistry prize in 1911, making her the only person honored twice in different sciences [4].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "first woman win nobel prize",
+    "entity": "nobel prize",
+    "question": "Who was the first woman to win a Nobel Prize",
+    "sources": [
+     "Nobel Memorial Prize in Economic Sciences",
+     "Nobel Prize in Physiology or Medicine",
+     "2009 Nobel Peace Prize",
+     "List of women Nobel laureates",
+     "Nobel Prize"
+    ],
+    "answer": "The first woman to win a Nobel Prize was Marie Curie, who was honored in Physics in 1903 [4]. She later won the Chemistry prize in 1911 [4].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q04",
+   "text": "who painted the Mona Lisa",
+   "heard": "complain to the Mona Lisa",
+   "expect": [
+    "leonardo"
+   ],
+   "seen_in": "ab_snr10/headstart",
+   "rec_query": "complain mona lisa",
+   "query_fidelity": true,
+   "before": {
+    "query": "complain mona lisa",
+    "question": "complain to the Mona Lisa",
+    "sources": [
+     "Phillips International Records",
+     "Masterpiece",
+     "Bernard and the Genie",
+     "Let's Go Fly a Coot"
+    ],
+    "answer": "The sources don't say anything about complaining to the Mona Lisa. The closest match is Carl Mann's 1959 hit \"Mona Lisa\" on Phillips International Records [1].",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "complain mona lisa",
+    "entity": "mona lisa",
+    "question": "complain to the Mona Lisa",
+    "sources": [
+     "Phillips International Records",
+     "Masterpiece",
+     "Bernard and the Genie",
+     "Let's Go Fly a Coot",
+     "Mona Lisa"
+    ],
+    "answer": "I can't find a way to complain to the Mona Lisa, since it's a painting held at the Louvre [5]. To complain about the museum's display or care of the work, you would contact the Louvre directly.",
+    "correct": false,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q05",
+   "text": "how tall is Mount Everest",
+   "heard": "What's how tall is Mount Deborah's",
+   "expect": [
+    "8849|8848|29032|29031|29029"
+   ],
+   "seen_in": "ab_snr10/baseline",
+   "rec_query": "tall mount deborah's",
+   "query_fidelity": true,
+   "before": {
+    "query": "tall mount deborah's",
+    "question": "What's how tall is Mount Deborah's",
+    "sources": [
+     "Deborah Sampson",
+     "Mount Sinai (Bible)",
+     "Mount Isa",
+     "Mount Rushmore"
+    ],
+    "answer": "The sources don't give the height of a \"Mount Deborah,\" which doesn't appear in them. The closest fact is that the Mount Rushmore sculpture's presidential heads are each 60 feet (18 m) tall [4].",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "tall mount deborah's",
+    "entity": "mount deborah's",
+    "question": "What's how tall is Mount Deborah's",
+    "sources": [
+     "Deborah Sampson",
+     "Mount Sinai (Bible)",
+     "Mount Isa",
+     "Mount Rushmore",
+     "Mount Deborah"
+    ],
+    "answer": "The sources don't give Mount Deborah's height. They only say its absolute elevation is low compared with other major North American peaks [5]. Its Northeast Face rises about 7,000 feet in roughly 1.5 miles [5].",
+    "correct": false,
+    "non_answer": true
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q06",
+   "text": "who discovered penicillin",
+   "heard": "I would have discovered Kennesaw",
+   "expect": [
+    "fleming"
+   ],
+   "seen_in": "ab_snr10/headstart",
+   "rec_query": "have discovered kennesaw",
+   "query_fidelity": true,
+   "before": {
+    "query": "have discovered kennesaw",
+    "question": "I would have discovered Kennesaw",
+    "sources": [
+     "Kennesaw Mountain National Battlefield Park",
+     "The General (locomotive)",
+     "Christina Jeffrey",
+     "Benjamin F. Cheatham"
+    ],
+    "answer": "The question is unclear, but Kennesaw Mountain National Battlefield Park, at 900 Kennesaw Mountain Drive between Marietta and Kennesaw, Georgia, preserves a Civil War battleground of the Atlanta campaign [1]. The name Kennesaw comes from a Cherokee word meaning \"cemetery\" or burial ground [1].",
+    "correct": false,
+    "non_answer": false
+   },
+   "after": {
+    "query": "discovered kennesaw",
+    "entity": "kennesaw",
+    "question": "I would have discovered Kennesaw",
+    "sources": [
+     "Kennesaw Mountain National Battlefield Park",
+     "85th Indiana Infantry Regiment",
+     "Christina Jeffrey",
+     "23rd Kentucky Infantry Regiment",
+     "Kennesaw, Georgia"
+    ],
+    "answer": "The question is likely \"Where is Kennesaw?\" or \"How did Kennesaw get its name?\" The sources best support the location: Kennesaw is a suburban city northwest of Atlanta in Cobb County, Georgia [5]. The name derives from a Cherokee word meaning \"cemetery\" or burial ground [1].",
+    "correct": false,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q07",
+   "text": "what year did the Berlin Wall fall",
+   "heard": "what's the new yoga for from rental hall",
+   "expect": [
+    "1989"
+   ],
+   "seen_in": "ab_snr10/baseline",
+   "rec_query": "new yoga rental hall",
+   "query_fidelity": true,
+   "before": {
+    "query": "new yoga rental hall",
+    "question": "what's the new yoga for from rental hall",
+    "sources": [
+     "New Dance Group",
+     "Halse, Somerset",
+     "Krumpendorf am Wörthersee",
+     "Renaldo and Clara"
+    ],
+    "answer": "The question most plausibly means \"What is New York City's New Dance Group?\" The sources say New Dance Group, or NDG, is a performing arts organization in New York City [1].",
+    "correct": false,
+    "non_answer": false
+   },
+   "after": {
+    "query": "new yoga rental hall",
+    "entity": "rental hall",
+    "question": "what's the new yoga for from rental hall",
+    "sources": [
+     "New Dance Group",
+     "Halse, Somerset",
+     "Krumpendorf am Wörthersee",
+     "Renaldo and Clara",
+     "Equipment rental"
+    ],
+    "answer": "The question seems to ask about \"New Dance Group\" (likely meant \"New Dance Group\" from \"New Yoga... from rental hall\"). The sources don't cover yoga, but New Dance Group is a performing arts organization in New York City [1]. Its exact connection to a rental hall isn't covered by the sources.",
+    "correct": false,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q11",
+   "text": "what is the chemical symbol for gold",
+   "heard": "What is the chemical symbol to go of",
+   "expect": [
+    "au"
+   ],
+   "seen_in": "ab_snr10/baseline",
+   "rec_query": "chemical symbol go",
+   "query_fidelity": true,
+   "before": {
+    "query": "chemical symbol go",
+    "question": "What is the chemical symbol to go of",
+    "sources": [
+     "Chemical formula",
+     "Chemical hazard",
+     "Chemical plant",
+     "Term symbol"
+    ],
+    "answer": "The sources don't give the chemical symbol for any particular element, but they explain that element symbols are the letters used to represent each chemical element in a formula [1]. For example, butane's molecular formula is C4H10, using the symbols C for carbon and H for hydrogen [1].",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "chemical symbol go",
+    "entity": "",
+    "question": "What is the chemical symbol to go of",
+    "sources": [
+     "Chemical formula",
+     "Chemical hazard",
+     "Chemical plant",
+     "Term symbol"
+    ],
+    "answer": "The chemical symbol for gold is Au, from its Latin name aurum. The sources don't cover this, so this answer comes from general knowledge.",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q12",
+   "text": "Python, the programming language, who created it",
+   "heard": "Python, the programming language you created",
+   "expect": [
+    "guido"
+   ],
+   "seen_in": "ab_snr10/headstart",
+   "rec_query": "python programming language created",
+   "query_fidelity": true,
+   "before": {
+    "query": "python programming language created",
+    "question": "Python, the programming language you created",
+    "sources": [
+     "Python (programming language)",
+     "Outline of the Python programming language",
+     "Programming language design and implementation",
+     "General-purpose programming language"
+    ],
+    "answer": "Python wasn't created by me; it was created by Guido van Rossum, who began working on it in the late 1980s and first released it in 1991 [1][2]. It's a general-purpose language known for its readable code [1].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "python programming language created",
+    "entity": "",
+    "question": "Python, the programming language you created",
+    "sources": [
+     "Python (programming language)",
+     "Outline of the Python programming language",
+     "Programming language design and implementation",
+     "General-purpose programming language"
+    ],
+    "answer": "You didn't create Python; Guido van Rossum did. He began working on it in the late 1980s and first released it in 1991 [1][2].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q13",
+   "text": "the Great Wall of China, which dynasty built most of it",
+   "heard": "the great wallet chime, which Dynasty built most of it now",
+   "expect": [
+    "ming"
+   ],
+   "seen_in": "ab_snr10/baseline",
+   "rec_query": "great wallet chime dynasty built most",
+   "query_fidelity": true,
+   "before": {
+    "query": "great wallet chime dynasty built most",
+    "question": "the great wallet chime, which Dynasty built most of it now",
+    "sources": [
+     "Gucci",
+     "Tony Benn"
+    ],
+    "answer": "The Great Wall of China was built mostly during the Ming Dynasty, though the sources provided here don't cover it. They focus on Gucci and Tony Benn, so I can't cite them for this question.",
+    "correct": true,
+    "non_answer": true
+   },
+   "after": {
+    "query": "great wallet chime dynasty built most",
+    "entity": "dynasty",
+    "question": "the great wallet chime, which Dynasty built most of it now",
+    "sources": [
+     "Gucci",
+     "Tony Benn",
+     "Dynasty",
+     "Nineteenth Dynasty of Egypt"
+    ],
+    "answer": "The Great Wall of China was built mostly under the Ming Dynasty, though earlier dynasties began it. The sources provided don't cover this, so this answer comes from general knowledge.",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q16",
+   "text": "Shakespeare, what year was he born",
+   "heard": "I think she'll be a ruttier with you, Barnard",
+   "expect": [
+    "1564"
+   ],
+   "seen_in": "ab_snr10/headstart",
+   "rec_query": "she'll ruttier barnard",
+   "query_fidelity": true,
+   "before": {
+    "query": "she'll ruttier barnard",
+    "question": "I think she'll be a ruttier with you, Barnard",
+    "sources": [],
+    "answer": "I couldn't find any sources for that question, and it isn't clear what you're asking. If you meant a specific person, show, or topic, try saying it again with a bit more detail.",
+    "correct": false,
+    "non_answer": false
+   },
+   "after": {
+    "query": "she'll ruttier barnard",
+    "entity": "barnard",
+    "question": "I think she'll be a ruttier with you, Barnard",
+    "sources": [
+     "Barnard",
+     "Barnard College"
+    ],
+    "answer": "The sources don't cover that. Barnard is a surname meaning \"as tough as a bear\" [1], and Barnard College is a women's college affiliated with Columbia University in New York City [2].",
+    "correct": false,
+    "non_answer": true
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q18",
+   "text": "um, can you tell me who invented the telephone",
+   "heard": "Mm-hmm What do you mean I don't know I don't know I don't know",
+   "expect": [
+    "bell"
+   ],
+   "seen_in": "ab_snr10/headstart",
+   "rec_query": "mm-hmm mean don't",
+   "query_fidelity": true,
+   "before": {
+    "query": "mm-hmm mean don't",
+    "question": "Mm-hmm What do you mean I don't know I don't know I don't know",
+    "sources": [
+     "Yes and no",
+     "Vision of Love",
+     "List of atheists (miscellaneous)",
+     "Lin-Manuel Miranda"
+    ],
+    "answer": "The sources don't address what you're asking about. They cover yes and no word systems across languages, Mariah Carey's song \"Vision of Love,\" a list of atheists, and Lin-Manuel Miranda's career [1][2][3][4]. If you can tell me what you meant, I can search for that.",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "mean",
+    "entity": "",
+    "question": "Mm-hmm What do you mean I don't know I don't know I don't know",
+    "sources": [
+     "Average",
+     "Mean (disambiguation)",
+     "Geometric mean",
+     "Generalized mean"
+    ],
+    "answer": "The question is unclear, so I can't answer it from these sources. In mathematics, \"mean\" usually refers to an average, such as the arithmetic mean, which sums values and divides by their count [1][3].",
+    "correct": false,
+    "non_answer": true
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q20",
+   "text": "hey, okay, so, who was the first person to walk on the moon",
+   "heard": "What a game Okay So what's the first person to walk on the moon",
+   "expect": [
+    "armstrong"
+   ],
+   "seen_in": "ab_snr10/headstart",
+   "rec_query": "game first person walk moon",
+   "query_fidelity": true,
+   "before": {
+    "query": "game first person walk moon",
+    "question": "What a game Okay So what's the first person to walk on the moon",
+    "sources": [
+     "The Midnight Walk",
+     "The Game Caterers",
+     "Moon Girl And Devil Dinosaur",
+     "Xenocide (video game)"
+    ],
+    "answer": "The sources don't cover the first moon walk. The closest match is The Midnight Walk, an adventure game released on PlayStation 5 and Windows in May 2025 [1]. Neil Armstrong is the first person to walk on the Moon, in 1969, as part of NASA's Apollo 11 mission.",
+    "correct": true,
+    "non_answer": true
+   },
+   "after": {
+    "query": "game first person walk moon",
+    "entity": "",
+    "question": "What a game Okay So what's the first person to walk on the moon",
+    "sources": [
+     "The Midnight Walk",
+     "The Game Caterers",
+     "Moon Girl And Devil Dinosaur",
+     "Xenocide (video game)"
+    ],
+    "answer": "The first person to walk on the Moon was Neil Armstrong, who stepped onto its surface on July 20, 1969, during the Apollo 11 mission. The sources provided don't cover this, but it's a well-established fact.",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q21",
+   "text": "I've always wanted to know, um, how many bones are there in the adult human body",
+   "heard": "Ivan was wanting to know how many phones are there in the adult human body",
+   "expect": [
+    "206"
+   ],
+   "seen_in": "ab_snr10/baseline",
+   "rec_query": "ivan wanting many phones adult human body",
+   "query_fidelity": true,
+   "before": {
+    "query": "ivan wanting many phones adult human body",
+    "question": "Ivan was wanting to know how many phones are there in the adult human body",
+    "sources": [
+     "Deus Ex: Human Revolution",
+     "Psychology",
+     "List of common misconceptions about science, technology, and mathematics",
+     "Reward theory of attraction"
+    ],
+    "answer": "The sources don't address how many phones are in the adult human body; \"phones\" here most likely refers to phonemes, and the sources don't cover that either. None of the provided sources mention the number of phones or phonemes in human speech.",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "ivan phones adult human body",
+    "entity": "ivan",
+    "question": "Ivan was wanting to know how many phones are there in the adult human body",
+    "sources": [
+     "Body of Proof season 3",
+     "Jack Frost (1964 film)",
+     "Body swap appearances in media",
+     "Deus Ex: Human Revolution",
+     "Ivan"
+    ],
+    "answer": "The sources don't cover phones in the human body. Ivan's name means \"God is gracious\" and is common in Russia and Ukraine [5], but the number of phonemes or speech sounds isn't addressed here. The human body has no phones (telephones) at all.",
+    "correct": false,
+    "non_answer": true
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q24",
+   "text": "um, I forget, who directed the movie Jaws",
+   "heard": "Uh, I forget who's erected the movie jewels",
+   "expect": [
+    "spielberg"
+   ],
+   "seen_in": "ab_snr10/headstart",
+   "rec_query": "erected movie jewels",
+   "query_fidelity": true,
+   "before": {
+    "query": "erected movie jewels",
+    "question": "Uh, I forget who's erected the movie jewels",
+    "sources": [
+     "Someone at the Door (1950 film)",
+     "Forbidden (1919 film)",
+     "Moonlight Rollerway",
+     "Pathemari"
+    ],
+    "answer": "The film was advertised as a Universal-Jewel production, so the answer is the Universal Film Manufacturing Company, which produced and distributed the 1919 silent drama Forbidden [2].",
+    "correct": false,
+    "non_answer": false
+   },
+   "after": {
+    "query": "erected movie jewels",
+    "entity": "",
+    "question": "Uh, I forget who's erected the movie jewels",
+    "sources": [
+     "Someone at the Door (1950 film)",
+     "Forbidden (1919 film)",
+     "Moonlight Rollerway",
+     "Pathemari"
+    ],
+    "answer": "The film was advertised as a Universal-Jewel production [2]. Its production company was the Universal Film Manufacturing Company [2]. The question's \"erected\" is likely \"directed,\" so I'll note that Forbidden was directed by Lois Weber and Phillips Smalley [2].",
+    "correct": false,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q26",
+   "text": "who wrote Hamlet, sorry, I mean Pride and Prejudice",
+   "heard": "Netly wrote Hamlet I'm sorry I mean pride and prejudice",
+   "expect": [
+    "austen"
+   ],
+   "seen_in": "ab_snr10/headstart",
+   "rec_query": "netly wrote hamlet pride prejudice",
+   "query_fidelity": true,
+   "before": {
+    "query": "netly wrote hamlet pride prejudice",
+    "question": "Netly wrote Hamlet I'm sorry I mean pride and prejudice",
+    "sources": [
+     "Drew Forsythe",
+     "Percy Waram",
+     "Colin Firth",
+     "LGBTQ history in New York"
+    ],
+    "answer": "Percy Waram appeared in Pride and Prejudice [2]. He was a British-born stage and film actor who spent much of his career in the United States. The sources don't say who wrote Pride and Prejudice or Hamlet.",
+    "correct": false,
+    "non_answer": false
+   },
+   "after": {
+    "query": "netly wrote pride prejudice",
+    "entity": "pride and prejudice",
+    "question": "Netly wrote I'm pride and prejudice",
+    "sources": [
+     "Pride & Prejudice (2005 film)",
+     "Pride and Prejudice (1995 TV series)",
+     "Prejudice",
+     "The Lion King II: Simba's Pride",
+     "Pride and Prejudice"
+    ],
+    "answer": "The user likely meant \"Nightly\" or \"Netflix\"... no, more plausibly \"Netflix\"? The question \"Netly wrote I'm pride and prejudice\" most plausibly means \"Who wrote Pride and Prejudice?\" Sources say Jane Austen wrote the 1813 novel. Answer: Jane Austen wrote Pride and Prejudice, published in 1813 [5].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q28",
+   "text": "when was Google founded, no wait, I mean Apple",
+   "heard": "When was Google founded No way I mean, Apple Michael",
+   "expect": [
+    "1976"
+   ],
+   "seen_in": "ab_snr10/headstart",
+   "rec_query": "founded way apple michael",
+   "query_fidelity": true,
+   "before": {
+    "query": "founded way apple michael",
+    "question": "When was Google founded No way I mean, Apple Michael",
+    "sources": [
+     "Apple community",
+     "Apple Desktop Bus",
+     "Apple Inc.",
+     "Apple"
+    ],
+    "answer": "The sources don't say when Google was founded. They do cover Apple: it was founded in 1976 by Steve Jobs, Steve Wozniak and Ronald Wayne [3].",
+    "correct": true,
+    "non_answer": true
+   },
+   "after": {
+    "query": "founded apple michael",
+    "entity": "apple michael",
+    "question": "When was founded Apple Michael",
+    "sources": [
+     "Michael Scott (Apple)",
+     "Outline of Apple Inc.",
+     "Apple Comics",
+     "Apple community",
+     "Michael Apple"
+    ],
+    "answer": "Apple Inc. was founded as Apple Computer Company on April 1, 1976 [2]. The question likely refers to Michael Scott's Apple, but the sources don't give a founding date for that; Michael Scott became Apple's first CEO in 1977 [1].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q30",
+   "text": "where was Mozart born, actually make that Beethoven",
+   "heard": "Where was Mozart born Actually, make that date happen",
+   "expect": [
+    "bonn"
+   ],
+   "seen_in": "ab_snr10/headstart",
+   "rec_query": "mozart date happen",
+   "query_fidelity": true,
+   "before": {
+    "query": "mozart date happen",
+    "question": "Where was Mozart born Actually, make that date happen",
+    "sources": [
+     "Symphony No. 40 (Mozart)",
+     "Maria Anna Mozart",
+     "Symphony No. 38 (Mozart)",
+     "Mozart family grand tour"
+    ],
+    "answer": "The sources don't state where or when Mozart was born. They do say he composed his Symphony No. 40 in G minor in 1788 [1] and his Symphony No. 38, the Prague Symphony, in late 1786 [3].",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "born date happen",
+    "entity": "date happen",
+    "question": "Where was born date happen",
+    "sources": [
+     "Raj Date",
+     "It Should Happen to You",
+     "Dating",
+     "Dating creation",
+     "Let It Happen"
+    ],
+    "answer": "Raj Date was born on March 31, 1971, in the United States, as he is described as an American businessman [1]. The sources do not give his birthplace more specifically than that.",
+    "correct": false,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q31",
+   "text": "what river runs through Paris, sorry, I mean London",
+   "heard": "What river runs on Paris, Sari, I mean, London",
+   "expect": [
+    "thames"
+   ],
+   "seen_in": "ab_snr10/baseline",
+   "rec_query": "river runs paris london",
+   "query_fidelity": true,
+   "before": {
+    "query": "river runs paris london",
+    "question": "What river runs on Paris, Sari, I mean, London",
+    "sources": [
+     "Paris Marathon",
+     "Transport in London",
+     "Subterranean river",
+     "Stone run"
+    ],
+    "answer": "The sources don't name a river running through London. The Thames is the main river through London and Paris's river is the Seine, which [1] mentions as the marathon route along the River Seine.",
+    "correct": true,
+    "non_answer": true
+   },
+   "after": {
+    "query": "river runs london",
+    "entity": "london",
+    "question": "What river runs on London",
+    "sources": [
+     "Barnes, London",
+     "Moselle Brook",
+     "New River (London)",
+     "Wraysbury River",
+     "London"
+    ],
+    "answer": "The River Thames runs through London, standing on its banks at the head of a 50-mile tidal estuary down to the North Sea [5]. Several smaller waterways also flow through the city, including the Moselle Brook, a tributary of the Lea [2].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q32",
+   "text": "what currency does Japan use, scratch that, Switzerland",
+   "heard": "Look current he does Japan use Scratch that switzerland",
+   "expect": [
+    "franc"
+   ],
+   "seen_in": "ab_snr10/headstart",
+   "rec_query": "current japan use switzerland",
+   "query_fidelity": true,
+   "before": {
+    "query": "current japan use switzerland",
+    "question": "Look current he does Japan use Scratch that switzerland",
+    "sources": [
+     "Nuclear power in Switzerland",
+     "Trade policy of Switzerland",
+     "Politics of Switzerland",
+     "Switzerland women's national football team"
+    ],
+    "answer": "Switzerland's nuclear power provides about 37% of its electricity, with hydroelectric plants supplying 55% [1]. The sources don't cover Japan, so I can't say how Japan's electricity compares.",
+    "correct": false,
+    "non_answer": false
+   },
+   "after": {
+    "query": "current use switzerland",
+    "entity": "switzerland",
+    "question": "Look current he does use switzerland",
+    "sources": [
+     "Flag of Switzerland",
+     "Geography of Switzerland",
+     "Cartography of Switzerland",
+     "Swiss made",
+     "Switzerland"
+    ],
+    "answer": "The user seems to be asking about Switzerland's current status or its use of something. The question is unclear, but the most plausible reading is about Switzerland's geography: it is a landlocked country bordered by Germany, France, Austria, Liechtenstein, and Italy [5]. I'm not certain this is what you meant, so tell me if you had something else in mind.",
+    "correct": false,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q33",
+   "text": "who was the first president of France, no wait, of the United States",
+   "heard": "who was the first president of France, no late of United States",
+   "expect": [
+    "washington"
+   ],
+   "seen_in": "ab_snr10/baseline",
+   "rec_query": "first president france late united states",
+   "query_fidelity": true,
+   "before": {
+    "query": "first president france late united states",
+    "question": "who was the first president of France, no late of United States",
+    "sources": [
+     "France–United States relations",
+     "Vice President of the United States",
+     "United States military government in France",
+     "List of international trips made by presidents of the United States"
+    ],
+    "answer": "The first president of the United States was George Washington, but the sources don't name a first French president. France's first diplomatic ties with the U.S. date to the 1778 Treaty of Alliance, which helped secure American victory in the Revolutionary War [1].",
+    "correct": true,
+    "non_answer": true
+   },
+   "after": {
+    "query": "first president france late united states",
+    "entity": "united states",
+    "question": "who was the first president of France, no late of United States",
+    "sources": [
+     "France–United States relations",
+     "Vice President of the United States",
+     "United States military government in France",
+     "List of international trips made by presidents of the United States",
+     "United States"
+    ],
+    "answer": "The first president of the United States was George Washington. The sources cover French–American relations and the vice presidency, but not the first U.S. president, so this answer comes from general knowledge.",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q42",
+   "text": "where is the headquarters of Toyota",
+   "heard": "Where is the headquarter of Toyota",
+   "expect": [
+    "aichi|toyota city"
+   ],
+   "seen_in": "ab_snr10/headstart",
+   "rec_query": "headquarter toyota",
+   "query_fidelity": true,
+   "before": {
+    "query": "headquarter toyota",
+    "question": "Where is the headquarter of Toyota",
+    "sources": [
+     "Avenida Houston",
+     "Motorcar Museum of Japan",
+     "Bawal",
+     "Jelcz-Laskowice"
+    ],
+    "answer": "The sources don't include Toyota's headquarters. The closest related fact is that the Motorcar Museum of Japan is in Komatsu, Ishikawa [2].",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "headquarter toyota",
+    "entity": "toyota",
+    "question": "Where is the headquarter of Toyota",
+    "sources": [
+     "Avenida Houston",
+     "Motorcar Museum of Japan",
+     "Bawal",
+     "Jelcz-Laskowice",
+     "Toyota"
+    ],
+    "answer": "Toyota's headquarters is in Toyota City, Aichi, Japan. [5]",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q08",
+   "text": "who was the first woman to win a Nobel Prize",
+   "heard": "Who's the first woman to win a Nobel Prize",
+   "expect": [
+    "curie"
+   ],
+   "seen_in": "ab_rate_fast/baseline",
+   "rec_query": "first woman win nobel prize",
+   "query_fidelity": true,
+   "before": {
+    "query": "first woman win nobel prize",
+    "question": "Who's the first woman to win a Nobel Prize",
+    "sources": [
+     "Nobel Memorial Prize in Economic Sciences",
+     "Nobel Prize in Physiology or Medicine",
+     "2009 Nobel Peace Prize",
+     "List of women Nobel laureates"
+    ],
+    "answer": "Marie Curie was the first woman to win a Nobel Prize, receiving the Physics prize in 1903 [4]. The first Nobel Prize in Physiology or Medicine went to a man in 1901 [2], but the sources don't name the first woman in that category.",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "first woman win nobel prize",
+    "entity": "nobel prize",
+    "question": "Who's the first woman to win a Nobel Prize",
+    "sources": [
+     "Nobel Memorial Prize in Economic Sciences",
+     "Nobel Prize in Physiology or Medicine",
+     "2009 Nobel Peace Prize",
+     "List of women Nobel laureates",
+     "Nobel Prize"
+    ],
+    "answer": "Marie Curie was the first woman to win a Nobel Prize, honoured in Physics in 1903 and later in Chemistry in 1911 [4]. The first Nobel Prize in Physiology or Medicine went to Emil von Behring in 1901 [2].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q08",
+   "text": "who was the first woman to win a Nobel Prize",
+   "heard": "who is the first woman to win a Nobel Prize",
+   "expect": [
+    "curie"
+   ],
+   "seen_in": "ab_rate_fast/headstart",
+   "rec_query": "first woman win nobel prize",
+   "query_fidelity": true,
+   "before": {
+    "query": "first woman win nobel prize",
+    "question": "who is the first woman to win a Nobel Prize",
+    "sources": [
+     "Nobel Memorial Prize in Economic Sciences",
+     "Nobel Prize in Physiology or Medicine",
+     "2009 Nobel Peace Prize",
+     "List of women Nobel laureates"
+    ],
+    "answer": "The first woman to win a Nobel Prize was Marie Curie, honored in Physics in 1903 [4]. Sources don't name her as first in the Physiology or Medicine prize, though that list is cut off [2].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "first woman win nobel prize",
+    "entity": "nobel prize",
+    "question": "who is the first woman to win a Nobel Prize",
+    "sources": [
+     "Nobel Memorial Prize in Economic Sciences",
+     "Nobel Prize in Physiology or Medicine",
+     "2009 Nobel Peace Prize",
+     "List of women Nobel laureates",
+     "Nobel Prize"
+    ],
+    "answer": "The first woman to win a Nobel Prize was Marie Curie, who was honored in Physics in 1903 [4]. She later won a second Nobel, in Chemistry, in 1911 [4].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q12",
+   "text": "Python, the programming language, who created it",
+   "heard": "I found the programming language who created it",
+   "expect": [
+    "guido"
+   ],
+   "seen_in": "ab_rate_fast/headstart",
+   "rec_query": "found programming language created",
+   "query_fidelity": true,
+   "before": {
+    "query": "found programming language created",
+    "question": "I found the programming language who created it",
+    "sources": [
+     "Visual programming language",
+     "Programming language",
+     "Address programming language",
+     "FP (programming language)"
+    ],
+    "answer": "The source doesn't name a single programming language matching your question. Among the results, FP was created by John Backus [4], and Address was created by Kateryna Yushchenko in 1955 [3].",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "found programming language created",
+    "entity": "",
+    "question": "I found the programming language who created it",
+    "sources": [
+     "Visual programming language",
+     "Programming language",
+     "Address programming language",
+     "FP (programming language)"
+    ],
+    "answer": "The sources don't name the creator of a specific language you're thinking of. FP was created by John Backus [4], and the Address programming language was created by Kateryna Yushchenko in 1955 [3]. Which language did you mean?",
+    "correct": false,
+    "non_answer": true
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q29",
+   "text": "who founded Microsoft, sorry, I meant Amazon",
+   "heard": "Who founded Microsoft Sorry, I'm Ed Amazon",
+   "expect": [
+    "bezos"
+   ],
+   "seen_in": "ab_rate_fast/headstart",
+   "rec_query": "founded i'm ed amazon",
+   "query_fidelity": true,
+   "before": {
+    "query": "founded i'm ed amazon",
+    "question": "Who founded Microsoft Sorry, I'm Ed Amazon",
+    "sources": [
+     "Criticism of Amazon",
+     "I'm Not the Only One",
+     "X (Ed Sheeran album)",
+     "Ed Sheeran"
+    ],
+    "answer": "The sources don't say who founded Microsoft. The closest relevant fact: Amazon's founder isn't named here either, but Ed Sheeran is an English singer-songwriter whose albums \"+\" and \"x\" topped the UK charts [4][3].",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "founded ed amazon",
+    "entity": "ed amazon",
+    "question": "Who founded I'm Ed Amazon",
+    "sources": [
+     "Amazon River",
+     "Amazons",
+     "Amazon rainforest",
+     "Amazon statue types",
+     "Amazon Drive"
+    ],
+    "answer": "The sources don't cover who founded Amazon. Amazon was founded by Jeff Bezos in 1994 as an online bookstore in Seattle, and it is not related to the Amazon River or Amazon Drive.",
+    "correct": true,
+    "non_answer": true
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q08",
+   "text": "who was the first woman to win a Nobel Prize",
+   "heard": "Who was the first woman to win a no-belt prize",
+   "expect": [
+    "curie"
+   ],
+   "seen_in": "ab_rate_slow/baseline",
+   "rec_query": "first woman win no-belt prize",
+   "query_fidelity": true,
+   "before": {
+    "query": "first woman win no-belt prize",
+    "question": "Who was the first woman to win a no-belt prize",
+    "sources": [
+     "Lonsdale Belt",
+     "Wangarĩ Maathai",
+     "Turnip Prize",
+     "Ema Zajmović"
+    ],
+    "answer": "The sources don't show a \"no-belt prize\" winner, but the closest fact is that Ema Zajmović [4] became the first and only woman to win an open World Poker Tour Main Event.",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "first woman win no-belt prize",
+    "entity": "",
+    "question": "Who was the first woman to win a no-belt prize",
+    "sources": [
+     "Lonsdale Belt",
+     "Wangarĩ Maathai",
+     "Turnip Prize",
+     "Ema Zajmović"
+    ],
+    "answer": "The sources don't say who was the first woman to win a \"no-belt\" prize. The closest match is Ema Zajmović, who became the first and only woman to win an open World Poker Tour Main Event [4], though that's a poker title, not a prize without a belt.",
+    "correct": false,
+    "non_answer": true
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q25",
+   "text": "okay so my kid asked me this, and I didn't know, why is the sky blue",
+   "heard": "And I didn't know, why is the sky blue",
+   "expect": [
+    "scatter|scattering|scattered"
+   ],
+   "seen_in": "ab_rate_slow/baseline",
+   "rec_query": "didn't sky blue",
+   "query_fidelity": true,
+   "before": {
+    "query": "didn't sky blue",
+    "question": "And I didn't know, why is the sky blue",
+    "sources": [
+     "Mr. Blue Sky",
+     "Bullet the Blue Sky",
+     "Blue Clear Sky (song)",
+     "Lucy in the Sky"
+    ],
+    "answer": "The sources don't explain why the sky is blue. They only cover songs and a film with \"blue sky\" or \"sky\" in their titles, such as ELO's \"Mr. Blue Sky\" [1] and George Strait's \"Blue Clear Sky\" [3].",
+    "correct": false,
+    "non_answer": true
+   },
+   "after": {
+    "query": "sky blue",
+    "entity": "",
+    "question": "And I didn't know, why is the sky blue",
+    "sources": [
+     "Sky blue",
+     "Blue Sky",
+     "Sky Blue (disambiguation)",
+     "From the Land of the Sky-Blue Water"
+    ],
+    "answer": "The sky looks blue because molecules in the air scatter short blue wavelengths of sunlight much more strongly than longer red ones, a effect called Rayleigh scattering. The sources here cover only the colour name and don't explain why the sky is blue, so this answer comes from general knowledge.",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "wrong",
+   "id": "q29",
+   "text": "who founded Microsoft, sorry, I meant Amazon",
+   "heard": "Who founded Microsoft Sorry, I met Amazon",
+   "expect": [
+    "bezos"
+   ],
+   "seen_in": "ab_rate_slow/headstart",
+   "rec_query": "founded amazon",
+   "query_fidelity": true,
+   "before": {
+    "query": "founded amazon",
+    "question": "Who founded Microsoft Sorry, I met Amazon",
+    "sources": [
+     "Amazon River",
+     "Amazon rainforest",
+     "Amazon MGM Studios",
+     "History of Amazon"
+    ],
+    "answer": "Amazon was founded by Jeff Bezos from his garage in Bellevue, Washington, on July 5, 1994 [4]. The sources don't cover Microsoft's founders, but Amazon is the company they discuss.",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "founded amazon",
+    "entity": "amazon",
+    "question": "Who founded Amazon",
+    "sources": [
+     "Amazon River",
+     "Amazon rainforest",
+     "Amazon MGM Studios",
+     "History of Amazon",
+     "Amazon"
+    ],
+    "answer": "Amazon was founded by Jeff Bezos from his garage in Bellevue, Washington, on July 5, 1994 [4].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q01",
+   "text": "who founded the company Nvidia",
+   "heard": "who founded the company nvidia",
+   "expect": [
+    "jensen",
+    "huang"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "founded company nvidia",
+   "query_fidelity": true,
+   "before": {
+    "query": "founded company nvidia",
+    "question": "who founded the company nvidia",
+    "sources": "(live run)",
+    "answer": "Nvidia was founded in 1993 by Jensen Huang, Chris Malachowsky, and Curtis Priem [1].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "founded company nvidia",
+    "entity": "nvidia",
+    "question": "who founded the company nvidia",
+    "sources": [
+     "Nvidia",
+     "Mental Images",
+     "Nvidia Drive",
+     "Nvidia GTC",
+     "Nvidia RTX"
+    ],
+    "answer": "Nvidia was founded in 1993 by Jensen Huang, Chris Malachowsky, and Curtis Priem. [1]",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q02",
+   "text": "what is the capital of Australia",
+   "heard": "What is the capital of Australia",
+   "expect": [
+    "canberra"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "capital australia",
+   "query_fidelity": true,
+   "before": {
+    "query": "capital australia",
+    "question": "What is the capital of Australia",
+    "sources": "(live run)",
+    "answer": "The capital of Australia is Canberra, which sits within the Australian Capital Territory [1]. The territory was created in 1911 to serve as the seat of government for the Commonwealth [1].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "capital australia",
+    "entity": "australia",
+    "question": "What is the capital of Australia",
+    "sources": [
+     "Australian Capital Territory",
+     "Capital punishment in Australia",
+     "Australian rules football in the Australian Capital Territory",
+     "Chief Minister of the Australian Capital Territory",
+     "Australia"
+    ],
+    "answer": "Canberra is the capital of Australia [1]. It sits within the Australian Capital Territory, which was created to serve as the seat of government for the Commonwealth [1].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q03",
+   "text": "when did Apollo 11 land on the moon",
+   "heard": "When did Apollo 11 land on the moon",
+   "expect": [
+    "1969"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "apollo 11 land moon",
+   "query_fidelity": true,
+   "before": {
+    "query": "apollo 11 land moon",
+    "question": "When did Apollo 11 land on the moon",
+    "sources": "(live run)",
+    "answer": "Apollo 11 landed on the Moon on July 20, 1969, when Neil Armstrong and Buzz Aldrin touched down in the Lunar Module [3]. The mission launched on July 16 and the crew returned safely to Earth on July 24 [1][3].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "apollo 11 land moon",
+    "entity": "apollo 11",
+    "question": "When did Apollo 11 land on the moon",
+    "sources": [
+     "Apollo 11",
+     "Third-party evidence for Apollo Moon landings",
+     "Apollo program",
+     "Moon landing conspiracy theories",
+     "Apollo 11 (disambiguation)"
+    ],
+    "answer": "Apollo 11 landed on the Moon on July 20, 1969, with Neil Armstrong and Buzz Aldrin descending in the Lunar Module [3]. The mission launched July 16, 1969 [1].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q04",
+   "text": "who painted the Mona Lisa",
+   "heard": "who painted the mona lisa",
+   "expect": [
+    "leonardo"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "painted mona lisa",
+   "query_fidelity": true,
+   "before": {
+    "query": "painted mona lisa",
+    "question": "who painted the mona lisa",
+    "sources": "(live run)",
+    "answer": "Leonardo da Vinci painted the Mona Lisa, an Italian Renaissance portrait traditionally believed to depict Lisa del Giocondo [1]. It is now displayed at the Louvre in Paris [1].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "painted mona lisa",
+    "entity": "lisa",
+    "question": "who painted the mona lisa",
+    "sources": [
+     "Mona Lisa replicas and reinterpretations",
+     "Two–Mona Lisa theory",
+     "Mona Lisa",
+     "Mona Lisa (Prado)",
+     "Lisa"
+    ],
+    "answer": "Leonardo da Vinci painted the Mona Lisa, an oil portrait on a white poplar panel, believed to date from about 1503 to 1506, though he may have kept working on it until around 1517 [3]. Studio copies of it were made in his lifetime, some by his students [1][4].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q05",
+   "text": "how tall is Mount Everest",
+   "heard": "how tall is Mount Everest",
+   "expect": [
+    "8849|8848|29032|29031|29029"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "tall mount everest",
+   "query_fidelity": true,
+   "before": {
+    "query": "tall mount everest",
+    "question": "how tall is Mount Everest",
+    "sources": "(live run)",
+    "answer": "Mount Everest is 8,848.86 meters (29,031 feet) tall above sea level, making it the highest mountain on Earth [1][2]. Its height was most recently measured in 2020 by a joint Nepalese and Chinese survey [1].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "tall mount everest",
+    "entity": "mount everest",
+    "question": "how tall is Mount Everest",
+    "sources": [
+     "Mount Everest",
+     "Timeline of Mount Everest expeditions",
+     "Mount Everest in 2018",
+     "Expedition Everest",
+     "List of Mount Everest records"
+    ],
+    "answer": "Mount Everest is 8,848.86 meters tall, or about 29,031 feet, making it the highest mountain on Earth above sea level. Its height was most recently measured in 2020 by a joint Nepalese and Chinese survey [1][2].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q06",
+   "text": "who discovered penicillin",
+   "heard": "who discovered penicillin",
+   "expect": [
+    "fleming"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "discovered penicillin",
+   "query_fidelity": true,
+   "before": {
+    "query": "discovered penicillin",
+    "question": "who discovered penicillin",
+    "sources": "(live run)",
+    "answer": "Scottish physician Alexander Fleming discovered penicillin in 1928 at St Mary's Hospital in London, when he found that a Penicillium mould secreted an antibacterial substance [1][2]. Howard Florey's Oxford team later developed it for medical use [1].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "discovered penicillin",
+    "entity": "penicillin",
+    "question": "who discovered penicillin",
+    "sources": [
+     "Penicillin",
+     "Penicillin-binding proteins",
+     "History of penicillin",
+     "Discovery of penicillin"
+    ],
+    "answer": "Scottish physician Alexander Fleming discovered penicillin in 1928 at St Mary's Hospital in London, when he found that a Penicillium mould secreted an antibacterial substance [3][4]. Howard Florey's Oxford team later developed it for medical use [3].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q07",
+   "text": "what year did the Berlin Wall fall",
+   "heard": "what year did the Berlin Wall fall",
+   "expect": [
+    "1989"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "year berlin wall fall",
+   "query_fidelity": true,
+   "before": {
+    "query": "year berlin wall fall",
+    "question": "what year did the Berlin Wall fall",
+    "sources": "(live run)",
+    "answer": "The Berlin Wall fell in 1989, after a Politburo press conference on 9 November 1989 announced East Germans could travel freely, prompting crowds to cross the border [3]. The wall had stood since 1961 [1].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "year berlin wall fall",
+    "entity": "berlin wall",
+    "question": "what year did the Berlin Wall fall",
+    "sources": [
+     "Fall of the Berlin Wall",
+     "Berlin Wall",
+     "The Berlin Wall (video game)",
+     "The Wall – Live in Berlin"
+    ],
+    "answer": "The Berlin Wall fell in 1989, after a Politburo press conference on 9 November led to crowds gathering at the border crossings [1]. The wall had stood since 1961 [2].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q09",
+   "text": "what language is spoken in Brazil",
+   "heard": "what language is spoken in brazil",
+   "expect": [
+    "portuguese"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "language spoken brazil",
+   "query_fidelity": true,
+   "before": {
+    "query": "language spoken brazil",
+    "question": "what language is spoken in brazil",
+    "sources": "(live run)",
+    "answer": "Portuguese is the official and national language of Brazil, spoken by nearly all of its population [1]. Brazil also has over 200 indigenous languages and minority languages such as German, Italian, and Japanese [1].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "language spoken brazil",
+    "entity": "brazil",
+    "question": "what language is spoken in brazil",
+    "sources": [
+     "Languages of Brazil",
+     "Guajá language",
+     "Apalaí language",
+     "Saraveca language",
+     "Brazil"
+    ],
+    "answer": "Portuguese is the official and national language of Brazil, spoken by nearly all of its population [1][5]. Brazil also has over 200 indigenous languages and minority languages from immigrant communities [1].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q10",
+   "text": "who wrote the novel One Hundred Years of Solitude",
+   "heard": "who wrote the novel 100 years of solitude",
+   "expect": [
+    "marquez"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "wrote novel 100 years solitude",
+   "query_fidelity": true,
+   "before": {
+    "query": "wrote novel 100 years solitude",
+    "question": "who wrote the novel 100 years of solitude",
+    "sources": "(live run)",
+    "answer": "Gabriel García Márquez, the Colombian author, wrote *One Hundred Years of Solitude*, published in 1967 [1][3]. The novel is widely regarded as one of the supreme achievements in world literature [1].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "wrote novel 100 years solitude",
+    "entity": "",
+    "question": "who wrote the novel 100 years of solitude",
+    "sources": [
+     "One Hundred Years of Solitude (TV series)",
+     "One Hundred Years of Solitude",
+     "Natalia Santa",
+     "Gabriel García Márquez"
+    ],
+    "answer": "One Hundred Years of Solitude was written by Colombian author Gabriel García Márquez and first published in 1967 [2][4].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q11",
+   "text": "what is the chemical symbol for gold",
+   "heard": "What is the chemical symbol for gold",
+   "expect": [
+    "au"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "chemical symbol gold",
+   "query_fidelity": true,
+   "before": {
+    "query": "chemical symbol gold",
+    "question": "What is the chemical symbol for gold",
+    "sources": "(live run)",
+    "answer": "The chemical symbol for gold is Au, from its atomic number 79 element entry [1]. Element symbols like this are usually one or two Latin letters with the first capitalised [2].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "chemical symbol gold",
+    "entity": "",
+    "question": "What is the chemical symbol for gold",
+    "sources": [
+     "Chemical symbol",
+     "Gold (disambiguation)",
+     "Alchemical symbol",
+     "Chemical formula"
+    ],
+    "answer": "The chemical symbol for gold is Au, which comes from its Latin name, aurum. Gold's atomic number is 79. [2]",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q12",
+   "text": "Python, the programming language, who created it",
+   "heard": "Python, the programming language who created it",
+   "expect": [
+    "guido"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "python programming language created",
+   "query_fidelity": true,
+   "before": {
+    "query": "python programming language created",
+    "question": "Python, the programming language who created it",
+    "sources": "(live run)",
+    "answer": "Python was created by Guido van Rossum, who began work on it in December 1989 at CWI in the Netherlands [1][3]. It was named after the BBC show Monty Python's Flying Circus [1].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "python programming language created",
+    "entity": "",
+    "question": "Python, the programming language who created it",
+    "sources": [
+     "Python (programming language)",
+     "Outline of the Python programming language",
+     "Programming language design and implementation",
+     "General-purpose programming language"
+    ],
+    "answer": "Python was created by Guido van Rossum, who began working on it in the late 1980s and first released it in 1991. [1][2]",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q13",
+   "text": "the Great Wall of China, which dynasty built most of it",
+   "heard": "The Great Wall of China, which dynasty built most of it",
+   "expect": [
+    "ming"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "great wall china dynasty built most",
+   "query_fidelity": true,
+   "before": {
+    "query": "great wall china dynasty built most",
+    "question": "The Great Wall of China, which dynasty built most of it",
+    "sources": "(live run)",
+    "answer": "The Ming dynasty (1368–1644) built the best-known and most visible parts of the Great Wall [1][3]. Earlier walls date to the 7th century BC and were joined under the Qin dynasty [2][3].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "great wall china dynasty built most",
+    "entity": "",
+    "question": "The Great Wall of China, which dynasty built most of it",
+    "sources": [
+     "Great Wall of China",
+     "Ming Great Wall",
+     "History of the Great Wall of China",
+     "Miaojiang Great Wall"
+    ],
+    "answer": "The Ming dynasty built the best-known and most visible parts of the Great Wall, with its walls stretching about 8,850 km [2]. Earlier dynasties, including the Qin, began the wall system, which successive dynasties expanded [1][3].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q14",
+   "text": "Amazon the company, what year was it founded",
+   "heard": "Amazon the company, what year was it founded",
+   "expect": [
+    "1994"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "amazon company year founded",
+   "query_fidelity": true,
+   "before": {
+    "query": "amazon company year founded",
+    "question": "Amazon the company, what year was it founded",
+    "sources": "(live run)",
+    "answer": "Amazon was founded in 1994 by Jeff Bezos in Bellevue, Washington, starting as an online book marketplace [1].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "amazon company year founded",
+    "entity": "amazon",
+    "question": "Amazon the company, what year was it founded",
+    "sources": [
+     "Amazon (company)",
+     "Peruvian Amazon Company",
+     "Amazon MGM Studios",
+     "Amazon and trade unions",
+     "Amazon"
+    ],
+    "answer": "Amazon was founded in 1994 by Jeff Bezos in Bellevue, Washington, and started as an online book marketplace [1].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q15",
+   "text": "Mount Kilimanjaro, which country is it in",
+   "heard": "Mount Kilimanjaro, which country is it in",
+   "expect": [
+    "tanzania"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "mount kilimanjaro country",
+   "query_fidelity": true,
+   "before": {
+    "query": "mount kilimanjaro country",
+    "question": "Mount Kilimanjaro, which country is it in",
+    "sources": "(live run)",
+    "answer": "Mount Kilimanjaro is in Tanzania [1]. It is the highest mountain in Africa, at 5,895 meters above sea level [1].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "mount kilimanjaro country",
+    "entity": "mount kilimanjaro",
+    "question": "Mount Kilimanjaro, which country is it in",
+    "sources": [
+     "Mount Kilimanjaro",
+     "Kilimanjaro Region",
+     "Kilimanjaro International Airport",
+     "Siha District, Kilimanjaro",
+     "Anglican Diocese of Mount Kilimanjaro"
+    ],
+    "answer": "Mount Kilimanjaro is in Tanzania [1]. It is the highest mountain in Africa, located in Kilimanjaro National Park [1][3].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q16",
+   "text": "Shakespeare, what year was he born",
+   "heard": "Shakespeare, what year was he born",
+   "expect": [
+    "1564"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "shakespeare year born",
+   "query_fidelity": true,
+   "before": {
+    "query": "shakespeare year born",
+    "question": "Shakespeare, what year was he born",
+    "sources": "(live run)",
+    "answer": "William Shakespeare was born around 23 April 1564 in Stratford-upon-Avon, England [1]. Exact records are scarce, so 23 April is the traditional date.",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "shakespeare year born",
+    "entity": "",
+    "question": "Shakespeare, what year was he born",
+    "sources": [
+     "Shakespeare in the Park festivals",
+     "Frank J. Shakespeare",
+     "William Shakespeare",
+     "Shakespeare Birthplace Trust"
+    ],
+    "answer": "William Shakespeare was born around 23 April 1564, in Stratford-upon-Avon, England [3].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q17",
+   "text": "Netflix, who started that company",
+   "heard": "Netflix who started that company",
+   "expect": [
+    "hastings"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "netflix started company",
+   "query_fidelity": true,
+   "before": {
+    "query": "netflix started company",
+    "question": "Netflix who started that company",
+    "sources": "(live run)",
+    "answer": "Netflix was founded in 1997 by Reed Hastings and Marc Randolph in Scotts Valley, California [1][2].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "netflix started company",
+    "entity": "netflix",
+    "question": "Netflix who started that company",
+    "sources": [
+     "Netflix, Inc.",
+     "Netflix",
+     "Timeline of Netflix",
+     "Criticism of Netflix"
+    ],
+    "answer": "Netflix was founded in 1997 by Reed Hastings and Marc Randolph in Scotts Valley, California [1][3].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q18",
+   "text": "um, can you tell me who invented the telephone",
+   "heard": "Um can you tell me who invented telephone",
+   "expect": [
+    "bell"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "invented telephone",
+   "query_fidelity": true,
+   "before": {
+    "query": "invented telephone",
+    "question": "Um can you tell me who invented telephone",
+    "sources": "(live run)",
+    "answer": "The telephone's invention is credited to many people, but Alexander Graham Bell received the first telephone patent in 1876 [2]. Philipp Reis, who built an early sound-transmitting device in 1857 and coined the word \"telephon,\" is also often credited [3].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "invented telephone",
+    "entity": "",
+    "question": "Um can you tell me who invented telephone",
+    "sources": [
+     "History of the telephone",
+     "The Telephone Cases",
+     "Reis telephone",
+     "Invention of the telephone"
+    ],
+    "answer": "Alexander Graham Bell is credited with the first telephone patent, granted in 1876 [1]. However, Philipp Reis built an early sound-transmitting device in 1861 and is credited by many sources as an inventor of the telephone, and he coined the word \"telephone\" [3].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q19",
+   "text": "so I was wondering, uh, what's the tallest building in the world",
+   "heard": "So I was wondering, uh, what's the tallest building in the world",
+   "expect": [
+    "burj",
+    "khalifa"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "tallest building world",
+   "query_fidelity": true,
+   "before": {
+    "query": "tallest building world",
+    "question": "So I was wondering, uh, what's the tallest building in the world",
+    "sources": "(live run)",
+    "answer": "The tallest building in the world is the Burj Khalifa in Dubai, United Arab Emirates, as of 2026 [1]. Central Park Tower in New York City is the tallest residential building [2].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "tallest building world",
+    "entity": "",
+    "question": "So I was wondering, uh, what's the tallest building in the world",
+    "sources": [
+     "History of the world's tallest buildings",
+     "List of tallest buildings",
+     "List of tallest residential buildings",
+     "History of the world's tallest structures"
+    ],
+    "answer": "The tallest building in the world, as of 2026, is the Burj Khalifa in Dubai, United Arab Emirates [1].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q20",
+   "text": "hey, okay, so, who was the first person to walk on the moon",
+   "heard": "hey okay so who was the first person to walk out the moon",
+   "expect": [
+    "armstrong"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "first person walk out moon",
+   "query_fidelity": true,
+   "before": {
+    "query": "first person walk out moon",
+    "question": "hey okay so who was the first person to walk out the moon",
+    "sources": "(live run)",
+    "answer": "The first person to walk on the Moon was Neil Armstrong, who landed with Buzz Aldrin on Apollo 11 in 1969 [1][2]. Armstrong was the first to step onto the lunar surface, followed by Aldrin [3].",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "first person walk out moon",
+    "entity": "",
+    "question": "hey okay so who was the first person to walk out the moon",
+    "sources": [
+     "A Walk on the Moon",
+     "List of Apollo astronauts",
+     "Moon landing",
+     "Exploration of the Moon"
+    ],
+    "answer": "Neil Armstrong was the first person to walk on the Moon, during Apollo 11 in 1969, with Buzz Aldrin landing alongside him [3][4]. Twelve men walked on the lunar surface in total, across six crewed landings [2].",
+    "correct": true,
+    "non_answer": false
+   }
+  },
+  {
+   "set": "regress",
+   "id": "q22",
+   "text": "uh, quick question, what is the largest planet in our solar system",
+   "heard": "Oh, quick question What is the largest planet in our solar system",
+   "expect": [
+    "jupiter"
+   ],
+   "seen_in": "ab_full3/headstart",
+   "rec_query": "largest planet solar system",
+   "query_fidelity": true,
+   "before": {
+    "query": "largest planet solar system",
+    "question": "Oh, quick question What is the largest planet in our solar system",
+    "sources": "(live run)",
+    "answer": "Jupiter is the largest planet in our solar system. The sources don't name it directly, but they confirm the Sun holds 99.86% of the system's mass and that the eight planets are the largest objects orbiting it [2], and the Boston Museum of Science model of Jupiter [4] reflects its prominence.",
+    "correct": true,
+    "non_answer": false
+   },
+   "after": {
+    "query": "largest planet solar system",
+    "entity": "",
+    "question": "Oh, quick question What is the largest planet in our solar system",
+    "sources": [
+     "Solar System",
+     "List of largest craters in the Solar System",
+     "Solar System model",
+     "Outline of the Solar System"
+    ],
+    "answer": "Jupiter is the largest planet in our Solar System. The sources don't name it directly, but the Sun dominates the system's mass and the eight planets are the next most massive objects [1][4].",
+    "correct": true,
+    "non_answer": false
+   }
+  }
+ ]
+}

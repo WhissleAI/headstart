@@ -82,7 +82,7 @@ async def warm_web():
 _TAG = re.compile(r"<[^>]+>")
 
 
-async def wikipedia(query: str, k: int = 4) -> list[Doc]:
+async def _wiki_search(query: str, k: int) -> list[Doc]:
     params = {"action": "query", "format": "json", "formatversion": "2", "generator": "search", "gsrsearch": query,
               "gsrlimit": str(k), "prop": "extracts|info", "inprop": "url", "exintro": "1", "explaintext": "1",
               "exchars": "1200", "exlimit": str(k), "gsrqiprofile": "classic_noboostlinks"}
@@ -98,6 +98,34 @@ async def wikipedia(query: str, k: int = 4) -> list[Doc]:
         out.append(Doc(id=p.get("fullurl") or f"wiki:{p.get('pageid')}", title=p.get("title", ""), text=text,
                        url=p.get("fullurl", ""), source="wikipedia"))
     return out
+
+
+def relaxed(query: str) -> str:
+    """The query minus its first word. Wikipedia ANDs every word, so one misheard or filler word at the front
+    ("repainted mona lysa", "ivan wanted ...") returns nothing; the rest usually still names the thing."""
+    ws = query.split()
+    return " ".join(ws[1:]) if len(ws) >= 3 else ""
+
+
+async def wikipedia(query: str, k: int = 4, entity: str = "", k_entity: int = 2) -> list[Doc]:
+    """Content query, plus (in parallel) an entity-only query whose top articles are appended: "capital turkey"
+    finds "Capital punishment in Turkey" while "turkey" finds Turkey, whose intro names Ankara. The reranker then
+    picks from both. A content query with no hits is retried once, relaxed (see `relaxed`)."""
+    ent = entity.strip()
+    if ent and ent != query.strip():
+        main, extra = await asyncio.gather(_wiki_search(query, k), _wiki_search(ent, k_entity),
+                                           return_exceptions=True)
+        if isinstance(main, BaseException):
+            if isinstance(extra, BaseException):
+                raise main
+            main = []
+        extra = [] if isinstance(extra, BaseException) else extra
+    else:
+        main, extra = await _wiki_search(query, k), []
+    if not main and not extra and relaxed(query):
+        main = await _wiki_search(relaxed(query), k)
+    seen = {d.id for d in main}
+    return main + [d for d in extra if d.id not in seen]
 
 
 # ----------------------------------------------------------------------------------------------------------- Tavily
@@ -360,7 +388,7 @@ async def tavily(query: str, plan: dict | None = None, ledger: Ledger | None = N
 
 
 async def web(query: str, topic: str = "general", *, intent: str = "", text: str = "", final: bool = False,
-              ledger: Ledger | None = None, meter: dict | None = None) -> list[Doc]:
+              ledger: Ledger | None = None, meter: dict | None = None, entity: str = "") -> list[Doc]:
     """The web lane. Tavily when configured (topic/freshness from the intent), else Wikipedia. A final query whose
     Tavily call can't go out or fails falls back to Wikipedia (the user is waiting); a speculative one just errors
     (the fire shows as an error; the session carries on)."""
@@ -375,7 +403,7 @@ async def web(query: str, topic: str = "general", *, intent: str = "", text: str
                 raise
     meter.setdefault("credits", 0.0)
     meter["backend"] = "wikipedia"
-    res = WebResult(await wikipedia(query))
+    res = WebResult(await wikipedia(query, entity=entity))
     res.backend = "wikipedia"
     return res
 
