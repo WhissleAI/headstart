@@ -50,7 +50,7 @@ class Draft:
     content: tuple = ()
 
 
-_NON_ANSWER = re.compile(r"\b(don't|do not|doesn't|does not|no (?:information|mention)|not (?:mention|cover|"
+_NON_ANSWER = re.compile(r"\b(don't|didn't|did not|do not|doesn't|does not|no (?:information|mention)|not (?:mention|cover|"
                          r"include|say|state)|can't|cannot|isn't in|aren't in|none of)\b", re.I)
 
 
