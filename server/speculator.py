@@ -140,7 +140,8 @@ class Speculator:
         m = fire.meter
         if not m:
             return {}
-        return {k: m[k] for k in ("backend", "depth", "topic", "credits", "cached", "fallback") if k in m}
+        return {k: m[k] for k in ("backend", "depth", "topic", "credits", "cached", "fallback", "replayed",
+                                  "cache_match", "cache_miss") if k in m}
 
     def _web(self, q: str, f: Frame, final: bool):
         """(coroutine factory, meter) for one web-lane call of this question."""
@@ -510,6 +511,8 @@ class Speculator:
             "draft_reused": reuse_draft is not None,
             "hedged": getattr(st, "hedged", False),
             "answer_by": getattr(st, "by", None) or ("draft" if reuse_draft is not None else "llm"),
+            "answer_fallback": getattr(st, "fallback", None),          # "extractive": answer model unreachable
+            "answer_fallback_reason": getattr(st, "fallback_reason", None),
             **self._credits(),
             "answer": st.text(),
             "sources": [d.title for d in docs],
@@ -535,6 +538,7 @@ class Speculator:
         return {"credits": spec + final, "credits_spec": spec, "credits_final": final,
                 "web_cached": sum(1 for x in web if x.meter.get("cached")),
                 "web_fallbacks": sum(1 for x in web if x.meter.get("fallback")),
+                "web_replayed": sum(1 for x in web if x.meter.get("replayed")),     # served from the recorded cache
                 "web_backend": next((x.meter.get("backend") for x in reversed(web) if x.meter.get("backend")),
                                     config.WEB_BACKEND),
                 "session_credits": self.ledger.spent}
@@ -551,8 +555,8 @@ class Speculator:
         from .frame import norm
         best = None
         for d in reversed(self.drafts):
-            if d.stream.error is not None:
-                continue
+            if d.stream.error is not None or getattr(d.stream, "fallback", None):
+                continue                    # an extractive draft answered a partial question: re-extract at the end
             if d.stream.done and _non_answer(d.stream.text()):
                 m["draft_rejected_nonanswer"] = True
                 continue                    # "the sources don't mention X": answer again from the final ranking

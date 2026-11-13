@@ -47,10 +47,35 @@ async def startup():
     STATE.update(warm=True, warm_s=round(time.perf_counter() - t, 1))
 
 
+def degraded() -> dict:
+    """What is running on a fallback right now ({} = everything live). Shown in /api/health, the ready event, the UI."""
+    w, a = lanes.web_health(), answer.health()
+    out = {}
+    if w["status"] == "cache":
+        out["web"] = "cached (WEB_BACKEND=cache: recorded responses, not live)"
+    elif w["status"] == "down":
+        out["web"] = ("live web unreachable: serving recorded cache" if w["cache_entries"]
+                      else "live web unreachable and no cache: web questions will have no sources")
+    if a["status"] == "down":
+        out["answer"] = ("answer model unreachable: extractive answers (top-source sentence)" if a["fallback"] != "none"
+                         else "answer model unreachable")
+    return out
+
+
+def status_payload() -> dict:
+    return {**STATE, **ear.describe(), "web_backend": config.WEB_BACKEND, "web": lanes.web_health(),
+            "answer": answer.health(), "degraded": degraded()}
+
+
 @app.get("/api/health")
-async def health():
-    return {"ok": True, **STATE, **ear.describe(), "web_backend": config.WEB_BACKEND, "answer_model": config.ANSWER_MODEL,
-            "local_docs": len(lanes.index())}
+async def health(probe: int = 0):
+    """probe=1: make one real request to the web backend and the answer model now (the preflight uses it)."""
+    probes = {}
+    if probe:
+        w, a = await asyncio.gather(lanes.probe_web(), answer.probe())
+        probes = {"probe": {"web_ms": w.get("probe_ms"), "answer_ms": a.get("probe_ms")}}
+    return {"ok": True, **status_payload(), "answer_model": config.ANSWER_MODEL, "local_docs": len(lanes.index()),
+            **probes}
 
 
 @app.get("/api/questions")
@@ -213,7 +238,7 @@ async def ws_endpoint(ws: WebSocket):
             r, run = run, None
             await r.stop()
 
-    await send({"t": "ready", "mode": "sys", **STATE, **ear.describe(), "web_backend": config.WEB_BACKEND})
+    await send({"t": "ready", "mode": "sys", **status_payload()})
     try:
         while True:
             msg = await ws.receive()

@@ -114,9 +114,22 @@
       cls = "warm";
       txt = "ready" + (health ? ` · ${health.web_backend} · ${String(health.answer_model || "").replace(/^claude-/, "")}` : "");
     }
+    const deg = (health && health.degraded) || {};
+    if (wsOpen && warm && Object.keys(deg).length) { cls = "degraded"; txt = "ready · degraded"; }
     s.className = "status " + cls;
     s.title = txt;
     s.querySelector("b").textContent = txt;
+    paintDegraded(deg);
+  }
+  // Honesty banner: anything served from a fallback (recorded web cache, extractive answers) is labelled, never live.
+  function paintDegraded(deg) {
+    const b = $("#degraded");
+    if (!b) return;
+    const parts = [];
+    if (deg.web) parts.push(`<b>Web:</b> ${esc(deg.web)}` + (health && health.web && health.web.cache_recorded ? ` <span class="muted">(recorded ${esc(String(health.web.cache_recorded).replace("T", " "))})</span>` : ""));
+    if (deg.answer) parts.push(`<b>Answers:</b> ${esc(deg.answer)}`);
+    b.hidden = !parts.length;
+    b.innerHTML = parts.length ? `<span class="dg-tag">Degraded mode</span>` + parts.map((p) => `<span>${p}</span>`).join("") : "";
   }
   async function pollHealth() {
     try {
@@ -125,13 +138,17 @@
       warm = !!health.warm;
     } catch { warm = false; }
     paintStatus();
-    setTimeout(pollHealth, warm ? 15000 : 2000);
+    setTimeout(pollHealth, !warm ? 2000 : (health && health.degraded && Object.keys(health.degraded).length ? 5000 : 15000));
   }
 
   // ------------------------------------------------------------------ events
   function onEvent(e) {
     if (e.mode === "sys") {
-      if (e.t === "ready") { if (e.warm !== undefined) warm = !!e.warm; paintStatus(); }
+      if (e.t === "ready") {
+        if (e.warm !== undefined) warm = !!e.warm;
+        if (e.degraded) health = { ...(health || {}), web: e.web, answer: e.answer, degraded: e.degraded, web_backend: e.web_backend };
+        paintStatus();
+      }
       else if (e.t === "error") toast(e.error || "server error", true);
       else if (e.t === "run_done" && run) { run.running = false; finishRun(); settlePipe(run.q); }
       return;
@@ -506,10 +523,12 @@
     const txt = q.answer[mode] || "";
     if (q.error[mode] && !txt) { box.className = "answer err"; box.textContent = "Answer failed: " + q.error[mode]; return; }
     box.className = "answer";
+    const fb = q.metric[mode] && q.metric[mode].answer_fallback;
     const n = (q.sources[mode] || []).length;
     let html = esc(txt).replace(/\[(\d+(?:\s*[,–-]\s*\d+)*)\]/g, (_, grp) =>
       grp.split(/\s*[,–-]\s*/).map((d) => `<a class="cite" data-n="${d}" ${+d > n ? 'title="not in the source list"' : ""}>${d}</a>`).join(""));
     if (!q.metric[mode] && !q.error[mode]) html += txt ? '<span class="caret"></span>' : (q.endpointMs[mode] != null ? '<span class="wait">searching…</span>' : "");
+    if (fb) html = `<span class="badge fb" title="the answer model was unreachable: this is the best-matching sentence of the top source">${esc(fb)} · not generated</span> ` + html;
     const old = q.superseded[mode];
     if (old && old.answer) html = `<div class="old"><span class="badge corr">superseded</span> answered early (${fmtS(old.ready)}), then you kept talking: <s>${esc(old.answer.slice(0, 140))}${old.answer.length > 140 ? "…" : ""}</s></div>` + html;
     box.innerHTML = html;
@@ -525,7 +544,7 @@
       a.dataset.n = String(i + 1);
       a.title = (d.title || "") + (d.text ? "\n\n" + d.text : "");
       const lane = String(d.lane || "").replace("final-", "");
-      const meta = [d.source, d.score != null ? `cos ${(+d.score).toFixed(2)}` : null].filter(Boolean).join(" · ");
+      const meta = [d.cached ? `${d.source} · CACHED` : d.source, d.score != null ? `cos ${(+d.score).toFixed(2)}` : null].filter(Boolean).join(" · ");
       const ts = d.t != null ? `<span class="ts" title="moment starts at ${Math.round(d.t)} s">▶ ${mmss(d.t)}</span>` : "";
       const title = d.t != null ? String(d.title || "").replace(/\s*·\s*\d+:\d+$/, "") : d.title;
       a.innerHTML = `<div class="st"><span class="sn">[${i + 1}]</span><span class="tt">${esc(title || "(untitled)")}</span></div>` +
@@ -559,6 +578,8 @@
     }
     st.push(`web <b>${m.web_calls ?? 0}</b>` + (m.credits ? ` · <b>${m.credits}</b> cr` : ""), `sources <b>${fmtS(m.sources_ms)}</b>`);
     if (mode !== "headstart") st.push(`done <b>${fmtS(m.done_ms)}</b>`);
+    if (m.web_replayed) st.unshift(`<span class="flag" title="web results replayed from the recorded cache, not fetched live">cached web ×${m.web_replayed}</span>`);
+    if (m.answer_fallback) st.unshift(`<span class="flag" title="${esc(m.answer_fallback_reason || "")}">${esc(m.answer_fallback)} answer · model offline</span>`);
     const box = pk(mode, "stats");
     box.innerHTML = st.map((s) => `<span>${s}</span>`).join("");
     box.title = `spec fires ${m.spec_fires ?? 0} · fed the answer ${m.spec_used ?? 0} · stale/cancelled ${m.stale ?? 0} · drafts ${m.drafts ?? 0}${m.draft_reused ? " (one reused)" : ""} · web calls ${m.web_calls ?? 0} · sources ${fmtS(m.sources_ms)} · done ${fmtS(m.done_ms)} · endpoint lag ${m.endpoint_lag_ms ?? "—"} ms (all after you stopped talking)`;
