@@ -38,8 +38,15 @@ def model_opts(model: str) -> dict:
 def build_prompt(question: str, docs) -> str:
     lines = []
     for i, d in enumerate(docs, 1):
-        where = f" (moment at {d.t:.0f}s)" if d.t is not None else ""
-        lines.append(f"[{i}] {d.title}{where}: {d.text[:1000]}")
+        where = f" (moment at {int(d.t // 60):02d}:{int(d.t % 60):02d})" if d.t is not None else ""
+        text = d.text
+        meta = getattr(d, "meta", None) or {}
+        if meta.get("context_before") or meta.get("context_after"):
+            # local moments: neighbour words help the answer (not embedded: they hurt retrieval)
+            text = f"…{meta.get('context_before', '')} [{d.text}] {meta.get('context_after', '')}…"
+            if meta.get("role"):
+                text = f"({meta['role']}) " + text
+        lines.append(f"[{i}] {d.title}{where}: {text[:1000]}")
     src = "\n".join(lines) if lines else "(no results)"
     return f"Sources:\n{src}\n\nSpoken question: {question}"
 

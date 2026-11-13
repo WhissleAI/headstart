@@ -12,7 +12,9 @@ STOP = set("""a an the is are was were be been being am do does did of in on at 
 what what's whats who who's whos whom whose which when where where's why how how's hows can could would should will
 shall may might must i me my you your we our us it its it's this that these those there here please tell show give find
 search look up hey ok okay so um uh like just and or but if then than also really very some any get got let let's
-lets know want need yeah yes no oh well right now""".split())
+lets know want need yeah yes no oh well right now wondering wonder curious quick question asked ask
+always ever forget forgot remember mind sure guess think kind sort actually basically literally anyone somebody
+someone thing things""".split())
 # hey/ok wake fillers are already in STOP; these mark a spoken self-correction
 CORRECTION = [("i", "mean"), ("sorry",), ("no", "wait"), ("actually",), ("rather",), ("scratch", "that"),
               ("not", "that"), ("make", "that"), ("i", "meant")]
@@ -37,7 +39,9 @@ WEB_INTENTS = {"discourse.intent.weather_query", "discourse.intent.news_query", 
 # Phrases that point at the local corpus (the recorded moments) instead of the web.
 LOCAL_CUES = ["in the game", "the announcer", "the commentator", "in the clip", "in the recording", "in the video",
               "in the meeting", "in the call", "in the hearing", "the judge", "did he say", "did she say",
-              "did they say", "was said", "the moment", "in the replay", "on the call"]
+              "did they say", "was said", "the moment", "in the replay", "on the call", "the justice",
+              "the panel", "the teacher", "in the commentary", "on the podcast", "in the broadcast", "the lawyer",
+              "the attorney", "the witness", "in the debate", "the commentators", "the host"]
 NEWS_INTENTS = {"discourse.intent.news_query"}
 
 _PUNCT = re.compile(r"[^\w'\- ]+")
@@ -181,10 +185,7 @@ def build(words: list[str], spans: list[dict], current: dict | None, events_seen
 
     low = " " + " ".join(toks) + " "
     local = any(" " + c + " " in low for c in LOCAL_CUES)
-    if local and local_ok:
-        f.route = "local"
-    elif f.intent in WEB_INTENTS or f.coarse in WEB_INTENTS or f.act_question:
-        f.route = "both"
-    else:
-        f.route = "both"
+    # local corpus only when the question points at it ("in the game", "the judge", ...): searching it for every
+    # web question put unrelated moments into the sources (eval smoke run, q26)
+    f.route = "local" if (local and local_ok) else "web"
     return f

@@ -46,3 +46,4 @@ COMMIT_TAU = float(os.environ.get("SPEC_COMMIT_TAU", "0.55"))
 SEMANTIC_ENDPOINT = os.environ.get("SEMANTIC_ENDPOINT", "1") == "1"
 SEM_SILENCE_MS = int(os.environ.get("SEM_SILENCE_MS", "250"))
 SEM_STABLE_MS = int(os.environ.get("SEM_STABLE_MS", "420"))   # one Arc partial refresh (~0.4 s) must confirm the words
+SEM_COVER_S = float(os.environ.get("SEM_COVER_S", "0.3"))     # an ASR refresh this long after silence began covers the speech

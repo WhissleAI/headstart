@@ -39,6 +39,7 @@ class Session:
         self.noise = []
         self.last_answered_end = -1.0           # audio time of the last word of the last answered question
         self.last_answered_words: list[str] = []
+        self.pending_final = None
         self.final_task: asyncio.Task | None = None
         self._new_question()
 
@@ -135,9 +136,14 @@ class Session:
                 "ms": self.spec.ms()})
         self.frame = f
         self.spec.on_frame(f, now)
-        stable_ms = (time.perf_counter() - self.words_changed_at) * 1000
+        wall = time.perf_counter()
+        stable_ms = (wall - self.words_changed_at) * 1000
+        speech_stop = wall - self.silence_ms / 1000
+        # the words are trustworthy if they held through one ASR refresh, or if they last changed in a refresh made
+        # after the speaker went quiet (that refresh already saw the whole question)
+        settled = stable_ms >= config.SEM_STABLE_MS or self.words_changed_at >= speech_stop + config.SEM_COVER_S
         if (self.semantic and not self.busy and ws and f.n >= 2 and self.silence_ms >= config.SEM_SILENCE_MS
-                and stable_ms >= config.SEM_STABLE_MS and (f.command_complete or f.act_question) and f.has_content()):
+                and settled and (f.command_complete or f.act_question) and f.has_content()):
             # semantic endpoint: the tagger says the request is complete and the speaker paused briefly
             self.final_task = asyncio.create_task(self.on_final(ws, early=True))
             return
@@ -147,6 +153,8 @@ class Session:
 
     async def on_final(self, ws: list[dict], early: bool = False) -> dict | None:
         if self.busy:
+            if not early and ws:
+                self.pending_final = ws      # a new utterance closed while we were answering: answer it next
             return None
         if not early and ws and (ws[0].get("start") or 0.0) <= self.last_answered_end + 0.05:
             # the ear's own endpoint for an utterance we already answered at the semantic endpoint: ignore it if it
@@ -182,6 +190,9 @@ class Session:
             self.spec.close()
         self.history.append(m)
         self._new_question()
+        nxt, self.pending_final = self.pending_final, None
+        if nxt:
+            await self.on_final(nxt)
         return m
 
     def close(self):

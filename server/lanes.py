@@ -121,6 +121,11 @@ class LocalIndex:
     def __len__(self):
         return len(self.docs)
 
+    def row_of(self, doc_id: str):
+        if not hasattr(self, "_rows"):
+            self._rows = {d.id: i for i, d in enumerate(self.docs)}
+        return self._rows.get(doc_id)
+
     def search_vec(self, q: np.ndarray, k: int = 4, use_audio: bool = True) -> list[Doc]:
         if not len(self.docs):
             return []

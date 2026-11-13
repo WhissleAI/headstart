@@ -116,6 +116,12 @@ class Speculator:
         for d in docs:
             self.pool.setdefault(d.id, d)
         need = [d for d in new if d.id not in self.vecs]
+        ix = lanes.index()
+        for d in list(need):
+            row = ix.row_of(d.id) if d.source == "local" else None
+            if row is not None:
+                self.vecs[d.id] = ix.tv[row]          # the index's own text vector: no re-embedding on the GPU
+                need.remove(d)
         if not need:
             return
         # local docs come with precomputed vectors in the index; re-embedding keeps one code path and is ~30 ms
@@ -176,12 +182,12 @@ class Speculator:
         corpus (up to 3 times as more speech arrives), or once early, before the words have settled."""
         if self.mode != "headstart" or not config.AUDIO_LANE or not len(lanes.index()) or route == "web":
             return
-        if route != "local" and (self.audio_used >= 1 or n_words >= config.MIN_WORDS):
-            return
+        if route != "local":
+            return          # index/data/retrieval_eval.json: <1.5 s of audio is near useless (r@1 0.0-0.1)
         if self.audio_used >= 3:
             return
         dur = len(wav) / 16000
-        if dur < 1.2 or dur - self.last_audio_at < 1.0:
+        if dur < 1.8 or dur - self.last_audio_at < 0.8:
             return
         self.last_audio_at = dur
         self.audio_used += 1
