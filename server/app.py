@@ -85,6 +85,8 @@ async def audio(name: str):
 
 
 class Run:
+    """One run: an ear feeding one Session per mode, and a sender task draining their events to the socket."""
+
     def __init__(self, ws: WebSocket, modes, domain):
         self.ws = ws
         self.q: asyncio.Queue = asyncio.Queue()
@@ -92,11 +94,32 @@ class Run:
         self.sessions = [Session(self._emitter(m), mode=m, domain=domain, t0=t0) for m in modes]
         self.ear = ear.make_ear(self.sessions, domain=domain, on_event=self._emitter("ear"))
         self.sender = asyncio.create_task(self._send())
+        self.clock_set = False           # mic runs: the clock starts at the first audio frame, not at "start"
+        self._stop: asyncio.Task | None = None
+        self.closed = False
 
     def _emitter(self, mode):
         def emit(e):
             self.q.put_nowait({**e, "mode": mode})
         return emit
+
+    def set_clock(self, t0: float):
+        """Wall time of audio sample 0, for every session (latency metrics are measured from it)."""
+        self.clock_set = True
+        for s in self.sessions:
+            s.set_t0(t0)
+
+    async def feed(self, pcm: np.ndarray):
+        if self.closed:
+            return
+        if not self.clock_set:
+            # the first frame arrives once its samples were captured: sample 0 was len/16000 s ago (the AudioWorklet's
+            # setup after "start" must not count as latency)
+            self.set_clock(time.perf_counter() - len(pcm) / 16000)
+        try:
+            await self.ear.feed(pcm)
+        except Exception as e:                      # one bad chunk must not end the run
+            self.q.put_nowait({"t": "error", "mode": "sys", "error": f"ear: {type(e).__name__}: {e}"[:300]})
 
     async def _send(self):
         while True:
@@ -107,14 +130,39 @@ class Run:
                 return
 
     async def stop(self):
-        await self.ear.flush()
-        self.ear.close()
+        """Flush the ear (answers the open utterance), close everything, report run_done. Idempotent: every caller
+        awaits the same stop, and a caller being cancelled (a replay task) doesn't cancel the stop itself."""
+        if self._stop is None:
+            self._stop = asyncio.ensure_future(self._do_stop())
+        await asyncio.shield(self._stop)
+
+    async def _do_stop(self):
+        try:
+            await self.ear.flush()
+        except Exception as e:
+            self.q.put_nowait({"t": "error", "mode": "sys", "error": f"flush: {type(e).__name__}: {e}"[:300]})
+        finally:
+            self.ear.close()
+            self.closed = True
         await asyncio.sleep(0.05)
         for s in self.sessions:
             s.close()
         self.q.put_nowait({"t": "run_done", "mode": "sys",
                            "metrics": [s.history for s in self.sessions]})
         await asyncio.sleep(0.2)
+        self.sender.cancel()
+
+    def abort(self):
+        """The client is gone: stop everything now, no flush, nothing more to send."""
+        self.closed = True
+        if self._stop is not None and not self._stop.done():
+            self._stop.cancel()
+        self.ear.close()
+        for t in getattr(self.ear, "final_tasks", []):
+            if not t.done():
+                t.cancel()
+        for s in self.sessions:
+            s.close()
         self.sender.cancel()
 
 
@@ -126,68 +174,91 @@ async def replay(run: Run, path: Path):
         import librosa
         wav = librosa.resample(wav, orig_sr=sr, target_sr=16000)
     t0 = time.perf_counter()
-    for s in run.sessions:
-        s.t0 = t0
-        s.spec.t0 = t0
+    run.set_clock(t0)
     for i in range(0, len(wav), 1600):
         target = t0 + (i + 1600) / 16000
         while time.perf_counter() < target:
             await asyncio.sleep(0.003)
-        await run.ear.feed(wav[i:i + 1600])
+        await run.feed(wav[i:i + 1600])
     # trailing silence so Arc can endpoint at the pause, like a live mic
     for _ in range(12):
         await asyncio.sleep(0.1)
-        await run.ear.feed(np.zeros(1600, np.float32))
+        await run.feed(np.zeros(1600, np.float32))
+
+
+async def _cancel(task: asyncio.Task | None):
+    if task is not None and not task.done():
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
 
 
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket):
     await ws.accept()
     run: Run | None = None
-    task = None
-    await ws.send_text(json.dumps({"t": "ready", "mode": "sys", **STATE, **ear.describe(),
-                                   "web_backend": config.WEB_BACKEND}))
+    task: asyncio.Task | None = None       # a replay streaming into `run`
+
+    async def send(e):
+        try:
+            await ws.send_text(json.dumps(e))
+        except Exception:
+            pass
+
+    async def end_run():
+        """Stop the current run: the replay feeding it first (so nothing is fed into a flushed ear), then the run."""
+        nonlocal run, task
+        await _cancel(task)
+        task = None
+        if run is not None:
+            r, run = run, None
+            await r.stop()
+
+    await send({"t": "ready", "mode": "sys", **STATE, **ear.describe(), "web_backend": config.WEB_BACKEND})
     try:
         while True:
             msg = await ws.receive()
             if msg.get("type") == "websocket.disconnect":
                 break
             if msg.get("bytes") is not None:
-                if run is not None:
-                    await run.ear.feed(np.frombuffer(msg["bytes"], dtype="<f4"))
+                b = msg["bytes"]
+                if len(b) % 4:
+                    await send({"t": "error", "mode": "sys",
+                                "error": f"audio frame of {len(b)} bytes is not whole float32 samples: dropped"})
+                    continue
+                if run is not None and task is None and len(b):
+                    await run.feed(np.frombuffer(b, dtype="<f4"))
                 continue
-            data = json.loads(msg.get("text") or "{}")
+            try:
+                data = json.loads(msg.get("text") or "{}")
+                if not isinstance(data, dict):
+                    raise ValueError("expected a JSON object")
+            except ValueError as e:
+                await send({"t": "error", "mode": "sys", "error": f"bad message: {e}"[:200]})
+                continue
             t = data.get("t")
             if t in ("start", "replay"):
-                if run is not None:
-                    await run.stop()
+                await end_run()
+                if t == "replay":
+                    p = AUDIO / Path(str(data.get("file", ""))).name
+                    if not p.exists():
+                        await send({"t": "error", "mode": "sys", "error": f"no such file {p.name}"})
+                        continue
                 modes = data.get("modes") or ["headstart", "baseline"]
                 run = Run(ws, modes, data.get("domain", "assistant"))
-                # align session clocks with the first audio sample
-                t0 = time.perf_counter()
-                for s in run.sessions:
-                    s.t0 = t0
-                    s.spec.t0 = t0
                 if t == "replay":
-                    p = AUDIO / Path(data.get("file", "")).name
-                    if not p.exists():
-                        await ws.send_text(json.dumps({"t": "error", "mode": "sys", "error": f"no such file {p.name}"}))
-                        continue
-
                     async def go(r=run, p=p):
                         await replay(r, p)
                         await r.stop()
                     task = asyncio.create_task(go())
-            elif t == "stop" and run is not None:
-                await run.stop()
-                run = None
+            elif t == "stop":
+                await end_run()
     except WebSocketDisconnect:
         pass
     finally:
-        if task and not task.done():
+        if task is not None and not task.done():
             task.cancel()
         if run is not None:
-            run.ear.close()
+            run.abort()
 
 
 if WEB.exists():
