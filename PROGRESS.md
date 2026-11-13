@@ -41,7 +41,13 @@ Chart: runs/ab_latest.png. Remaining slow cases: API TTFT outliers (q26 1.3 s) �
 - Filler words in queries ("wondering") → stopwords extended. Final arriving while busy → queued.
 - Audio lane hogged the GPU queue → only for local-routed questions, ≥1.8 s of speech.
 
+## Verified end to end (17:40)
+- Live server, Race mode, WS replay: q01 HS 1139 vs BL 1755 ms; q27 (correction) 1110 vs 1409.
+- Mic path (server side; Float32 frames over /ws, 3 questions in one session): 1021/457/626 vs 1361/1114/1259 ms.
+- Browser mic capture itself (AudioWorklet) NOT yet exercised: needs a human to grant mic permission.
+
 ## Open / next
 - [ ] Tavily key from user (sponsor); optional Deepgram key (Arc Mini mishears some voices)
-- [ ] Correction cue mangled by ASR ("Sari, I mean") → fallback drops wrong word
-- [ ] Pitch deck / demo script
+- [ ] Human check of the browser mic path
+- [x] Correction cues as ASR hears them ("Sari, I mean", "no weight", "I met")
+- [x] Demo script (DEMO.md)
