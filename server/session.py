@@ -61,6 +61,8 @@ class Session:
         self.semantic = mode == "headstart" and config.SEMANTIC_ENDPOINT
         self.silence_ms = 0.0
         self.noise = []
+        self.noisy = False                     # background too loud for the energy VAD (≈ <13 dB SNR)
+        self.answered_level = None             # median voiced RMS of the last answered question
         self.last_answered_end = -1.0           # audio time of the last word of the last closed utterance
         self.last_answered_words: list[str] = []
         self.pending_finals: collections.deque = collections.deque()   # closed utterances waiting for their answer
@@ -94,6 +96,7 @@ class Session:
         self.frame = None
         self.audio: list[np.ndarray] = []
         self.q_audio_start: float | None = None      # audio time (s) of the first word of this question
+        self.q_levels: list[float] = []              # voiced RMS while this question's words were arriving
         self.spec = Speculator(self.emit, self.mode, self.t0, ledger=self.ledger)
         if self.carry_pool:
             self.spec.seed(self.carry_pool)
@@ -114,9 +117,14 @@ class Session:
         self.noise.append(rms)
         self.noise = self.noise[-60:]
         # noise floor from the quietest chunks, clamped so a stretch of continuous speech can't become the "floor"
-        floor = min(float(np.percentile(self.noise, 10)), 0.01) if len(self.noise) >= 5 else 0.0
+        raw_floor = float(np.percentile(self.noise, 10)) if len(self.noise) >= 5 else 0.0
+        floor = min(raw_floor, 0.01)
+        self.noisy = raw_floor > 0.01        # steady background above the clamp: energy silence is unreliable
         if rms > max(0.006, 2.5 * floor):
             self.silence_ms = 0.0
+            if getattr(self, "words", None):
+                self.q_levels.append(rms)
+                self.q_levels = self.q_levels[-80:]
         else:
             self.silence_ms += 1000.0 * len(pcm) / 16000
         self.audio.append(pcm)
@@ -212,12 +220,23 @@ class Session:
         self.spec.on_frame(f, now)
         wall = time.perf_counter()
         stable_ms = (wall - self.words_changed_at) * 1000
-        speech_stop = wall - self.silence_ms / 1000
+        silence_ms = self.silence_ms
+        if self.noisy and ws:
+            # in steady noise the energy VAD never hears silence: use the gap since the ASR's last word ended
+            # (needs a longer threshold: a word being spoken isn't emitted yet)
+            gap = (getattr(self, "_audio_end", 0.0) - (ws[-1].get("end") or 0.0)) * 1000
+            if gap >= config.SEM_WORDGAP_MS:
+                silence_ms = max(silence_ms, gap - (config.SEM_WORDGAP_MS - config.SEM_SILENCE_MS))
+        speech_stop = wall - silence_ms / 1000
+        # chatter guard: an utterance much quieter than the last question we answered (a neighbour, the room) gets no
+        # early answer; the ear's own endpoint still answers it if it really is a question
+        quiet = (self.answered_level is not None and len(self.q_levels) >= 3
+                 and float(np.median(self.q_levels)) < self.answered_level * config.CHATTER_RATIO)
         # the words are trustworthy if they held through one ASR refresh, or if they last changed in a refresh made
         # after the speaker went quiet (that refresh already saw the whole question)
         settled = stable_ms >= config.SEM_STABLE_MS or self.words_changed_at >= speech_stop + config.SEM_COVER_S
         sig = meaning(f)
-        if (self.semantic and not self.busy and f.n >= 2 and self.silence_ms >= config.SEM_SILENCE_MS
+        if (self.semantic and not self.busy and not quiet and f.n >= 2 and silence_ms >= config.SEM_SILENCE_MS
                 and settled and gate_open(f, self.cc_at, self.spans) and f.has_content()
                 and (self.soft is None or self.soft["sig"] != sig)):
             # semantic endpoint: the tagger says the request is complete and the speaker paused briefly. Answer now
@@ -256,7 +275,8 @@ class Session:
     def _close_question(self, ws: list[dict]) -> dict:
         """The ear closed an utterance: freeze what the answer needs and start listening for the next question at once
         (its partials may arrive while this one is still being answered)."""
-        job = {"ws": ws, "spec": self.spec, "soft": self.soft, "final_task": self.final_task, "error": None}
+        job = {"ws": ws, "spec": self.spec, "soft": self.soft, "final_task": self.final_task, "error": None,
+               "levels": list(self.q_levels)}
         try:
             self._sync_words(ws)
             self.tagger.endpoint()
@@ -344,6 +364,8 @@ class Session:
             spec.close()
         if not m.get("failed") and f is not None:
             self._remember(f, m)
+            if job.get("levels"):
+                self.answered_level = float(np.median(job["levels"]))
             self.carry_pool = spec.export_pool()
             # the question already being heard started with the older pool / context: bring it up to date
             for s in [self.spec] + [j["spec"] for j in self.pending_finals]:
@@ -382,8 +404,11 @@ class Session:
         if self.closed:
             return
         self.closed = True
-        if self.soft is not None and self.soft.get("metric") is not None and not self.busy:
-            self.history.append(self.soft["metric"])      # the ear never confirmed (stream ended): keep the answer
+        if (self.soft is not None and self.soft.get("metric") is not None and not self.busy
+                and not self.history):
+            # the ear never confirmed (stream ended): keep it only if it's the only answer — an unconfirmed soft
+            # answer after a confirmed one is usually trailing chatter
+            self.history.append(self.soft["metric"])
             self.soft = None
         if self.final_task is not None and not self.final_task.done():
             self.final_task.cancel()                      # an unconfirmed soft answer must not outlive the session
