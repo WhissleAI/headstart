@@ -206,3 +206,27 @@ amended gold; the ranker's win shows in which moment is cited first. Remaining: 
 - [ ] Human check of the browser mic path
 - [x] Correction cues as ASR hears them ("Sari, I mean", "no weight", "I met")
 - [x] Demo script (DEMO.md)
+
+## Arc Tagger depth (branch tagger-depth)
+The frame now reads the rest of Arc Tagger's per-word read-out (acts, device-directed, typed number/time spans, entity
+types, span-level PII, jailbreak) and the UI shows it in a "read-out" row of the frame card.
+- **Finance bug fixed (main):** Tavily answers 400 "Finance topic is not supported for fast or ultra-fast" — every
+  qa_stock / qa_currency question failed over to Wikipedia. web_plan now sends topic=finance at `TAVILY_FINANCE_DEPTH`
+  (basic, same 1 credit). runs/replay_finance.json (5 q): grounded 4/5 → 5/5, S&P/Bitcoin/Nvidia answers dated today;
+  cost ~+1.3 s per finance call (speculation hides it on the Arc side; the baseline pays it).
+- **Freshness from typed time spans:** a result question (game/race/score/won) said with a relative time ("last night",
+  "this past weekend", "right now") → topic news + time_range day|week; money/crypto/market questions → finance;
+  absolute years stay general. Arc's weather intent with no weather word (ibuprofen, Japan visa) no longer gets the
+  6 h max_age. runs/replay_tagger.json: 11/42 questions change plan; sources published ≤7 days 0/40 → 25/30 (news
+  ones); grounded 10/11 → 6/11 (3 finance were the 400 above; 3 news answers now say "sources don't give the score");
+  blind judge after 4 / before 7 — mixed, no gold for current events. `TAGGER_HINTS=0` turns it off.
+- **Privacy:** phone / email / street address / card / gov id / dob / handle spans never reach the web query; the
+  answer model sees "[private]". private_name is NOT used (fires on Nvidia, Mount, Toyota, Mozart); utterance-level
+  pii.request / pii.leak fire on most ordinary questions.
+- **Jailbreak:** safety.jailbreak.attempt (1.0 on the injection probe, off on all 80 others) → no speculative search.
+- **Not used (measured):** device_directed is 0.82–0.92 on chatter vs 0.95–1.0 on questions (no margin); entity
+  types are noisy (Mona Lisa / Jaws = person, penicillin = org). Gate: six act/intent-completeness rules in
+  eval/gate_eval.py; none dominates the shipped gate (each +complete costs +early), so the gate is unchanged.
+- Sim (tavily profile, 58 traces × 5 seeds): identical to main (p50 1598 / p90 2295 ms, paths hit 53 % / miss 26 % /
+  draft 21 %, grounded 98.6 %): the eval traces contain no PII / money / injection, and the sim's web lane ignores the
+  Tavily plan, so freshness/topic effects are measured only by the replay.

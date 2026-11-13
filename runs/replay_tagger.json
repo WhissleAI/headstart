@@ -1,0 +1,2190 @@
+{
+ "summary": {
+  "n_questions": 42,
+  "n_changed": 11,
+  "before": {
+   "grounded": 10,
+   "n": 11,
+   "credits": 11.0,
+   "sources": 55,
+   "dated": 0,
+   "fresh_7d": 0,
+   "q_with_fresh_source": 0
+  },
+  "after": {
+   "grounded": 5,
+   "n": 11,
+   "credits": 8.0,
+   "sources": 40,
+   "dated": 30,
+   "fresh_7d": 25,
+   "q_with_fresh_source": 5
+  },
+  "judge": {
+   "after": 4,
+   "before": 7,
+   "tie": 0,
+   "?": 0
+  },
+  "llm_calls": 30,
+  "tavily_credits": 19.0,
+  "base": "b1b27c1"
+ },
+ "items": [
+  {
+   "id": "q34",
+   "kind": "current",
+   "heard": "what's the weather in san francisco today",
+   "before": {
+    "query": "weather san francisco today",
+    "plan": {
+     "topic": "general",
+     "max_age_hours": 6
+    },
+    "question": "what's the weather in san francisco today"
+   },
+   "after": {
+    "query": "weather san francisco today",
+    "plan": {
+     "topic": "general",
+     "max_age_hours": 6
+    },
+    "question": "what's the weather in san francisco today",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "day",
+     "when_text": "today",
+     "fresh": "weather \u00b7 last 6 h",
+     "ent_types": [
+      "place"
+     ],
+     "num_types": [
+      "date"
+     ]
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "q35",
+   "kind": "current",
+   "heard": "What's the latest news about SpaceX?",
+   "before": {
+    "query": "latest news spacex",
+    "plan": {
+     "topic": "news",
+     "time_range": "week"
+    },
+    "question": "What's the latest news about SpaceX"
+   },
+   "after": {
+    "query": "latest news spacex",
+    "plan": {
+     "topic": "news",
+     "time_range": "week"
+    },
+    "question": "What's the latest news about SpaceX",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "week",
+     "when_text": "latest",
+     "fresh": "news \u00b7 past week",
+     "ent_types": [
+      "organization"
+     ],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "q36",
+   "kind": "current",
+   "heard": "what is apple stock price right now",
+   "before": {
+    "query": "apple stock price",
+    "plan": {
+     "topic": "finance",
+     "max_age_hours": 1
+    },
+    "question": "what is apple stock price right now"
+   },
+   "after": {
+    "query": "apple stock price",
+    "plan": {
+     "topic": "finance",
+     "max_age_hours": 1
+    },
+    "question": "what is apple stock price right now",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "day",
+     "when_text": "right now",
+     "fresh": "finance",
+     "ent_types": [
+      "organization"
+     ],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "q37",
+   "kind": "current",
+   "heard": "will it rain in seattle tomorrow",
+   "before": {
+    "query": "rain seattle tomorrow weather forecast",
+    "plan": {
+     "topic": "general",
+     "max_age_hours": 6
+    },
+    "question": "will it rain in seattle tomorrow"
+   },
+   "after": {
+    "query": "rain seattle tomorrow weather forecast",
+    "plan": {
+     "topic": "general",
+     "max_age_hours": 6
+    },
+    "question": "will it rain in seattle tomorrow",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 0.99,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "weather \u00b7 last 6 h",
+     "ent_types": [
+      "place"
+     ],
+     "num_types": [
+      "date"
+     ]
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "q43",
+   "kind": "current",
+   "heard": "who won the Lakers game last night",
+   "before": {
+    "query": "won lakers game last night",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "who won the Lakers game last night",
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "Lakers Gameday | 11/28/09 | Warriors | Los Angeles Lakers",
+      "url": "https://www.nba.com/lakers/news/091128gamedaywarriorshtml",
+      "published": null
+     },
+     {
+      "title": "Cavaliers beat Lakers to stay undefeated - Athabasca, Barrhead & Westlock News",
+      "url": "https://www.townandcountrytoday.com/basketball/cavaliers-beat-lakers-to-stay-undefeated-9736513",
+      "published": null
+     },
+     {
+      "title": "Lakers Gameday | 11/09/08 | Lakers 111, Rockets 82 | Los Angeles Lakers",
+      "url": "https://www.nba.com/lakers/news/081109gamedayrocketshtml",
+      "published": null
+     },
+     {
+      "title": "Lakers Gameday | 02/26/09 | Lakers 132, Suns 106 | Los Angeles Lakers",
+      "url": "https://www.nba.com/lakers/news/090226gamedaysunshtml",
+      "published": null
+     },
+     {
+      "title": "Lakers Gameday | 02/10/09 | Lakers 105, Thunder 98 | Los Angeles Lakers",
+      "url": "https://www.nba.com/lakers/news/090210gamedaythunderhtml",
+      "published": null
+     }
+    ],
+    "n_dated": 0,
+    "n_fresh": 0,
+    "answer": "The Cleveland Cavaliers beat the Los Angeles Lakers 134-110 on Wednesday night, with Evan Mobley scoring 25 points [2]. I can't confirm the date of that game against today's date, so this may not be last night's result.",
+    "grounded": true
+   },
+   "after": {
+    "query": "won lakers game last night",
+    "plan": {
+     "topic": "news",
+     "time_range": "week"
+    },
+    "question": "who won the Lakers game last night",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "week",
+     "when_text": "last night",
+     "fresh": "news \u00b7 past week",
+     "ent_types": [
+      "organization"
+     ],
+     "num_types": [
+      "date"
+     ]
+    },
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "TST Best Bets: November 9, 2026 - Yahoo Sports (Mon, 09 Nov 2026)",
+      "url": "https://sports.yahoo.com/articles/tst-best-bets-november-9-193000868.html",
+      "published": "Mon, 09 Nov 2026 19:30:00 GMT"
+     },
+     {
+      "title": "No Austin Reaves, no problem. First-place Lakers beat Hawks for sixth consecutive win - Los Angeles Times (Tue, 10 Nov 2026)",
+      "url": "https://www.latimes.com/sports/lakers/story/2026-11-09/los-angeles-lakers-atlanta-hawks-luka-doncic-austin-reaves",
+      "published": "Tue, 10 Nov 2026 02:37:51 GMT"
+     },
+     {
+      "title": "The latest Lakers injury report for their game against the Hawks - Lakers Nation (Mon, 09 Nov 2026)",
+      "url": "https://lakersnation.com/lakers-injury-update-luka-doncic-returns-quentin-grimes-out-austin-reaves-questionable-vs-hawks/",
+      "published": "Mon, 09 Nov 2026 18:25:24 GMT"
+     },
+     {
+      "title": "Austin Reaves celebrates the Lakers being able to win big games without Luka Doncic - Sporting News AU (Mon, 09 Nov 2026)",
+      "url": "https://www.sportingnews.com/us/nba/los-angeles-lakers/news/austin-reaves-lauds-lakers-win-big-games-without-luka-doncic/859df877b1bf51df09764908",
+      "published": "Mon, 09 Nov 2026 03:57:36 GMT"
+     },
+     {
+      "title": "Austin Reaves celebrates the Lakers being able to win big games without Luka Doncic - Sporting News (Mon, 09 Nov 2026)",
+      "url": "https://www.sportingnews.com/ca/nba/los-angeles-lakers/news/austin-reaves-lauds-lakers-win-big-games-without-luka-doncic/859df877b1bf51df09764908",
+      "published": "Mon, 09 Nov 2026 03:57:36 GMT"
+     }
+    ],
+    "n_dated": 5,
+    "n_fresh": 5,
+    "answer": "The Lakers won last night, beating the Detroit Pistons, with Austin Reaves scoring 43 points [1]. The win came without Luka Don\u010di\u0107, who sat out with lower back tightness [3].",
+    "grounded": true
+   },
+   "changed": true,
+   "judge_raw": "B",
+   "judge": "before"
+  },
+  {
+   "id": "q44",
+   "kind": "current",
+   "heard": "what was the final score of the Warriors game",
+   "before": {
+    "query": "final score warriors game",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "what was the final score of the Warriors game",
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "Final Score: Warriors win 111-85 in makeup game over Timberwolves (2026)",
+      "url": "https://radio2care.net/article/final-score-warriors-win-111-85-in-makeup-game-over-timberwolves",
+      "published": null
+     },
+     {
+      "title": "Final Score: Warriors win 111-85 in makeup game over Timberwolves (2026)",
+      "url": "https://custommapposter.com/article/final-score-warriors-win-111-85-in-makeup-game-over-timberwolves/12336",
+      "published": null
+     },
+     {
+      "title": "Final Score: Warriors win 111-85 in makeup game over Timberwolves (2026)",
+      "url": "https://cypresstreegolf.com/article/final-score-warriors-win-111-85-in-makeup-game-over-timberwolves",
+      "published": null
+     },
+     {
+      "title": "Final Score: Warriors win 111-85 in makeup game over Timberwolves (2026)",
+      "url": "https://custommapposter.com/article/final-score-warriors-win-111-85-in-makeup-game-over-timberwolves/12808",
+      "published": null
+     },
+     {
+      "title": "Final Score: Warriors win 111-85 in makeup game over Timberwolves (2026)",
+      "url": "https://foreignpharmacydirectory.com/article/final-score-warriors-win-111-85-in-makeup-game-over-timberwolves",
+      "published": null
+     }
+    ],
+    "n_dated": 0,
+    "n_fresh": 0,
+    "answer": "The Golden State Warriors beat the Timberwolves 111-85 in a rescheduled game [1].",
+    "grounded": true
+   },
+   "after": {
+    "query": "final score warriors game",
+    "plan": {
+     "topic": "news"
+    },
+    "question": "what was the final score of the Warriors game",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "news",
+     "ent_types": [
+      "organization"
+     ],
+     "num_types": []
+    },
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "Spurs get tenth straight win with a blowout victory over the depleted Warriors - Pounding The Rock (Thu, 02 Apr 2026)",
+      "url": "https://www.poundingtherock.com/game-recaps/98963/spurs-get-tenth-straight-win-with-a-blowout-victory-over-the-depleted-warriors",
+      "published": "Thu, 02 Apr 2026 07:00:00 GMT"
+     },
+     {
+      "title": "Cleveland Cavaliers 118 - Golden State Warriors 111: Final score, results, recap, box score, stats - Yahoo Sports (Fri, 03 Apr 2026)",
+      "url": "https://sports.yahoo.com/nba/cleveland-cavaliers-golden-state-warriors-2026040209/",
+      "published": "Fri, 03 Apr 2026 04:40:10 GMT"
+     },
+     {
+      "title": "Warriors Postseason Picture: Play-Tournament Preview - NBA (Fri, 03 Apr 2026)",
+      "url": "https://www.nba.com/warriors/news/warriors-postseason-picture-play-tournament-preview-2026",
+      "published": "Fri, 03 Apr 2026 19:41:12 GMT"
+     },
+     {
+      "title": "Box Grades: Spurs secure second double-digit win streak of the season in victory over Warriors - Pounding The Rock (Thu, 02 Apr 2026)",
+      "url": "https://www.poundingtherock.com/spurs-analysis/98967/box-grades-spurs-secure-second-double-digit-win-streak-of-the-season-in-victory-over-warriors",
+      "published": "Thu, 02 Apr 2026 12:30:00 GMT"
+     },
+     {
+      "title": "San Antonio vs Golden State, Final Score: Spurs hold off short-handed Warriors 127-113 - Pounding The Rock (Thu, 02 Apr 2026)",
+      "url": "https://www.poundingtherock.com/game-recaps/98945/san-antonio-vs-golden-state-final-score-spurs-hold-off-short-handed-warriors-127-113",
+      "published": "Thu, 02 Apr 2026 04:43:30 GMT"
+     }
+    ],
+    "n_dated": 5,
+    "n_fresh": 0,
+    "answer": "The most recent Warriors game in the sources ended in a 118-111 loss to the Cleveland Cavaliers [2][3]. The Spurs beat the Warriors 127-113 on April 1 [1][5].",
+    "grounded": true
+   },
+   "changed": true,
+   "judge_raw": "B",
+   "judge": "before"
+  },
+  {
+   "id": "q45",
+   "kind": "current",
+   "heard": "um, how is the S and P 500 doing today",
+   "before": {
+    "query": "s p 500 doing today",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "um, how is the S and P 500 doing today",
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "s&p 500 today: Latest News & Videos, Photos about s&p 500 today | The Economic Times - Page 1",
+      "url": "https://economictimes.com/topic/s&p-500-today",
+      "published": null
+     },
+     {
+      "title": "s&p 500 today: Latest News & Videos, Photos about s&p 500 today | The Economic Times - Page 1",
+      "url": "https://economictimes.indiatimes.com/topic/s&p-500-today",
+      "published": null
+     },
+     {
+      "title": "The S&P 500 ended the first half of 2025 in positive territory \u2014 but not without turbulence. After a near-bear market drawdown, the rebound has been notable not just for its strength, but for what\u2019s\u2026 | Keith Nichol",
+      "url": "https://www.linkedin.com/posts/keith-nichol_the-sp-500-ended-the-first-half-of-2025-activity-7347982508187140096--xN-",
+      "published": null
+     },
+     {
+      "title": "S&P 500 - Latest, hot news on U.Today",
+      "url": "https://u.today/sp-500?from=article-tags",
+      "published": null
+     },
+     {
+      "title": "s&p 500 fall today: Latest News & Videos, Photos about s&p 500 fall today | The Economic Times - Page 1",
+      "url": "https://economictimes.indiatimes.com/topic/s&p-500-fall-today",
+      "published": null
+     }
+    ],
+    "n_dated": 0,
+    "n_fresh": 0,
+    "answer": "The sources don't include a live quote for today. The most recent headline says the US bull market is nearing a four-year milestone as AI-driven profits and growth fuel gains [1], and a separate report describes the S&P 500 retesting its October highs [3].",
+    "grounded": false
+   },
+   "after": {
+    "query": "s p 500 doing today",
+    "plan": {
+     "topic": "finance",
+     "max_age_hours": 1
+    },
+    "question": "um, how is the S and P 500 doing today",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "day",
+     "when_text": "today",
+     "fresh": "finance",
+     "ent_types": [],
+     "num_types": [
+      "date"
+     ]
+    },
+    "error": "TavilyError: tavily 400: Finance topic is not supported for fast or ultra-fast search_depth.",
+    "credits": 0.0,
+    "sources": [],
+    "n_dated": 0,
+    "n_fresh": 0,
+    "answer": "",
+    "grounded": false
+   },
+   "changed": true,
+   "judge_raw": "A",
+   "judge": "before"
+  },
+  {
+   "id": "q46",
+   "kind": "current",
+   "heard": "what is the Nvidia stock price today",
+   "before": {
+    "query": "nvidia stock price today",
+    "plan": {
+     "topic": "finance",
+     "max_age_hours": 1
+    },
+    "question": "what is the Nvidia stock price today"
+   },
+   "after": {
+    "query": "nvidia stock price today",
+    "plan": {
+     "topic": "finance",
+     "max_age_hours": 1
+    },
+    "question": "what is the Nvidia stock price today",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "day",
+     "when_text": "today",
+     "fresh": "finance",
+     "ent_types": [
+      "organization"
+     ],
+     "num_types": [
+      "date"
+     ]
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "q47",
+   "kind": "current",
+   "heard": "what's the weather going to be like in New York this weekend",
+   "before": {
+    "query": "weather going new york weekend",
+    "plan": {
+     "topic": "general",
+     "max_age_hours": 6
+    },
+    "question": "what's the weather going to be like in New York this weekend"
+   },
+   "after": {
+    "query": "weather going new york weekend",
+    "plan": {
+     "topic": "general",
+     "max_age_hours": 6
+    },
+    "question": "what's the weather going to be like in New York this weekend",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "week",
+     "when_text": "weekend",
+     "fresh": "weather \u00b7 last 6 h",
+     "ent_types": [
+      "place"
+     ],
+     "num_types": [
+      "date"
+     ]
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "q48",
+   "kind": "current",
+   "heard": "what are the top news headlines today",
+   "before": {
+    "query": "top news headlines today",
+    "plan": {
+     "topic": "news",
+     "time_range": "day"
+    },
+    "question": "what are the top news headlines today"
+   },
+   "after": {
+    "query": "top news headlines today",
+    "plan": {
+     "topic": "news",
+     "time_range": "day"
+    },
+    "question": "what are the top news headlines today",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "day",
+     "when_text": "today",
+     "fresh": "news \u00b7 past day",
+     "ent_types": [],
+     "num_types": [
+      "date"
+     ]
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "q49",
+   "kind": "current",
+   "heard": "who won the most recent Formula One race",
+   "before": {
+    "query": "won most recent formula one race",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "who won the most recent Formula One race",
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "https://www.gpfans.com/en/f1-news/1012320/lewis-hamilton-last-f1-grand-prix-win-when-where/",
+      "url": "https://www.gpfans.com/en/f1-news/1012320/lewis-hamilton-last-f1-grand-prix-win-when-where",
+      "published": null
+     },
+     {
+      "title": "F1 | This is your current state of Formula 1 | Facebook",
+      "url": "https://www.facebook.com/groups/1232962267872330/posts/1871818160653401",
+      "published": null
+     },
+     {
+      "title": "Last Race Age 55 Formula One Winner",
+      "url": "https://www.instagram.com/popular/last-race-age-55-formula-one-winner",
+      "published": null
+     },
+     {
+      "title": "Formula One Grand Prix top winners:... - World of Statistics",
+      "url": "https://www.facebook.com/100085912115492/posts/formula-one-grand-prix-top-winners1-lewis-hamilton-103-wins2-michael-schumacher-/258893600317709",
+      "published": null
+     },
+     {
+      "title": "Formula One Grand Prix top... - Bright Kwashie Dzokoto",
+      "url": "https://www.facebook.com/brightkwashie.dzokoto.3/posts/formula-one-grand-prix-top-winners1-lewis-hamilton-103-wins2-michael-schumacher-/1303546667202565",
+      "published": null
+     }
+    ],
+    "n_dated": 0,
+    "n_fresh": 0,
+    "answer": "Max Verstappen is the most recent Formula One race winner, according to a Facebook post dated November 3, 2026 [2]. That post is the most current source here, so it's the one I'd trust for the latest race.",
+    "grounded": true
+   },
+   "after": {
+    "query": "won most recent formula one race",
+    "plan": {
+     "topic": "news",
+     "time_range": "week"
+    },
+    "question": "who won the most recent Formula One race",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 0.99,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "week",
+     "when_text": "recent",
+     "fresh": "news \u00b7 past week",
+     "ent_types": [
+      "organization"
+     ],
+     "num_types": []
+    },
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "Former GOP governor: \u2018Wisconsin is a blue state\u2019 - The Hill (Sat, 07 Nov 2026)",
+      "url": "https://thehill.com/homenews/campaign/6205785-tommy-thompson-declares-wisconsin-blue-midterms/",
+      "published": "Sat, 07 Nov 2026 03:13:26 GMT"
+     },
+     {
+      "title": "Colton Herta Reaches 40 Points Needed for F1 Super License - Autoweek (Sat, 07 Nov 2026)",
+      "url": "https://www.autoweek.com/racing/formula-1/a74363253/herta-reaches-40-points-needed-for-f1-super-license/",
+      "published": "Sat, 07 Nov 2026 01:10:36 GMT"
+     },
+     {
+      "title": "Freddie Slater's surreal first taste of Formula 1 at Mexico Grand Prix - BBC (Thu, 12 Nov 2026)",
+      "url": "https://www.bbc.com/news/articles/c6z0k771043xo",
+      "published": "Thu, 12 Nov 2026 06:11:30 GMT"
+     },
+     {
+      "title": "Why Red Bull avoided an unprecedented driver sacking - The Race (Thu, 12 Nov 2026)",
+      "url": "https://www.the-race.com/formula-1/why-red-bull-avoided-an-unprecedented-driver-sacking/",
+      "published": "Thu, 12 Nov 2026 11:28:52 GMT"
+     },
+     {
+      "title": "Seven-time champion Lewis Hamilton becomes 2nd driver in F1 to start 400 races - Houston Chronicle (Sun, 08 Nov 2026)",
+      "url": "https://www.houstonchronicle.com/sports/article/seven-time-champion-lewis-hamilton-becomes-2nd-22519662.php",
+      "published": "Sun, 08 Nov 2026 17:20:49 GMT"
+     }
+    ],
+    "n_dated": 5,
+    "n_fresh": 5,
+    "answer": "The sources don't name the winner of the most recent race. The most recent Grand Prix covered is the S\u00e3o Paulo race at Interlagos, where Lewis Hamilton started his 400th race [5], but no winner is given.",
+    "grounded": false
+   },
+   "changed": true,
+   "judge_raw": "B",
+   "judge": "before"
+  },
+  {
+   "id": "q50",
+   "kind": "current",
+   "heard": "what's the weather in London, sorry, I mean Tokyo",
+   "before": {
+    "query": "weather tokyo",
+    "plan": {
+     "topic": "general",
+     "max_age_hours": 6
+    },
+    "question": "what's the weather in Tokyo"
+   },
+   "after": {
+    "query": "weather tokyo",
+    "plan": {
+     "topic": "general",
+     "max_age_hours": 6
+    },
+    "question": "what's the weather in Tokyo",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "weather \u00b7 last 6 h",
+     "ent_types": [
+      "place"
+     ],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc01",
+   "kind": "weather",
+   "heard": "what's the weather gonna be like in chicago tomorrow",
+   "before": {
+    "query": "weather gonna chicago tomorrow",
+    "plan": {
+     "topic": "general",
+     "max_age_hours": 6
+    },
+    "question": "what's the weather gonna be like in chicago tomorrow"
+   },
+   "after": {
+    "query": "weather gonna chicago tomorrow",
+    "plan": {
+     "topic": "general",
+     "max_age_hours": 6
+    },
+    "question": "what's the weather gonna be like in chicago tomorrow",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "weather \u00b7 last 6 h",
+     "ent_types": [
+      "place"
+     ],
+     "num_types": [
+      "date"
+     ]
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc02",
+   "kind": "sports",
+   "heard": "Hey, did the Kansas City Chiefs win their game on Sunday?",
+   "before": {
+    "query": "kansas city chiefs win game sunday",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "Hey, did the Kansas City Chiefs win their game on Sunday",
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "Kansas City Chiefs defeat Los Angeles Chargers for sixth-straight win",
+      "url": "https://www.chiefs.com/news/chiefs-defeat-chargers-31-17-for-sixth-straight-victory",
+      "published": null
+     },
+     {
+      "title": "Kansas City Chiefs News, Rumors, and Highlights - Page 10 | ClutchPoints",
+      "url": "https://clutchpoints.com/nfl/kansas-city-chiefs/pages/10",
+      "published": null
+     },
+     {
+      "title": "Chiefs-Panthers highlights: 6 key moments from Sunday\u2019s 30-27 win | Arrowhead Pride",
+      "url": "https://www.arrowheadpride.com/2024/11/24/24304817/chiefs-panthers-highlights-6-key-moments-from-sundays-30-27-win",
+      "published": null
+     },
+     {
+      "title": "Chiefs-Panthers highlights: 6 key moments from Sunday\u2019s 30-27 win | Arrowhead Pride",
+      "url": "https://arrowheadpride.com/2024/11/24/24304817/chiefs-panthers-highlights-6-key-moments-from-sundays-30-27-win",
+      "published": null
+     },
+     {
+      "title": "Chiefs Earn First Win of 2023 | Kansas City Chiefs",
+      "url": "https://www.chiefs.com/news/chiefs-earn-their-first-win-of-the-season-behind-a-resilient-performance-vs-jack",
+      "published": null
+     }
+    ],
+    "n_dated": 0,
+    "n_fresh": 0,
+    "answer": "Yes, the Chiefs won on Sunday. Sources describe a 31-17 win over the Los Angeles Chargers for their sixth straight victory [1], and a 17-9 win over the Jacksonville Jaguars that was their first win of the season [5]. Those games are from different seasons, so the most recent Sunday result isn't clear from these sources.",
+    "grounded": true
+   },
+   "after": {
+    "query": "kansas city chiefs win game sunday",
+    "plan": {
+     "topic": "news",
+     "time_range": "week"
+    },
+    "question": "Hey, did the Kansas City Chiefs win their game on Sunday",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "week",
+     "when_text": "sunday",
+     "fresh": "news \u00b7 past week",
+     "ent_types": [
+      "organization"
+     ],
+     "num_types": [
+      "date"
+     ]
+    },
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "NFL Expert Picks: Who will win in Week 10, Falcons or Chiefs? - Atlanta Falcons (Fri, 13 Nov 2026)",
+      "url": "https://www.atlantafalcons.com/news/nfl-expert-picks-week-10-falcons-chiefs",
+      "published": "Fri, 13 Nov 2026 01:15:27 GMT"
+     },
+     {
+      "title": "Kansas City Chiefs vs. New York Jets - November 08, 2026 | Live Scores, Updates, Odds, Injury News and Recaps - Bleacher Report (Sun, 08 Nov 2026)",
+      "url": "https://bleacherreport.com/game/new-york-jets-vs-kansas-city-chiefs-2026-11-8-12-00",
+      "published": "Sun, 08 Nov 2026 18:42:17 GMT"
+     },
+     {
+      "title": "Former NFL star calls out Chiefs for \u2018cheating\u2019 - Yahoo Sports (Fri, 06 Nov 2026)",
+      "url": "https://sports.yahoo.com/articles/former-nfl-star-calls-chiefs-142410868.html",
+      "published": "Fri, 06 Nov 2026 14:24:10 GMT"
+     },
+     {
+      "title": "Taylor Swift and Karlie Kloss reunite at Kansas City Chiefs game - USA Today (Sun, 08 Nov 2026)",
+      "url": "https://www.usatoday.com/picture-gallery/sports/nfl/chiefs/2026/11/08/taylor-swift-karlie-kloss-chiefs-game/92682372007/",
+      "published": "Sun, 08 Nov 2026 22:48:00 GMT"
+     },
+     {
+      "title": "Cowboys loss would make season \u2018MASSIVE DISAPPOINTMENT\u2019, Chiefs need to blow out the Jets? | FTF - FOX Sports (Fri, 06 Nov 2026)",
+      "url": "https://www.foxsports.com/watch/fmc-c6k357muk2c3wh3m",
+      "published": "Fri, 06 Nov 2026 22:25:48 GMT"
+     }
+    ],
+    "n_dated": 5,
+    "n_fresh": 5,
+    "answer": "The sources don't give a final score for the Chiefs' most recent Sunday game. The Chiefs lost a controversial game to the Denver Broncos, where a fourth-and-goal touchdown was wiped out by a false start [3]. Their Week 9 game against the Jets was still in progress in one recap, with the Chiefs leading 21 points [2].",
+    "grounded": false
+   },
+   "changed": true,
+   "judge_raw": "B",
+   "judge": "after"
+  },
+  {
+   "id": "sc03",
+   "kind": "sports",
+   "heard": "Um, what's the score of the Celtics game right now?",
+   "before": {
+    "query": "score celtics game",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "Um, what's the score of the Celtics game right now",
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "Celtics 129-116 Heat (20 Dec, 2025) Final Score - ESPN (IN)",
+      "url": "https://www.espn.in/nba/game/_/gameId/401810236/heat-celtics",
+      "published": null
+     },
+     {
+      "title": "Celtics 136-107 Wizards (Nov 5, 2025) Box Score - ESPN",
+      "url": "https://www.espn.com/nba/boxscore/_/gameId/401810029",
+      "published": null
+     },
+     {
+      "title": "Celtics 138-107 Cavaliers (Oct 12, 2025) Box Score - ESPN",
+      "url": "https://www.espn.com/nba/boxscore/_/gameId/401812707",
+      "published": null
+     },
+     {
+      "title": "Celtics vs. Nets | November 18, 2025",
+      "url": "https://plaintextsports.com/nba/2025-11-18/bos-bkn",
+      "published": null
+     },
+     {
+      "title": "Celtics vs. Heat: Jan 15, 2026 \u2013 NBA Box Score | NBA.com - TIme News",
+      "url": "https://time.news/celtics-vs-heat-jan-15-2026-nba-box-score-nba-com",
+      "published": null
+     }
+    ],
+    "n_dated": 0,
+    "n_fresh": 0,
+    "answer": "I can't see live scores, so I can't tell you the current score. The most recent Celtics game in these sources is a 129-116 win over the Heat on December 20, 2025 [1], but that may not be the game you mean.",
+    "grounded": true
+   },
+   "after": {
+    "query": "score celtics game",
+    "plan": {
+     "topic": "news",
+     "time_range": "day"
+    },
+    "question": "Um, what's the score of the Celtics game right now",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "day",
+     "when_text": "right now",
+     "fresh": "news \u00b7 past day",
+     "ent_types": [],
+     "num_types": []
+    },
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "Maxey, Embiid lead the 76ers to 123-112 win over the Raptors without James - Greenwich Time (Fri, 13 Nov 2026)",
+      "url": "https://www.greenwichtime.com/sports/article/maxey-embiid-lead-the-76ers-to-123-112-win-over-22528333.php",
+      "published": "Fri, 13 Nov 2026 02:39:15 GMT"
+     },
+     {
+      "title": "Starting 5: Top West teams keep rolling, Cavs win in MSG - NBA.com (Thu, 12 Nov 2026)",
+      "url": "https://www.nba.com/news/starting-5-november-12-2026",
+      "published": "Thu, 12 Nov 2026 15:14:11 GMT"
+     },
+     {
+      "title": "Maxey, Embiid lead the 76ers to 123-112 win over the Raptors without James - Houston Chronicle (Fri, 13 Nov 2026)",
+      "url": "https://www.houstonchronicle.com/sports/article/maxey-embiid-lead-the-76ers-to-123-112-win-over-22528333.php",
+      "published": "Fri, 13 Nov 2026 02:39:15 GMT"
+     },
+     {
+      "title": "Star Wars 50th Anniversary Release Will Include New Music from John Williams - Polygon.com (Thu, 12 Nov 2026)",
+      "url": "https://www.polygon.com/star-wars-50th-anniversary-release-new-john-williams-music/",
+      "published": "Thu, 12 Nov 2026 17:53:01 GMT"
+     },
+     {
+      "title": "Self-learning AI releases NFL picks, score predictions for every Week 10 game - CBS Sports (Thu, 12 Nov 2026)",
+      "url": "https://www.cbssports.com/betting/news/nfl-picks-ai-score-predictions-best-bets-week-10-2026/",
+      "published": "Thu, 12 Nov 2026 16:19:17 GMT"
+     }
+    ],
+    "n_dated": 5,
+    "n_fresh": 5,
+    "answer": "The sources don't give a live score. The most recent Celtics game they cover was a 123-101 win over the 76ers, a loss for Philadelphia against Jayson Tatum and the Celtics, with Brown's first game against his former team [1][3]. A separate report says the Celtics rallied from 22 points down to beat Toronto 98-93 [2][1].",
+    "grounded": false
+   },
+   "changed": true,
+   "judge_raw": "B",
+   "judge": "before"
+  },
+  {
+   "id": "sc04",
+   "kind": "sports",
+   "heard": "Hey, when is Manchester United playing their next match?",
+   "before": {
+    "query": "manchester united playing next match",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "Hey, when is Manchester United playing their next match"
+   },
+   "after": {
+    "query": "manchester united playing next match",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "Hey, when is Manchester United playing their next match",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [
+      "organization"
+     ],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc05",
+   "kind": "news",
+   "heard": "Hey, what's the latest news about OpenAI this week?",
+   "before": {
+    "query": "latest news openai week",
+    "plan": {
+     "topic": "news",
+     "time_range": "week"
+    },
+    "question": "Hey, what's the latest news about OpenAI this week"
+   },
+   "after": {
+    "query": "latest news openai week",
+    "plan": {
+     "topic": "news",
+     "time_range": "week"
+    },
+    "question": "Hey, what's the latest news about OpenAI this week",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "week",
+     "when_text": "latest",
+     "fresh": "news \u00b7 past week",
+     "ent_types": [
+      "organization"
+     ],
+     "num_types": [
+      "date"
+     ]
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc06",
+   "kind": "current",
+   "heard": "How much is one Bitcoin worth right now in U.S. dollars?",
+   "before": {
+    "query": "one bitcoin worth dollars",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "How much is one Bitcoin worth right now in U.S dollars",
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "Satoshi to USD Converter \u2014 Sats, BTC & Dollars | PublicSoftTools",
+      "url": "https://www.publicsofttools.com/tools/satoshi-converter",
+      "published": null
+     },
+     {
+      "title": "BTC to USD | Convert Bitcoin to US Dollar | OKX United States",
+      "url": "https://my.okx.com/en-eu/convert/btc-to-usd",
+      "published": null
+     },
+     {
+      "title": "1 Bitcoin = 1000 US dollars",
+      "url": "https://blog.zorinaq.com/1-bitcoin-1000-us-dollars",
+      "published": null
+     },
+     {
+      "title": "1 Bitcoin = 1000 US dollars",
+      "url": "http://blog.zorinaq.com/1-bitcoin-1000-us-dollars",
+      "published": null
+     },
+     {
+      "title": "How Much is 1 Bitcoin Worth? Price vs. Value | Relborg",
+      "url": "https://relborg.com/how-much-is-1-bitcoin-worth",
+      "published": null
+     }
+    ],
+    "n_dated": 0,
+    "n_fresh": 0,
+    "answer": "One Bitcoin is currently worth about $87,851.60 US dollars [2]. That figure is a live quote and has been trending downward over the past month [2].",
+    "grounded": true
+   },
+   "after": {
+    "query": "one bitcoin worth dollars",
+    "plan": {
+     "topic": "finance",
+     "max_age_hours": 1
+    },
+    "question": "How much is one Bitcoin worth right now in U.S dollars",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "day",
+     "when_text": "right now",
+     "fresh": "finance",
+     "ent_types": [
+      "place"
+     ],
+     "num_types": []
+    },
+    "error": "TavilyError: tavily 400: Finance topic is not supported for fast or ultra-fast search_depth.",
+    "credits": 0.0,
+    "sources": [],
+    "n_dated": 0,
+    "n_fresh": 0,
+    "answer": "",
+    "grounded": false
+   },
+   "changed": true,
+   "judge_raw": "B",
+   "judge": "before"
+  },
+  {
+   "id": "sc07",
+   "kind": "conversion",
+   "heard": "I'm baking something how many ounces are in one cup.",
+   "before": {
+    "query": "baking something ounces one cup",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "I'm baking something how many ounces are in one cup"
+   },
+   "after": {
+    "query": "baking something ounces one cup",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "I'm baking something how many ounces are in one cup",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 0.99,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [],
+     "num_types": [
+      "duration"
+     ]
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc08",
+   "kind": "conversion",
+   "heard": "What's $100 in Euros at today's rate?",
+   "before": {
+    "query": "100 euros today's rate",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "What's $100 in Euros at today's rate",
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "Exchange Rate Euro to Dollar | Euro Rate Today | 100 Euros to Dollars | IFCM UK",
+      "url": "https://www.ifcm.co.uk/currency-converter/eur-usd/100",
+      "published": null
+     },
+     {
+      "title": "100 Euros (EUR) to Dirhams (AED) - Currency Converter",
+      "url": "https://eur.currencyrate.today/convert/amount-100-to-aed.html",
+      "published": null
+     },
+     {
+      "title": "100 EUR to USD Today: Current Exchange Rate",
+      "url": "https://item.pandaremit.com/article/62531.html",
+      "published": null
+     },
+     {
+      "title": "\u20ac100 to USD Conversion: Current EUR to USD Exchange Rate",
+      "url": "https://item.pandaremit.com/article/62602.html",
+      "published": null
+     },
+     {
+      "title": "100 Euros to USD: 30 Key Questions on Exchange Rates, Conversion, and Real-Time Value Explained",
+      "url": "https://item.pandaremit.com/article/62567",
+      "published": null
+     }
+    ],
+    "n_dated": 0,
+    "n_fresh": 0,
+    "answer": "The user asks what $100 is in euros. Sources give euro-to-dollar rates: 1 EUR \u2248 1.16777 USD [1], so $100 \u2248 \u20ac85.6. The inverse of the Dirham data isn't useful here. Source [1] gives the rate directly, so I can state it with a citation; the rate it gives implies roughly 86 euros for 100 dollars.\n\nBased on the rate of about 1.168 dollars per euro as of 29 May 2026, $100",
+    "grounded": true
+   },
+   "after": {
+    "query": "$100 euros today's rate",
+    "plan": {
+     "topic": "finance",
+     "max_age_hours": 1
+    },
+    "question": "What's $100 in Euros at today's rate",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "day",
+     "when_text": "today",
+     "fresh": "finance",
+     "ent_types": [
+      "organization"
+     ],
+     "num_types": [
+      "money",
+      "date"
+     ]
+    },
+    "error": "TavilyError: tavily 400: Finance topic is not supported for fast or ultra-fast search_depth.",
+    "credits": 0.0,
+    "sources": [],
+    "n_dated": 0,
+    "n_fresh": 0,
+    "answer": "",
+    "grounded": false
+   },
+   "changed": true,
+   "judge_raw": "A",
+   "judge": "before"
+  },
+  {
+   "id": "sc09",
+   "kind": "conversion",
+   "heard": "How many miles is a marathon like exactly to the decimal?",
+   "before": {
+    "query": "miles marathon exactly decimal",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "How many miles is a marathon like exactly to the decimal"
+   },
+   "after": {
+    "query": "miles marathon exactly decimal",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "How many miles is a marathon like exactly to the decimal",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc10",
+   "kind": "howto",
+   "heard": "Okay, so how do I get a red wine stain out of a carpet?",
+   "before": {
+    "query": "red wine stain out carpet",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "Okay, so how do I get a red wine stain out of a carpet"
+   },
+   "after": {
+    "query": "red wine stain out carpet",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "Okay, so how do I get a red wine stain out of a carpet",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc11",
+   "kind": "recipe",
+   "heard": "How long should I boil an egg if I want the yolk soft?",
+   "before": {
+    "query": "long boil egg yolk soft",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "How long should I boil an egg if I want the yolk soft"
+   },
+   "after": {
+    "query": "long boil egg yolk soft",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "How long should I boil an egg if I want the yolk soft",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc12",
+   "kind": "tech",
+   "heard": "How do I take a screen shot on a Mac? Just part of the screen.",
+   "before": {
+    "query": "take screen shot mac part",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "How do I take a screen shot on a Mac Just part of the screen"
+   },
+   "after": {
+    "query": "take screen shot mac part",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "How do I take a screen shot on a Mac Just part of the screen",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [
+      "organization"
+     ],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc13",
+   "kind": "tech",
+   "heard": "Uh, my iPhone won't charge anymore. What should I try first?",
+   "before": {
+    "query": "iphone charge anymore try first",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "Uh, my iPhone won't charge anymore What should I try first"
+   },
+   "after": {
+    "query": "iphone charge anymore try first",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "Uh, my iPhone won't charge anymore What should I try first",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc14",
+   "kind": "health",
+   "heard": "What are the usual symptoms of strep throat in adults?",
+   "before": {
+    "query": "usual symptoms strep throat adults",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "What are the usual symptoms of strep throat in adults"
+   },
+   "after": {
+    "query": "usual symptoms strep throat adults",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "What are the usual symptoms of strep throat in adults",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc15",
+   "kind": "health",
+   "heard": "Is it bad to take ibuprofen on an empty stomach?",
+   "before": {
+    "query": "bad take ibuprofen empty stomach",
+    "plan": {
+     "topic": "general",
+     "max_age_hours": 6
+    },
+    "question": "Is it bad to take ibuprofen on an empty stomach",
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "Ibuprofen on an Empty Stomach: Risks and Safety Tips",
+      "url": "https://www.healthline.com/health/drugs/ibuprofen-on-empty-stomach",
+      "published": null
+     },
+     {
+      "title": "Ibuprofen on an Empty Stomach: Is It Safe? (2026) - Doctronic",
+      "url": "https://www.doctronic.ai/blog/can-you-take-ibuprofen-on-an-empty-stomach",
+      "published": null
+     },
+     {
+      "title": "Can You Take Ibuprofen On An Empty Stomach? Risks & Tips | Blog Meds For Less",
+      "url": "https://www.medsforless.co.uk/can-i-take-ibuprofen-empty-stomach",
+      "published": null
+     },
+     {
+      "title": "My dumbass took ibuprofen on an empty stomach. How long for pain to go away?",
+      "url": "https://www.reddit.com/r/TooAfraidToAsk/comments/1cfh99f/my_dumbass_took_ibuprofen_on_an_empty_stomach_how",
+      "published": null
+     },
+     {
+      "title": "https://www.thedoctorsdr.com/wp-content/uploads/2018/11/Dr-Adam-Splaver-MSN-This-Is-What-Happens-If-You-Take-Ibuprofen-on-an-Empty-Stomach-12-17.pdf",
+      "url": "https://www.thedoctorsdr.com/wp-content/uploads/2018/11/Dr-Adam-Splaver-MSN-This-Is-What-Happens-If-You-Take-Ibuprofen-on-an-Empty-Stomach-12-17.pdf",
+      "published": null
+     }
+    ],
+    "n_dated": 0,
+    "n_fresh": 0,
+    "answer": "Yes, it can be. Taking ibuprofen on an empty stomach may irritate the stomach lining and raise the risk of nausea, indigestion, and, over time, ulcers or bleeding [1][2]. For most people, taking it with food or milk is the safer choice [2][5].",
+    "grounded": true
+   },
+   "after": {
+    "query": "bad take ibuprofen empty stomach",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "Is it bad to take ibuprofen on an empty stomach",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [],
+     "num_types": []
+    },
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "Ibuprofen on an Empty Stomach: Risks and Safety Tips",
+      "url": "https://www.healthline.com/health/drugs/ibuprofen-on-empty-stomach",
+      "published": null
+     },
+     {
+      "title": "Ibuprofen on an Empty Stomach: Is It Safe? (2026) - Doctronic",
+      "url": "https://www.doctronic.ai/blog/can-you-take-ibuprofen-on-an-empty-stomach",
+      "published": null
+     },
+     {
+      "title": "Can You Take Ibuprofen On An Empty Stomach? Risks & Tips | Blog Meds For Less",
+      "url": "https://www.medsforless.co.uk/can-i-take-ibuprofen-empty-stomach",
+      "published": null
+     },
+     {
+      "title": "My dumbass took ibuprofen on an empty stomach. How long for pain to go away?",
+      "url": "https://www.reddit.com/r/TooAfraidToAsk/comments/1cfh99f/my_dumbass_took_ibuprofen_on_an_empty_stomach_how",
+      "published": null
+     },
+     {
+      "title": "https://www.thedoctorsdr.com/wp-content/uploads/2018/11/Dr-Adam-Splaver-MSN-This-Is-What-Happens-If-You-Take-Ibuprofen-on-an-Empty-Stomach-12-17.pdf",
+      "url": "https://www.thedoctorsdr.com/wp-content/uploads/2018/11/Dr-Adam-Splaver-MSN-This-Is-What-Happens-If-You-Take-Ibuprofen-on-an-Empty-Stomach-12-17.pdf",
+      "published": null
+     }
+    ],
+    "n_dated": 0,
+    "n_fresh": 0,
+    "answer": "Yes, it can be. Taking ibuprofen on an empty stomach can irritate the stomach lining and raise the risk of nausea, indigestion, and, over time, ulcers or bleeding [1][2]. For most people a single dose is not especially harmful, but people with ulcers, reflux, or gastritis should avoid it without food [3].",
+    "grounded": true
+   },
+   "changed": true,
+   "judge_raw": "A",
+   "judge": "after"
+  },
+  {
+   "id": "sc16",
+   "kind": "local",
+   "heard": "What time does the Louvre Paris close today?",
+   "before": {
+    "query": "time louvre paris close today",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "What time does the Louvre Paris close today"
+   },
+   "after": {
+    "query": "time louvre paris close today",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "What time does the Louvre Paris close today",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "day",
+     "when_text": "today",
+     "fresh": "",
+     "ent_types": [
+      "organization"
+     ],
+     "num_types": [
+      "date"
+     ]
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc17",
+   "kind": "local",
+   "heard": "What are some really good ramen places in Seattle?",
+   "before": {
+    "query": "good ramen places seattle",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "What are some really good ramen places in Seattle"
+   },
+   "after": {
+    "query": "good ramen places seattle",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "What are some really good ramen places in Seattle",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [
+      "place"
+     ],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc18",
+   "kind": "local",
+   "heard": "is the apple store on fifth avenue in new york open twenty four hours",
+   "before": {
+    "query": "apple store fifth avenue new york open twenty four hours",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "is the apple store on fifth avenue in new york open twenty four hours"
+   },
+   "after": {
+    "query": "apple store fifth avenue new york open twenty four hours",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "is the apple store on fifth avenue in new york open twenty four hours",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "day",
+     "when_text": "twenty four hours",
+     "fresh": "",
+     "ent_types": [
+      "organization",
+      "place"
+     ],
+     "num_types": [
+      "date",
+      "duration"
+     ]
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc19",
+   "kind": "travel",
+   "heard": "do i need a visa to visit japan from the us",
+   "before": {
+    "query": "visa visit japan",
+    "plan": {
+     "topic": "general",
+     "max_age_hours": 6
+    },
+    "question": "do i need a visa to visit japan from the us",
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "Apply for a Japan visa online | iVisa",
+      "url": "https://ivisatravel.com/japan/p/tourist-visa",
+      "published": null
+     },
+     {
+      "title": "Apply for a Japan visa online | iVisa",
+      "url": "https://www.ivisa.com/japan/blog/japan-tourist-visa-for-colombia-citizens",
+      "published": null
+     },
+     {
+      "title": "Japan Short-Term Visa 2025 \u2013 Visit Japan for Tourism, Business, or Family",
+      "url": "https://eduaid.net/japan/japan-short-term-visa",
+      "published": null
+     },
+     {
+      "title": "Japan Visa Guide 2026: How to Get a Japanese Tourist Visa | Opaige",
+      "url": "https://opaige.com/blog/japan-visa-application-guide-2026",
+      "published": null
+     },
+     {
+      "title": "Japan Visa Guide 2026: How to Get a Japanese Tourist Visa | Opaige",
+      "url": "https://opaige.com/blog/japan-visa-guide-2025",
+      "published": null
+     }
+    ],
+    "n_dated": 0,
+    "n_fresh": 0,
+    "answer": "Americans can generally visit Japan visa-free for short tourist stays, so you typically don't need a visa to visit from the US. The sources cover visa-free entry for many countries and general application steps, but not the US status specifically.",
+    "grounded": true
+   },
+   "after": {
+    "query": "visa visit japan",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "do i need a visa to visit japan from the us",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [
+      "person",
+      "place"
+     ],
+     "num_types": []
+    },
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "Apply for a Japan visa online | iVisa",
+      "url": "https://ivisatravel.com/japan/p/tourist-visa",
+      "published": null
+     },
+     {
+      "title": "Apply for a Japan visa online | iVisa",
+      "url": "https://www.ivisa.com/japan/blog/japan-tourist-visa-for-colombia-citizens",
+      "published": null
+     },
+     {
+      "title": "Japan Short-Term Visa 2025 \u2013 Visit Japan for Tourism, Business, or Family",
+      "url": "https://eduaid.net/japan/japan-short-term-visa",
+      "published": null
+     },
+     {
+      "title": "Japan Visa Guide 2026: How to Get a Japanese Tourist Visa | Opaige",
+      "url": "https://opaige.com/blog/japan-visa-application-guide-2026",
+      "published": null
+     },
+     {
+      "title": "Japan Visa Guide 2026: How to Get a Japanese Tourist Visa | Opaige",
+      "url": "https://opaige.com/blog/japan-visa-guide-2025",
+      "published": null
+     }
+    ],
+    "n_dated": 0,
+    "n_fresh": 0,
+    "answer": "Americans generally don't need a visa to visit Japan as tourists; US citizens can stay visa-free for up to 90 days, though you should check current entry rules before travel. Japan's visa-free list covers 68 countries [4]. Japan requires air travelers to complete Visit Japan Web registration before departure [2].",
+    "grounded": true
+   },
+   "changed": true,
+   "judge_raw": "A",
+   "judge": "after"
+  },
+  {
+   "id": "sc20",
+   "kind": "travel",
+   "heard": "When's the best time of year to visit Iceland to see the northern lights?",
+   "before": {
+    "query": "when's best time year visit iceland see northern lights",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "When's the best time of year to visit Iceland to see the northern lights"
+   },
+   "after": {
+    "query": "when's best time year visit iceland see northern lights",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "When's the best time of year to visit Iceland to see the northern lights",
+    "readout": {
+     "acts": [
+      "command_request"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [
+      "organization"
+     ],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc21",
+   "kind": "travel",
+   "heard": "How long is the flight from New York to London?",
+   "before": {
+    "query": "long flight new york london",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "How long is the flight from New York to London"
+   },
+   "after": {
+    "query": "long flight new york london",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "How long is the flight from New York to London",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [
+      "place"
+     ],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc22",
+   "kind": "product",
+   "heard": "which one's better for photos, the iPhone 17 Pro or the Pixel 10 Pro.",
+   "before": {
+    "query": "one's better photos iphone 17 pro pixel 10",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "which one's better for photos, the iPhone 17 Pro or the Pixel 10 Pro"
+   },
+   "after": {
+    "query": "one's better photos iphone 17 pro pixel 10",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "which one's better for photos, the iPhone 17 Pro or the Pixel 10 Pro",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 0.97,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [
+      "organization"
+     ],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc23",
+   "kind": "product",
+   "heard": "What's the best robot vacuum for a house with a lot of pet hair?",
+   "before": {
+    "query": "best robot vacuum house lot pet hair",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "What's the best robot vacuum for a house with a lot of pet hair"
+   },
+   "after": {
+    "query": "best robot vacuum house lot pet hair",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "What's the best robot vacuum for a house with a lot of pet hair",
+    "readout": {
+     "acts": [
+      "command_request"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc24",
+   "kind": "definition",
+   "heard": "Well, what does the word ubiquitous actually mean exactly?",
+   "before": {
+    "query": "word mean exactly",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "Well, what does the word mean exactly"
+   },
+   "after": {
+    "query": "word mean exactly",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "Well, what does the word mean exactly",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 0.98,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc25",
+   "kind": "definition",
+   "heard": "So, um, what exactly is a Roth IRA and how does it work?",
+   "before": {
+    "query": "exactly roth ira work",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "So, um, what exactly is a Roth IRA and how does it work"
+   },
+   "after": {
+    "query": "exactly roth ira work",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "So, um, what exactly is a Roth IRA and how does it work",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc26",
+   "kind": "recipe",
+   "heard": "What can I use instead of buttermilk in pancakes?",
+   "before": {
+    "query": "use instead buttermilk pancakes",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "What can I use instead of buttermilk in pancakes"
+   },
+   "after": {
+    "query": "use instead buttermilk pancakes",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "What can I use instead of buttermilk in pancakes",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc27",
+   "kind": "weather",
+   "heard": "What's the weather in Boston, Sorry? I mean, Denver.",
+   "before": {
+    "query": "weather denver",
+    "plan": {
+     "topic": "general",
+     "max_age_hours": 6
+    },
+    "question": "What's the weather in Denver"
+   },
+   "after": {
+    "query": "weather denver",
+    "plan": {
+     "topic": "general",
+     "max_age_hours": 6
+    },
+    "question": "What's the weather in Denver",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "weather \u00b7 last 6 h",
+     "ent_types": [
+      "place"
+     ],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc28",
+   "kind": "conversion",
+   "heard": "How many teaspoons are in a table spoon actually make that a quarter cup?",
+   "before": {
+    "query": "teaspoons table quarter cup",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "How many teaspoons are in a table a quarter cup"
+   },
+   "after": {
+    "query": "teaspoons table quarter cup",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "How many teaspoons are in a table a quarter cup",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 1.0,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc29",
+   "kind": "news",
+   "heard": "When is the next SpaceX Starship launch happening?",
+   "before": {
+    "query": "next spacex starship launch happening",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "When is the next SpaceX Starship launch happening"
+   },
+   "after": {
+    "query": "next spacex starship launch happening",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "When is the next SpaceX Starship launch happening",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 0.99,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "",
+     "when_text": "",
+     "fresh": "",
+     "ent_types": [
+      "organization"
+     ],
+     "num_types": []
+    }
+   },
+   "changed": false
+  },
+  {
+   "id": "sc30",
+   "kind": "sports",
+   "heard": "who won the formula one grand prix this past weekend",
+   "before": {
+    "query": "won formula one grand prix past weekend",
+    "plan": {
+     "topic": "general"
+    },
+    "question": "who won the formula one grand prix this past weekend",
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "F1 quiz: Do you know when each active driver won their first grand prix? | SB Nation",
+      "url": "https://www.sbnation.com/formula-one/2024/5/8/24151579/f1-quiz-lando-norris-max-verstappen-daniel-ricciardo-lewis-hamilton",
+      "published": null
+     },
+     {
+      "title": "F1memes Point - \ud83c\udfce\ufe0f Formula One Grand Prix wins: \ud83c\uddec\ud83c\udde7 Lewis...",
+      "url": "https://www.facebook.com/100063486729644/posts/%EF%B8%8F-formula-one-grand-prix-wins-lewis-hamilton-105-wins-max-verstappen-68-wins-fer/1447248254068052",
+      "published": null
+     },
+     {
+      "title": "https://www.gpfans.com/en/f1-news/1012320/lewis-hamilton-last-f1-grand-prix-win-when-where/",
+      "url": "https://www.gpfans.com/en/f1-news/1012320/lewis-hamilton-last-f1-grand-prix-win-when-where",
+      "published": null
+     },
+     {
+      "title": "Formula One Grand Prix top winners:... - World of Statistics",
+      "url": "https://www.facebook.com/100085912115492/posts/formula-one-grand-prix-top-winners1-lewis-hamilton-103-wins2-michael-schumacher-/258893600317709",
+      "published": null
+     },
+     {
+      "title": "Formula One: Lewis Hamilton wins first grand prix since 2021 - Citi Sports Online",
+      "url": "https://citisportsonline.com?p=587497",
+      "published": null
+     }
+    ],
+    "n_dated": 0,
+    "n_fresh": 0,
+    "answer": "Lando Norris won the most recent Formula 1 grand prix, the Miami Grand Prix, holding off Max Verstappen for his first win [1].",
+    "grounded": true
+   },
+   "after": {
+    "query": "won formula one grand prix past weekend",
+    "plan": {
+     "topic": "news",
+     "time_range": "week"
+    },
+    "question": "who won the formula one grand prix this past weekend",
+    "readout": {
+     "acts": [
+      "question"
+     ],
+     "directed": 0.99,
+     "redacted": [],
+     "jailbreak": false,
+     "when": "week",
+     "when_text": "weekend",
+     "fresh": "news \u00b7 past week",
+     "ent_types": [],
+     "num_types": [
+      "date"
+     ]
+    },
+    "credits": 1.0,
+    "sources": [
+     {
+      "title": "F1 Brazil Grand Prix LIVE: Friday practice updates from Sao Paulo - Crash.net (Fri, 06 Nov 2026)",
+      "url": "https://www.crash.net/f1/live/1044270/f1-brazil-grand-prix-live-friday-practice-updates-sao-paulo",
+      "published": "Fri, 06 Nov 2026 14:30:00 GMT"
+     },
+     {
+      "title": "F1 free live stream: How to watch Formula 1 2026 Brazilian Grand Prix without cable - Sporting News (Sun, 08 Nov 2026)",
+      "url": "https://www.sportingnews.com/in/tsn/news/f1-free-live-stream-watch-2026-brazilian-grand-prix-without-cable/5c636f3cb0f4d9e59c930460",
+      "published": "Sun, 08 Nov 2026 05:00:01 GMT"
+     },
+     {
+      "title": "McLaren's Lando Norris wins Formula 1\u2019s Sao Paulo Grand Prix, Mercedes clinches constructors\u2019 title - The Sun Chronicle (Sun, 08 Nov 2026)",
+      "url": "https://www.thesunchronicle.com/sports/mclarens-lando-norris-wins-formula-1-s-sao-paulo-grand-prix-mercedes-clinches-constructors-title/article_73b61756-5d98-5608-8af0-edd8b6f8240d.html",
+      "published": "Sun, 08 Nov 2026 19:09:16 GMT"
+     },
+     {
+      "title": "Sao Paulo GP grid penalties: Lewis Hamilton, Max Verstappen, Charles Leclerc to drop down Interlagos grid - Sky Sports (Sat, 07 Nov 2026)",
+      "url": "https://www.skysports.com/f1/news/13609202/sao-paulo-gp-grid-penalties-lewis-hamilton-max-verstappen-charles-leclerc-to-drop-down-interlagos-grid",
+      "published": "Sat, 07 Nov 2026 15:02:40 GMT"
+     },
+     {
+      "title": "Liam Lawson retained by Racing Bulls for 2027 alongside Arvid Lindblad - Motorsport.com (Thu, 12 Nov 2026)",
+      "url": "https://www.motorsport.com/f1/news/liam-lawson-retained-by-racing-bulls-for-2027-alongside-arvid-lindblad/10874061/",
+      "published": "Thu, 12 Nov 2026 11:05:10 GMT"
+     }
+    ],
+    "n_dated": 5,
+    "n_fresh": 5,
+    "answer": "McLaren's Lando Norris won the Sao Paulo Grand Prix this past weekend, dominating a rainy race from pole position [3]. Mercedes clinched the constructors' title in the same race [3].",
+    "grounded": true
+   },
+   "changed": true,
+   "judge_raw": "A",
+   "judge": "after"
+  }
+ ]
+}

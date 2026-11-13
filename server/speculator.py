@@ -142,16 +142,17 @@ class Speculator:
         m = fire.meter
         if not m:
             return {}
-        return {k: m[k] for k in ("backend", "depth", "topic", "credits", "cached", "fallback", "replayed",
+        return {k: m[k] for k in ("backend", "depth", "topic", "time_range", "credits", "cached", "fallback", "replayed",
                                   "cache_match", "cache_miss") if k in m}
 
     def _web(self, q: str, f: Frame, final: bool):
         """(coroutine factory, meter) for one web-lane call of this question."""
         meter: dict = {}
+        hints = f.web_hints()
         topic = "news" if f.intent in NEWS_INTENTS else "general"
         ent = f.entity_query() if q == f.query() else ""
         return (lambda: lanes.web(q, topic=topic, intent=f.intent, text=f.resolved_text, final=final,
-                                  ledger=self.ledger, meter=meter, entity=ent)), meter
+                                  ledger=self.ledger, meter=meter, entity=ent, hints=hints)), meter
 
     def _web_affordable(self) -> bool:
         """Speculation stops (quietly) when the session's Tavily credits are down to the final-query reserve."""
@@ -297,6 +298,8 @@ class Speculator:
         else:
             self.stable += 1
         self._mark_stale(f)
+        if f.jailbreak:
+            return              # Arc flags a prompt-injection attempt: spend no speculative searches / drafts on it
         need = 1 if f.slots else config.STABLE_UPDATES        # typed spans are confident: fire on first sight
         if f.n < config.MIN_WORDS or not f.has_content() or self.stable < need:
             return
@@ -427,7 +430,8 @@ class Speculator:
             self.answer_stream = None
         self.closed = close
         m = {"mode": self.mode, "question": f.text, "query": f.query(), "intent": f.intent, "endpoint_by": by,
-             "endpoint_lag_ms": round((t_end - t_speech_end) * 1000)}
+             "endpoint_lag_ms": round((t_end - t_speech_end) * 1000), "web_hints": f.web_hints(),
+             "redacted": list(f.redacted), "jailbreak": f.jailbreak}
 
         def superseded():
             m["superseded"] = True
@@ -565,7 +569,8 @@ class Speculator:
         parallel request; whichever of it and Haiku produces text first is spoken. Returns the task or None."""
         if not (config.TAVILY_ANSWER and config.WEB_BACKEND == "tavily" and f.route in ("web", "both")):
             return None
-        plan = lanes.web_plan(f.intent, f.resolved_text, final=True, answer=config.TAVILY_ANSWER_DEPTH)
+        plan = lanes.web_plan(f.intent, f.resolved_text, final=True, answer=config.TAVILY_ANSWER_DEPTH,
+                              hints=f.web_hints())
         return asyncio.create_task(lanes.tavily(q, plan, self.ledger, self.answer_meter, final=True))
 
     def _credits(self) -> dict:

@@ -58,6 +58,28 @@ WEAK_PRONOUNS = {"there", "that", "this", "those", "these"}     # often not refe
 NUMBER_TYPES = {"date", "time", "time_of_day", "duration", "money", "percent", "cardinal", "ordinal", "quantity",
                 "number", "numeral", "age", "year"}
 
+# --- the rest of Arc Tagger's per-word read-out (beyond intent + slots) -----------------------------------------------
+# Personal data that must not leave the device in a web query: span types precise enough to redact. (private_name is
+# NOT here: on this eval it fires on "Nvidia", "Mount", "Toyota", "Mozart"; the utterance-level pii.request / pii.leak
+# flags fire on most ordinary questions, so neither is used.)
+PII_REDACT = {"safety.pii.phone_number": "phone", "safety.pii.email": "email", "safety.pii.street_address": "address",
+              "safety.pii.card_account_number": "card", "safety.pii.gov_id": "id", "safety.pii.date_of_birth": "birthday",
+              "safety.pii.url_handle": "handle"}
+# Relative time said in the question (Arc's typed entity.number.date / duration / time_of_day span, or the words):
+# drives Tavily freshness. Absolute dates ("in 2024", "March 3rd 2025") mean history: no freshness filter.
+_WHEN_DAY = re.compile(r"\b(today|tonight|right now|now|this morning|this afternoon|this evening|currently|live|"
+                       r"24 hours|twenty four hours|at the moment)\b")
+_WHEN_WEEK = re.compile(r"\b(yesterday|last night|weekend|this week|past week|last week|sunday|saturday|monday|"
+                        r"tuesday|wednesday|thursday|friday|recent|recently|latest|lately|few days|past few days)\b")
+# results of games / races / matches are news (dated pages), not encyclopedia pages
+_RESULTS = {"game", "match", "score", "scores", "won", "win", "winner", "race", "prix", "beat", "lost", "playoff",
+            "playoffs", "final", "finals", "result", "results", "standings", "fight", "tournament"}
+_WEATHER_W = {"weather", "rain", "raining", "rainy", "snow", "snowing", "sunny", "temperature", "forecast", "cold", "hot",
+              "warm", "wind", "windy", "humid", "humidity", "storm", "umbrella", "degrees", "cloudy", "fog", "heat"}
+_MARKET = re.compile(r"\b(s ?(?:and|&)? ?p 500|s p 500|nasdaq|dow jones|the dow|stock market)\b")
+_FINANCE_W = {"stock", "stocks", "price", "worth", "rate", "exchange", "bitcoin", "crypto", "ethereum", "market",
+              "shares", "dollars", "euros", "dollar", "euro", "yen", "pounds"}
+
 _PUNCT = re.compile(r"[^\w'\- ]+")
 
 
@@ -81,6 +103,16 @@ class Frame:
     spans: list = field(default_factory=list)
     dropped: frozenset = frozenset()  # token indices removed by a self-correction (cue words + corrected-away entity)
     phrases: tuple = ()              # entity phrases as spoken (internal stopwords kept): "pride and prejudice"
+    # the rest of the read-out (shown live; freshness / topic / redaction use it)
+    acts: tuple = ()                 # dialogue acts that are on: ("question",), ("command_request",) ...
+    directed: float | None = None    # discourse.assistant.device_directed probability
+    redacted: tuple = ()             # kinds of personal data kept out of the web query: ("phone", "email")
+    redact_tok: frozenset = frozenset()
+    jailbreak: bool = False          # safety.jailbreak.attempt on the spoken question
+    when: str = ""                   # "day" | "week" | "" : relative time the question is about
+    when_text: str = ""              # the words that said it ("last night", "right now")
+    ent_types: tuple = ()            # entity mention types in spoken order (person, organization, place, team, ...)
+    num_types: tuple = ()            # typed number spans (date, money, percent, duration, ...)
 
     @property
     def n(self):
@@ -103,9 +135,20 @@ class Frame:
     def clean_text(self) -> str:
         """The question as the speaker meant it: correction cue and the corrected-away entity removed ("who founded
         Microsoft, sorry, I meant Amazon" → "who founded Amazon"), so the answer model doesn't comment on Microsoft."""
-        if not self.dropped:
+        if not self.dropped and not self.redact_tok:
             return self.text
-        return " ".join(w for i, w in enumerate(self.words) if i not in self.dropped)
+        out, masked = [], False
+        for i, w in enumerate(self.words):
+            if i in self.dropped:
+                continue
+            if i in self.redact_tok:
+                if not masked:
+                    out.append("[private]")       # personal data never leaves the device
+                masked = True
+                continue
+            masked = False
+            out.append(w)
+        return " ".join(out)
 
     @property
     def resolved_text(self) -> str:
@@ -130,6 +173,51 @@ class Frame:
             q.append(hint)
         return " ".join(q)
 
+    def web_hints(self) -> dict:
+        """Tavily topic / freshness from the read-out (lanes.web_plan applies them):
+          - finance intent, or a money span / finance word with a price-like question -> topic finance (+ max age)
+          - news intent -> topic news; a relative time said ("today", "last night") -> time_range day | week
+          - a result question (game / race / score) said with a relative time ("last night", "this weekend",
+            "right now") -> topic news + that time_range: results are dated news pages, not encyclopedia articles
+        Weather keeps lanes.web_plan's own max_age. Returns {} when nothing applies (plain general search)."""
+        h: dict = {}
+        toks = set(self.content)
+        if self.intent == "discourse.intent.weather_query" and not toks & _WEATHER_W:
+            # Arc's weather intent with no weather word ("is it bad to take ibuprofen on an empty stomach"): not a
+            # forecast, so no 6-hour freshness filter (it would drop every evergreen health page)
+            return {"weather_off": True, "why": "no weather word"}
+        if self.intent in ("discourse.intent.qa_stock", "discourse.intent.qa_currency") and self.intent_p >= 0.35:
+            h["topic"] = "finance"
+        elif _MARKET.search(" ".join(norm(w) for w in self.words)):
+            h["topic"] = "finance"
+        elif ("money" in self.num_types or toks & {"bitcoin", "crypto", "ethereum", "stock", "stocks", "shares"}) and \
+                toks & _FINANCE_W and self.intent != "discourse.intent.weather_query":
+            h["topic"] = "finance"
+        elif self.intent == "discourse.intent.news_query":
+            h["topic"] = "news"
+            if self.when:
+                h["time_range"] = self.when
+        elif self.when and (toks & _RESULTS or "team" in self.ent_types or "event_name" in self.ent_types) \
+                and self.intent != "discourse.intent.weather_query":
+            h["topic"] = "news"
+            h["time_range"] = self.when
+        if h:
+            h["why"] = self.when_text or ""
+        return h
+
+    def readout(self) -> dict:
+        """Compact live read-out for the UI frame card."""
+        h = self.web_hints()
+        fresh = ""
+        if h.get("topic") and h.get("topic") != "general":
+            fresh = h["topic"] + (f" · past {h['time_range']}" if h.get("time_range") else "")
+        elif self.intent == "discourse.intent.weather_query" and not h.get("weather_off"):
+            fresh = "weather · last 6 h"
+        return {"acts": list(self.acts), "directed": None if self.directed is None else round(self.directed, 2),
+                "redacted": list(self.redacted), "jailbreak": self.jailbreak, "when": self.when,
+                "when_text": self.when_text, "fresh": fresh, "ent_types": list(self.ent_types),
+                "num_types": list(self.num_types)}
+
     def has_content(self) -> bool:
         return len(self.content) >= 2 or bool(self.slots)
 
@@ -137,7 +225,7 @@ class Frame:
         return {"intent": self.intent, "p": round(self.intent_p, 2), "coarse": self.coarse,
                 "slots": [list(s) for s in self.slots], "content": list(self.content), "route": self.route,
                 "corrected": self.corrected, "carried": self.carried, "query": self.query(), "n": self.n,
-                "command_complete": self.command_complete}
+                "command_complete": self.command_complete, "readout": self.readout()}
 
 
 def _correction_at(toks: list[str]) -> int:
@@ -222,11 +310,23 @@ def build(words: list[str], spans: list[dict], current: dict | None, events_seen
         if prev_intent[0].startswith("discourse.intent.") and not fine:
             f.intent, f.intent_p = prev_intent
     f.act_question = any(x["tag"] == "discourse.act.question" and x.get("on") for x in (cur.get("act") or []))
+    f.acts = tuple(x["tag"].split(".")[-1] for x in (cur.get("act") or [])
+                   if x.get("on") and x["tag"].startswith("discourse.act."))
+    f.directed = next((float(x["p"]) for x in (cur.get("act") or [])
+                       if x["tag"] == "discourse.assistant.device_directed"), None)
+    f.jailbreak = any(x["tag"] == "safety.jailbreak.attempt" and x.get("on") for x in (cur.get("safety") or []))
+    # personal data spans: their words stay out of the query, the slots and the entity phrases
+    pii = [s for s in spans if s["type"] in PII_REDACT and s["end"] <= len(toks)]
+    redact_tok = set()
+    for s in pii:
+        redact_tok.update(range(s["start"], s["end"]))
+    f.redact_tok = frozenset(redact_tok)
+    f.redacted = tuple(dict.fromkeys(PII_REDACT[s["type"]] for s in pii))
     f.command_complete = bool(events_seen and "discourse.assistant.command_complete" in events_seen)
 
     # slots: entity mentions + typed numbers (drop the generic entity.numeral duplicate)
     slot_spans = [s for s in spans if s.get("family") in ("entity", "number") and s["type"] != "entity.numeral"
-                  and s["end"] <= len(toks)]
+                  and s["end"] <= len(toks) and not set(range(s["start"], s["end"])) & redact_tok]
     cut = _correction_at(toks)
     drop_tok = set()
     cue_tok = _cue_tokens(toks, cut)
@@ -280,10 +380,32 @@ def build(words: list[str], spans: list[dict], current: dict | None, events_seen
         slot_spans = [s for s in slot_spans if not set(range(s["start"], s["end"])) & drop_tok]
     f.slots = tuple(sorted({(s["type"].split(".")[-1], norm(s["text"])) for s in slot_spans}))
     f.dropped = frozenset(drop_tok)
-    f.phrases = tuple(_phrases(f.words, toks, slot_spans, cut, drop_tok))
+    f.ent_types = tuple(dict.fromkeys(s["type"].split(".")[-1] for s in slot_spans
+                                      if s["type"].startswith("entity.mention")))
+    f.num_types = tuple(dict.fromkeys(s["type"].split(".")[-1] for s in slot_spans
+                                      if s["type"].startswith("entity.number")))
+    low_kept = " ".join(t for i, t in enumerate(toks) if t and i not in drop_tok)
+    time_spans = [norm(s["text"]) for s in slot_spans
+                  if s["type"] in ("entity.number.date", "entity.number.duration", "entity.number.time_of_day")]
+    for src in time_spans + [low_kept]:
+        m = _WHEN_DAY.search(src)
+        if m:
+            f.when, f.when_text = "day", m.group(0)
+            break
+        m = _WHEN_WEEK.search(src)
+        if m:
+            f.when, f.when_text = "week", m.group(0)
+            break
+    f.phrases = tuple(_phrases(f.words, toks, slot_spans, cut, drop_tok | redact_tok))
+    money_tok = {i for s in slot_spans if s["type"] in ("entity.number.money", "entity.number.percent")
+                 for i in range(s["start"], s["end"])}
     seen, content = set(), []
     for i, t in enumerate(toks):
-        if not t or t in STOP or i in drop_tok or t in seen:
+        if i in money_tok and t and i not in drop_tok and i not in redact_tok:
+            # keep a typed amount as said: "$100", "15%" (norm() would strip the unit symbol: "100")
+            raw = re.sub(r"[^\w$%.,€£¥]", "", words[i]).strip(".,").lower()
+            t = raw or t
+        if not t or t in STOP or i in drop_tok or i in redact_tok or t in seen:
             continue
         seen.add(t)
         content.append(t)
