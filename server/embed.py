@@ -15,8 +15,10 @@ import numpy as np
 from . import config
 
 _model = None
+_qmodel = None
 _lock = threading.Lock()
-_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="embed")
+_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="embed")      # MPS: docs + audio
+_qpool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="embed-q")   # CPU text-only copy: queries (critical path)
 
 
 def model():
@@ -31,6 +33,18 @@ def model():
         return _model
 
 
+def qmodel():
+    """Text-only CPU copy (271M) for query embeddings, so a query never waits behind document/audio batches on MPS."""
+    global _qmodel
+    with _lock:
+        if _qmodel is None:
+            import torch
+            from sentence_transformers import SentenceTransformer
+            _qmodel = SentenceTransformer(config.EMBED_MODEL, device="cpu", model_kwargs={"torch_dtype": torch.float32},
+                                          config_kwargs={"vision_config": None, "audio_config": None})
+        return _qmodel
+
+
 def _norm(x: np.ndarray) -> np.ndarray:
     x = np.asarray(x, dtype=np.float32)
     if config.EMBED_DIM < x.shape[-1]:
@@ -40,7 +54,7 @@ def _norm(x: np.ndarray) -> np.ndarray:
 
 
 def encode_queries(texts: list[str]) -> np.ndarray:
-    return _norm(model().encode(texts, prompt_name="SearchQuery", batch_size=16))
+    return _norm(qmodel().encode(texts, prompt_name="SearchQuery", batch_size=16))
 
 
 def encode_docs(texts: list[str], titles: list[str] | None = None) -> np.ndarray:
@@ -58,6 +72,7 @@ def encode_audio(wavs: list[np.ndarray]) -> np.ndarray:
 def warmup():
     t = time.perf_counter()
     model()
+    qmodel()
     for n in (1, 2, 3, 5, 8):
         encode_queries(["warm up query"] * n)
         encode_docs(["warm up document text"] * n)
@@ -69,4 +84,4 @@ def warmup():
 
 async def arun(fn, *args):
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(_pool, fn, *args)
+    return await loop.run_in_executor(_qpool if fn is encode_queries else _pool, fn, *args)

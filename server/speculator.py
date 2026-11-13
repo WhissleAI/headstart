@@ -89,9 +89,9 @@ class Speculator:
                 for d in docs:
                     d.lane = lane
                 fire.docs = docs
-                fire.state = "done" if fire.state == "fired" else fire.state
                 fire.t_done = time.perf_counter()
-                await self._add_docs(docs, fire)
+                await self._add_docs(docs, fire)            # vectors first, then "done": drafts rank on vectors
+                fire.state = "done" if fire.state == "fired" else fire.state
                 self._ev(id=fire.id, lane=lane, query=query, state=fire.state, ms=self.ms(fire.t_done),
                          took=round((fire.t_done - fire.t_fire) * 1000), n=len(docs),
                          top=[d.title for d in docs[:3]])
@@ -118,12 +118,22 @@ class Speculator:
         if not need:
             return
         # local docs come with precomputed vectors in the index; re-embedding keeps one code path and is ~30 ms
-        vec = await embed.arun(embed.encode_docs, [d.text[:1200] for d in need], [d.title for d in need])
+        vec = await embed.arun(embed.encode_docs, [d.text[:600] for d in need], [d.title for d in need])
         for d, v in zip(need, vec):
             self.vecs[d.id] = v
 
-    def rank(self, qvec: np.ndarray, k: int = 5):
+    def rank(self, qvec: np.ndarray, k: int = 5, fresh_only: bool = True):
+        """Top-k pool docs by cosine. Docs that only came from stale searches (a misheard or corrected-away query) are
+        left out when enough fresh ones exist."""
         ids = [i for i in self.pool if i in self.vecs]
+        if fresh_only:
+            fresh = set()
+            for x in self.fires:
+                if x.state in ("done", "fired"):
+                    fresh |= {d.id for d in x.docs}
+            keep = [i for i in ids if i in fresh]
+            if len(keep) >= 3:
+                ids = keep
         if not ids:
             return []
         M = np.stack([self.vecs[i] for i in ids])
@@ -179,6 +189,10 @@ class Speculator:
     def _mark_stale(self, f: Frame):
         cur = set(f.content)
         for fire in self.fires:
+            if fire.state == "stale" and fire.content and set(fire.content) <= cur and fire.docs:
+                fire.state = "done"                 # the speaker came back to it (ASR flip-flop)
+                self._ev(id=fire.id, lane=fire.lane, query=fire.query, state="done", ms=self.ms(), revived=True)
+                continue
             if fire.state not in ("fired", "done") or fire.lane.startswith("final") or fire.lane == "audio":
                 continue
             if fire.content and not set(fire.content) <= cur:
@@ -212,8 +226,11 @@ class Speculator:
             try:
                 qvec = (await embed.arun(embed.encode_queries, [f.text]))[0]
                 top = [d for d, _ in self.rank(qvec)]
-                if not top or self.closed:
-                    return
+                if not top or self.closed or self.last_sig != f.sig:
+                    return                          # the question moved on while we embedded
+                own = {d.id for x in ready for d in x.docs}
+                if not own & {d.id for d in top}:
+                    return                          # don't draft from other questions' results
                 st = answer.Stream(f.text, top, tag="draft")
                 d = Draft(id=f"d{next(_ids)}", meaning_sig=f.meaning_sig, question=f.text, qvec=qvec, stream=st,
                           t_start=time.perf_counter(), doc_ids=tuple(x.id for x in top), content=f.content)
@@ -252,7 +269,8 @@ class Speculator:
             reuse_draft = await self._pick_draft(f, qvec, m)
             if reuse_draft is None:
                 # 2) the final query already fired (in flight or done)? wait for it, don't re-search
-                same = [x for x in self.fires if x.query == q and x.lane in ("web", "local") and x.state != "stale"]
+                same = [x for x in self.fires if x.query == q and x.lane in ("web", "local")
+                        and x.state in ("fired", "done", "stale")]
                 pending = [x.task for x in same if x.state == "fired" and x.task]
                 top = self.rank(qvec, 1)
                 best = top[0][1] if top else 0.0
@@ -261,7 +279,7 @@ class Speculator:
                     m["path"] = "speculative-hit"
                     if pending:
                         await asyncio.gather(*pending, return_exceptions=True)
-                elif best >= config.COMMIT_TAU:
+                elif best >= config.COMMIT_TAU and self._nothing_new(f):
                     m["path"] = "pool-commit"
                 else:
                     m["path"] = "speculative-miss"
@@ -316,6 +334,14 @@ class Speculator:
         })
         self.emit({"t": "metric", **{k: v for k, v in m.items() if k != "answer"}})
         return m
+
+    def _nothing_new(self, f: Frame) -> bool:
+        """True if every content word of the final question was already covered by some non-stale search."""
+        seen = set()
+        for x in self.fires:
+            if x.state in ("done", "fired") and x.lane in ("web", "local"):
+                seen |= set(x.content)
+        return set(f.content) <= seen
 
     async def _pick_draft(self, f: Frame, qvec, m):
         from .frame import norm

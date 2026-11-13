@@ -40,3 +40,9 @@ DRAFT_BUDGET = int(os.environ.get("SPEC_DRAFT_BUDGET", "4"))
 DRAFT_STABLE_MS = int(os.environ.get("SPEC_DRAFT_STABLE_MS", "0"))
 AUDIO_LANE = os.environ.get("SPEC_AUDIO_LANE", "1") == "1"
 COMMIT_TAU = float(os.environ.get("SPEC_COMMIT_TAU", "0.55"))
+
+# Semantic endpointing (Head Start only): answer when the tagger says the command is complete and the speaker has been
+# silent this long, instead of waiting for the ear's own pause endpoint (~450 ms on Arc).
+SEMANTIC_ENDPOINT = os.environ.get("SEMANTIC_ENDPOINT", "1") == "1"
+SEM_SILENCE_MS = int(os.environ.get("SEM_SILENCE_MS", "250"))
+SEM_STABLE_MS = int(os.environ.get("SEM_STABLE_MS", "420"))   # one Arc partial refresh (~0.4 s) must confirm the words

@@ -15,7 +15,7 @@ import time
 import numpy as np
 
 from . import frame as framemod
-from . import lanes
+from . import config, lanes
 from .speculator import Speculator
 from .tagger import Tagger
 
@@ -34,6 +34,12 @@ class Session:
         self.tagger = Tagger(domain=domain)
         self.t0 = t0 or time.perf_counter()        # wall time of audio sample 0
         self.history: list[dict] = []
+        self.semantic = mode == "headstart" and config.SEMANTIC_ENDPOINT
+        self.silence_ms = 0.0
+        self.noise = []
+        self.last_answered_end = -1.0           # audio time of the last word of the last answered question
+        self.last_answered_words: list[str] = []
+        self.final_task: asyncio.Task | None = None
         self._new_question()
 
     def _new_question(self):
@@ -49,10 +55,19 @@ class Session:
         self.q_audio_start: float | None = None      # audio time (s) of the first word of this question
         self.spec = Speculator(self.emit, self.mode, self.t0)
         self.busy = False
+        self.words_changed_at = time.perf_counter()
 
     # ------------------------------------------------------------------ ear events
     def on_audio(self, pcm: np.ndarray, at_s: float):
         """pcm ends at audio time at_s."""
+        rms = float(np.sqrt(np.mean(pcm * pcm))) if len(pcm) else 0.0
+        self.noise.append(rms)
+        self.noise = self.noise[-60:]
+        floor = float(np.percentile(self.noise, 20)) if len(self.noise) >= 5 else 0.0
+        if rms > max(0.008, 3.0 * floor):
+            self.silence_ms = 0.0
+        else:
+            self.silence_ms += 1000.0 * len(pcm) / 16000
         self.audio.append(pcm)
         # keep ~12 s
         tot = sum(len(a) for a in self.audio)
@@ -85,6 +100,7 @@ class Session:
         self.words = new
         self.times = [(w.get("start"), w.get("end")) for w in ws if clean(w["text"])]
         if changed:
+            self.words_changed_at = time.perf_counter()
             r = self.tagger.poll()
             self._apply(r, revised_from=k if k < len(self.words) else None)
         if ws and self.q_audio_start is None:
@@ -116,13 +132,27 @@ class Session:
                 "ms": self.spec.ms()})
         self.frame = f
         self.spec.on_frame(f, now)
+        stable_ms = (time.perf_counter() - self.words_changed_at) * 1000
+        if (self.semantic and not self.busy and ws and f.n >= 2 and self.silence_ms >= config.SEM_SILENCE_MS
+                and stable_ms >= config.SEM_STABLE_MS and (f.command_complete or f.act_question) and f.has_content()):
+            # semantic endpoint: the tagger says the request is complete and the speaker paused briefly
+            self.final_task = asyncio.create_task(self.on_final(ws, early=True))
+            return
         qa = self.question_audio()
         if qa is not None:
             self.spec.on_audio(qa, f.route)
 
-    async def on_final(self, ws: list[dict]) -> dict | None:
+    async def on_final(self, ws: list[dict], early: bool = False) -> dict | None:
         if self.busy:
             return None
+        if not early and ws and (ws[0].get("start") or 0.0) <= self.last_answered_end + 0.05:
+            # the ear's own endpoint for an utterance we already answered at the semantic endpoint: ignore it if it
+            # says the same thing; if the speaker kept going ("... in Paris | tomorrow"), answer the longer question
+            fin = [framemod.norm(clean(w["text"])) for w in ws]
+            if fin[: len(self.last_answered_words)] == self.last_answered_words and \
+                    len(fin) <= len(self.last_answered_words):
+                return None
+            self.emit({"t": "extended", "ms": self.spec.ms(), "words": fin})
         self.busy = True
         if not ws:
             self._new_question()
@@ -132,11 +162,14 @@ class Session:
         self._apply(self.tagger.poll())
         f = framemod.build(self.words, self.spans, self.current, self.events, self.prev_intent, local_ok=bool(len(lanes.index())))
         last_end = ws[-1].get("end") or 0.0
+        self.last_answered_end = last_end
+        self.last_answered_words = [framemod.norm(w) for w in self.words]
         t_speech_end = self.t0 + last_end
         self.emit({"t": "endpoint", "ms": self.spec.ms(), "speech_end_ms": round(last_end * 1000),
-                   "frame": f.to_json()})
+                   "frame": f.to_json(), "by": "semantic" if early else "ear"})
         try:
             m = await self.spec.finalize(f, t_speech_end)
+            m["endpoint_by"] = "semantic" if early else "ear"
         finally:
             self.spec.close()
         self.history.append(m)
