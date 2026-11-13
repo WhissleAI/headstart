@@ -88,7 +88,15 @@ mic → ear: Arc (on-device streaming ASR, self-revising words) · or Deepgram (
 - **The policy is simulated before we spend real calls [PROG]:** a virtual-clock simulator replays 51 recorded Arc
   traces through the real speculator. It predicted the real p50 to within **3.9 %** (45 ms), and its paired saving
   was 412 ms against 398 ms measured.
-- Demo capture: `docs/media/headstart_race.gif`.
+- Demo capture (final code, live Race replays): `docs/media/headstart_race.gif`, which runs q01, then q27, then
+  conv01, then local_05. Stills:
+  - `q01_race_nvidia.jpg`: 1.14 vs 1.58 s.
+  - `q27_correction_canada_turkey.jpg`: 1.54 vs 1.80 s.
+  - `conv01_memory_chip.jpg`: memory "it → Nvidia", 1.13 vs 1.48 s.
+  - `local05_moment_chips.jpg`: 0.70 vs 1.42 s, with ▶ mm:ss moment chips.
+
+  These are single live replays, not the benchmark. Repeated replays varied: across 8 replays, Head Start was
+  behind twice and roughly tied twice. See the limitations below.
 
 ## Slide 5: Why now, and the impact
 - **Why now:** three things only recently became true at the same time.
@@ -185,5 +193,11 @@ voice stack, so it adds to them rather than replacing them.
   - The moments index uses third-party YouTube audio, which needs rights clearance before any public showing [IDX].
 - **One machine:** every timing comes from a single M3 Pro laptop, with the two modes run in alternating order for
   each question.
-- **Media:** the screenshots in `docs/media/` predate the UI glitch fixes. The q27 shot still shows the
-  corrected-away "PLACE canada" slot.
+- **Live replays vary more than the benchmark.** On the final code (20:20), I ran 8 Race replays:
+  - Head Start won 4 clearly.
+  - 2 were dead heats: q01 at 1.98 vs 1.93 s, and q27 at 1.57 vs 1.63 s.
+  - Head Start lost 2: q27 at 2.23 vs 1.88 s, and conv01 at 1.49 vs 1.33 s.
+
+  In both losses, the answer model's first token took longer on the Head Start side (+1583 ms and +880 ms). In those
+  replays the answer started only at Arc's endpoint, because the semantic endpoint did not fire. If a replay ties on
+  stage, replay it again, or use local_05, which won by 0.71 s.
