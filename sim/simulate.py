@@ -89,6 +89,10 @@ class Simulator:
         sess = Session(emit, mode=mode, t0=t0)
         sess.t0 = sess.spec.t0 = t0
         finals = []
+        emu = None
+        if trace.get("ear") == "flux":
+            from sim.flux_traces import FluxEmu
+            emu = FluxEmu(sess, finals, asyncio.create_task)
         for e in trace["events"]:
             d = t0 + e["w"] - time.perf_counter()
             if d > 0:
@@ -98,8 +102,12 @@ class Simulator:
                 sess.on_audio(np.full(e["n"], e["rms"], np.float32), e["at"])
             elif k == "partial":
                 sess.on_partial(e["words"], time.perf_counter())
+            elif k == "flux":
+                emu.on(e, time.perf_counter())
             else:
                 finals.append(asyncio.create_task(sess.on_final(e["words"])))
+        if emu is not None:
+            emu.flush()
         if finals:
             await asyncio.gather(*finals, return_exceptions=True)
         seen = set()
@@ -115,6 +123,10 @@ class Simulator:
         from server import config
         saved = {a: getattr(config, a) for a in KNOBS.values()}
         saved["SEMANTIC_ENDPOINT"] = config.SEMANTIC_ENDPOINT
+        for k in cfg:
+            a_ = KNOBS.get(k, k)
+            if a_ not in saved and hasattr(config, a_):
+                saved[a_] = getattr(config, a_)
         for k, v in cfg.items():
             setattr(config, KNOBS.get(k, k), v)
         w = fakes.World(profile=profile, sampler=fakes.Sampler(seed, trace["id"]), caches=self.caches)
@@ -143,6 +155,10 @@ class Simulator:
         grounded = bool(set(src_ids) & finalq_ids)
         exact = bool(m.get("draft_reused")) and m.get("draft_match") == "exact"
         eps = [e for e in events if e.get("t") == "endpoint"]
+        fin_q = (m.get("question") or "").strip()
+        soft_eps = [e for e in eps if e.get("soft")]
+        premature = sum(1 for e in soft_eps if " ".join((e.get("frame") or {}).get("content") or []) !=
+                        " ".join(next((x.get("content") for x in reversed(events) if x.get("t") == "frame" and x.get("final")), []) or []))
         arc_end = eps[-1]["speech_end_ms"] / 1000 if eps else None
         ready = m.get("ready_ms")
         # ready measured from the waveform's speech end (independent of Arc's word-timing jitter between runs)
@@ -155,6 +171,8 @@ class Simulator:
             "draft_match": m.get("draft_match"), "draft_reused": bool(m.get("draft_reused")),
             "query": fq, "question": m.get("question"), "answers": len(ms), "n_endpoints": len(eps),
             "web_calls": m.get("web_calls", 0), "drafts": m.get("drafts", 0), "spec_fires": m.get("spec_fires", 0),
+            "spec_used": m.get("spec_used", 0), "soft": len(soft_eps), "premature": premature,
+            "trigger": m.get("endpoint_trigger"),
             "llm_requests": w.counters["llm_requests"], "web_missing": w.counters["web_missing"],
             "src_ids": src_ids, "grounded": grounded, "risky": (not grounded and not exact) if m else True,
             "hedged": bool(m.get("hedged")), "spin_ms": round(vclock.last_spin_s * 1000), "error": "; ".join(errs) or m.get("error") or (None if m else "no answer"),
@@ -209,6 +227,10 @@ def summarize(rows: list[dict], mode: str = "headstart") -> dict:
         "pool_commit_rate": round(sum(r["path"] == "pool-commit" for r in rs) / n, 3),
         "completion_reuse_rate": round(sum(r["draft_match"] == "completion" and r["draft_reused"] for r in rs) / n, 3),
         "web_calls_per_q": round(sum(r["web_calls"] for r in rs) / n, 2),
+        "spec_fires_per_q": round(sum(r.get("spec_fires", 0) for r in rs) / n, 2),
+        "wasted_fires_per_q": round(sum(r.get("spec_fires", 0) - r.get("spec_used", 0) for r in rs) / n, 2),
+        "premature_per_100q": round(100 * sum(r.get("premature", 0) for r in rs) / n, 1),
+        "triggers": {k: round(v / n, 3) for k, v in Counter(str(r.get("trigger")) for r in rs).most_common()},
         "llm_requests_per_q": round(sum(r["llm_requests"] for r in rs) / n, 2),
         "drafts_per_q": round(drafts / n, 2),
         "wasted_drafts_per_q": round((drafts - reused) / n, 2),
@@ -274,16 +296,17 @@ def validate(sim: Simulator, seeds=range(10), ab=ROOT / "sim" / "data" / os.envi
     return out, rows
 
 
-def prefetch(sim: Simulator, rounds: int = 4, seeds=(0, 1, 2)):
+def prefetch(sim: Simulator, rounds: int = 4, seeds=(0, 1, 2), traces=None, extra_cfgs=()):
     """Fill the Wikipedia + vector caches: run every trace with a permissive policy (fire on every frame, large
     budget) in both modes and with/without semantic endpointing, fetch whatever was missing, repeat."""
-    traces = load_traces(include_current=True)
-    prof = fakes.PROFILES["wikipedia"]
+    traces = traces or load_traces(include_current=True)
     cfgs = [dict(CURRENT, SPEC_WEB_BUDGET=99, SPEC_STABLE_UPDATES=1)]
     cfgs += [dict(cfgs[0], SEMANTIC_ENDPOINT=False)]
     cfgs += [dict(CURRENT, SEM_SILENCE_MS=s, SEM_STABLE_MS=st, SEM_COVER_S=c, SPEC_WEB_BUDGET=99,
                   SPEC_STABLE_UPDATES=su)
              for s in (150, 350) for st in (300, 550) for c in (0.2, 0.4) for su in (1, 2)]
+    if extra_cfgs:
+        cfgs = [dict(CURRENT, SPEC_WEB_BUDGET=99, **c) for c in extra_cfgs]
     for r in range(rounds):
         for cfg in cfgs:
             for p in fakes.PROFILES.values():
@@ -308,11 +331,23 @@ def main():
     ap.add_argument("--profile", default="wikipedia")
     ap.add_argument("--set", action="append", default=[], help="KNOB=value (env var names, e.g. SPEC_WEB_BUDGET=4)")
     ap.add_argument("--out", default="")
+    ap.add_argument("--flux", action="store_true", help="replay the 80 real Flux traces (sim/flux_traces.py)")
+    ap.add_argument("--modes", default="headstart")
     a = ap.parse_args()
     sim = Simulator()
     t = time.perf_counter()
+    def parse(v):
+        try:
+            return float(v) if "." in v else int(v)
+        except ValueError:
+            return v
     if a.prefetch:
-        prefetch(sim, seeds=range(a.seeds))
+        if a.flux:
+            from sim import flux_traces
+            extra = [dict(FLUX_SOFT=fs, SPEC_CONF=sc) for fs in ("eager", "fused", "off") for sc in ("0", "1")]
+            prefetch(sim, seeds=range(a.seeds), traces=flux_traces.load(), extra_cfgs=extra)
+        else:
+            prefetch(sim, seeds=range(a.seeds))
         return
     if a.fetch_missing:
         mp = fakes.CACHE / "missing.txt"
@@ -340,11 +375,20 @@ def main():
     cfg = dict(CURRENT)
     for kv in a.set:
         k, v = kv.split("=", 1)
-        cfg[k] = float(v) if "." in v else int(v)
-    traces = load_traces()
-    rows = sim.run_set(traces, cfg, fakes.PROFILES[a.profile], seeds=range(a.seeds))
+        cfg[k] = parse(v)
+    if a.flux:
+        from sim import flux_traces
+        traces = flux_traces.load()
+    else:
+        traces = load_traces()
+    modes = tuple(a.modes.split(","))
+    rows = sim.run_set(traces, cfg, fakes.PROFILES[a.profile], seeds=range(a.seeds), modes=modes)
     sim.caches.save()
-    print(json.dumps(summarize(rows), indent=1))
+    for mode in modes:
+        print(mode, json.dumps(summarize(rows, mode), indent=1))
+    if a.out:
+        Path(a.out).write_text(json.dumps({"cfg": cfg, "rows": rows, "summary": {m: summarize(rows, m) for m in modes}},
+                                          indent=1, default=float))
     print(f"{time.perf_counter() - t:.1f}s")
 
 

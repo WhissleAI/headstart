@@ -617,12 +617,21 @@ class FluxEar(DeepgramEar):
                                "eot_p": _num(d.get("end_of_turn_confidence")), "trigger": d.get("trigger"),
                                "word_end": self.interim[-1]["end"] if self.interim else None,
                                "at": round(self.at_s, 2)})
+            eot_p = _num(d.get("end_of_turn_confidence"))
+            for s in self.sinks:                   # Flux's turn state for the session's fused end-of-turn score
+                f = getattr(s, "on_turn_info", None)
+                if f is not None:
+                    f(ev, eot_p)
             if ev == "EndOfTurn":
                 self.eager_at = None
                 self.finalized.set()
                 self._final("eot_" + str(d.get("trigger") or "model"))
                 return
             self._partial()
+            for s in self.sinks:                   # after the words: FLUX_SOFT=fused scores every Flux update
+                f = getattr(s, "on_turn_tick", None)
+                if f is not None:
+                    f(ev)
             if ev == "EagerEndOfTurn" and self.interim:
                 self.eager_at = self.at_s
                 now = time.perf_counter()

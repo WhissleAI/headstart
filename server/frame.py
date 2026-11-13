@@ -120,6 +120,7 @@ class Frame:
     when_text: str = ""              # the words that said it ("last night", "right now")
     ent_types: tuple = ()            # entity mention types in spoken order (person, organization, place, team, ...)
     num_types: tuple = ()            # typed number spans (date, money, percent, duration, ...)
+    wconf: tuple = ()                # fused per-word confidence (server/confidence.py), when the ear gives word conf
 
     @property
     def n(self):
@@ -237,7 +238,16 @@ class Frame:
                 "command_complete": self.command_complete, "readout": self.readout(),
                 # per-token read-out for the annotated transcript (indices into words)
                 "content_idx": list(self.content_idx), "dropped": sorted(self.dropped), "cue": sorted(self.cue),
-                "redact": sorted(self.redact_tok)}
+                "redact": sorted(self.redact_tok), **self._conf_json()}
+
+    def _conf_json(self) -> dict:
+        if not self.wconf:
+            return {}
+        from . import confidence
+        k, j = confidence.key_conf(self, list(self.wconf))
+        sc = confidence.slot_confs(self, list(self.wconf))
+        return {"wconf": [round(c, 3) for c in self.wconf], "key_conf": round(k, 3), "key_word": j,
+                "slot_conf": [[t, x, round(c, 3)] for (t, x), c in sc.items()]}
 
 
 def _correction_at(toks: list[str]) -> int:
