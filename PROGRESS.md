@@ -112,6 +112,14 @@ Docs verified 2026-11-12: docs.tavily.com/documentation/api-reference/endpoint/s
 Paired: median saved **398 ms**, mean 379 ms, faster on **37/48**; drafts reused 52 %; 0 answered twice; endpoint
 semantic 16 / ear 32 (stricter gate). runs/ab_full3.json.
 
+## HEADLINE: full4 (19:40; review fixes + answer quality; Wikipedia lane; 48 spoken questions) — runs/ab_latest.*
+| | baseline | Head Start |
+|---|---|---|
+| p50 / mean / p90 ready | 1558 / 1561 / 1806 ms | **1176 / 1171 / 1582 ms** |
+| sources p50 | 918 ms | **626 ms** |
+| accuracy | 93.8 % | **97.9 %** |
+Paired: median saved **381 ms**, mean 390 ms, faster on **38/48**. 83 tests pass.
+
 ## Robustness (post-fix code; runs/robustness.md)
 | condition | BL p50 | HS p50 | acc BL/HS | Arc WER | HS faster (median saved) |
 |---|---|---|---|---|---|
