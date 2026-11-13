@@ -413,11 +413,3 @@ pre.raw { font: 11px/1.4 var(--mono); max-height: 240px; overflow: auto; backgro
 .src .ln.cached { background: var(--ink-3); }
 .bar .bt.hid { visibility: hidden; }
 .sources { grid-auto-columns: minmax(185px, 1fr); }
-
-/* Arc read-out row (tagger-depth) */
-.readout { display: flex; flex-wrap: wrap; gap: 4px 5px; }
-.ro { display: inline-flex; align-items: center; border-radius: 6px; padding: 1px 7px; font: 600 11.5px var(--mono); background: var(--hl-entity); color: var(--ink); white-space: nowrap; }
-.ro.act, .ro.dir { background: transparent; border: 1px solid var(--line, rgba(127,127,127,.35)); color: var(--ink-2); }
-.ro.fresh, .ro.num { background: var(--hl-number); }
-.ro.priv { background: rgba(46, 160, 67, .18); }
-.ro.warn { background: rgba(218, 54, 51, .16); }
