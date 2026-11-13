@@ -377,137 +377,22 @@
     }
   }
   // ---------------------------------------------------------------- live search results (the hero visual)
-  // Each side shows the results of its latest landed search, Google-style. Arc's list changes while you speak: a new
-  // search's results slide in, dropped ones fade out, kept ones move to their new rank (FLIP); a search whose meaning
-  // went stale strikes its results. At the endpoint the final ranked sources lock in under the answer.
-  // spec "done" events carry ids (+ titles of the top 3); if the server adds docs[] (id,title,url,text) we use them.
-  const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
-  function specDocs(e) {
-    if (Array.isArray(e.docs) && e.docs.length) return e.docs;
-    if (!Array.isArray(e.ids)) return null;
-    return e.ids.map((id, i) => ({ id, url: /^https?:\/\//.test(id) ? id : null, title: (e.top || [])[i] || null })).filter((d) => d.title);
-  }
-  const clip = (t, n) => { t = String(t || "").replace(/\s+/g, " ").trim(); return t.length <= n ? t : t.slice(0, n).replace(/\s+\S*$/, "").replace(/[\s,.;:|–—-]+$/, "") + "…"; };
-  const cleanTitle = (t) => String(t || "").replace(/\s+/g, " ").trim().replace(/\s+[|–—-]\s+[^|–—-]{2,40}$/, "").trim();
-  const HUES = [158, 210, 32, 265, 340, 190, 12, 120];
-  const hue = (s) => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return HUES[h % HUES.length]; };
-
+  // shared with the main UI: web/results.js (HSResults) holds the view logic, item markup and the FLIP animation
+  const R = window.HSResults;
+  const specDocs = R.specDocs;
   function resultView(m) {
-    const fs = Array.from(S.fires.values()).filter((f) => f.mode === m && f.lane !== "draft");
-    if (S.sourcesMs[m] != null) return { kind: "final", docs: S.sources[m] || [], head: "Top results", q: (S.frame && S.frame.query) || "" };
-    const landed = fs.filter((f) => f.docs && f.docs.length && f.t1 != null);
-    const last = landed.at(-1);
-    const pending = fs.filter((f) => f.state === "fired" && f !== last).at(-1);
-    if (!last) {
-      if (pending) return { kind: "searching", docs: [], q: pending.query };
-      return { kind: "empty", docs: [] };
-    }
-    const stale = last.state === "stale" || last.state === "cancelled";
-    return { kind: stale ? "stale" : "live", docs: last.docs, q: last.query, next: pending && pending.t0 > last.t0 ? pending.query : null };
+    return R.view({ fires: Array.from(S.fires.values()).filter((f) => f.mode === m), sourcesMs: S.sourcesMs[m],
+      sources: S.sources[m], query: (S.frame && S.frame.query) || "" });
   }
-
   function results(m) {
     if (!S) return;
     const v = resultView(m);
     const rq = pk(m, "rq"), box = pk(m, "res");
-    let head;
-    if (v.kind === "final") head = `<span class="lk">✓ ${S.answer[m] ? "answer from" : "ranked"}</span> top results for <b>“${esc(v.q)}”</b>`;
-    else if (v.kind === "searching") head = `<span class="sp"></span>searching <b>“${esc(v.q)}”</b>`;
-    else if (v.kind === "stale") head = `<span class="st">meaning changed</span> <s>“${esc(v.q)}”</s>` + (v.next ? ` → searching <b>“${esc(v.next)}”</b>` : "");
-    else if (v.kind === "live") head = `results for <b>“${esc(v.q)}”</b>` + (v.next ? ` <span class="nx"><span class="sp"></span>now searching “${esc(v.next)}”</span>` : "");
-    else head = m === "baseline" ? (S.endpointMs[m] == null ? "waiting for you to finish…" : "") : "listening…";
+    const head = R.head(v, { mode: m, answered: !!S.answer[m], endpointed: S.endpointMs[m] != null });
     if (rq._h !== head) { rq.innerHTML = head; rq._h = head; }
     rq.className = "f-rq k-" + v.kind;
     box.className = "f-res k-" + v.kind;
-    flip(box, v.docs);
-  }
-
-  // one line of text at `px` that fits `w` pixels, cut at a word with an ellipsis (measured, never CSS-clipped)
-  let snipW = 760;
-  function oneLine(t, px, w) {
-    if (textW(t, px) * 0.93 <= w) return t;
-    let lo = 0, hi = t.length;
-    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (textW(t.slice(0, mid) + "…", px) * 0.93 <= w) lo = mid; else hi = mid - 1; }
-    return t.slice(0, lo).replace(/\s+\S*$/, "").replace(/[\s,.;:|–—-]+$/, "") + "…";
-  }
-  function itemHtml(d) {
-    const h = d.url ? host(d.url) : (d.source || "");
-    const title = clip(cleanTitle(d.title) || h || "(untitled)", 72);
-    const snip = d.text ? oneLine(String(d.text).replace(/^#+\s*/gm, "").replace(/\s+/g, " "), 17, snipW) : "";
-    return `<div class="ri-h"><span class="fav" style="--h:${hue(h)}">${esc((h[0] || "?").toUpperCase())}</span><span class="dom">${esc(h)}</span></div>` +
-      `<div class="ri-t">${esc(title)}</div>` + (snip ? `<div class="ri-s">${esc(snip)}</div>` : "");
-  }
-
-  // FLIP: measure old positions, re-render keyed by doc id, animate from old to new
-  function flip(box, docs) {
-    const sig = docs.map((d) => d.id + "|" + (d.text ? 1 : 0)).join(",") + "|" + box.className;
-    if (box._sig === sig) return;
-    box._sig = sig;
-    const old = new Map();
-    for (const n of Array.from(box.children)) {
-      if (n.classList.contains("leaving")) { n.remove(); continue; }
-      old.set(n.dataset.id, { n, top: n.offsetTop });
-    }
-    // only as many results as fit whole (no clipped item)
-    const avail = box.clientHeight || 300;
-    if (box.clientWidth) snipW = box.clientWidth - 32;
-    const keep = [];
-    let used = 0;
-    const want = [];
-    for (const d of docs) {
-      // same page twice (tracking params, mirrors): one row
-      const dk = (d.url ? host(d.url) : "") + "|" + cleanTitle(d.title).toLowerCase();
-      if (!d || !d.id || want.some((x) => x.id === d.id || x._dk === dk)) continue;
-      d._dk = dk;
-      want.push(d);
-    }
-    const frag = [];
-    for (const d of want) {
-      let n = old.get(d.id)?.n;
-      const isNew = !n;
-      if (isNew) { n = document.createElement("div"); n.className = "ri"; n.dataset.id = d.id; }
-      const html = itemHtml(d);
-      if (n._h !== html) { n.innerHTML = html; n._h = html; }
-      frag.push({ n, isNew, d });
-    }
-    // lay out: append in order, drop the ones that overflow
-    for (const { n } of frag) box.appendChild(n);
-    const shown = new Set();
-    for (const { n, d } of frag) {
-      const h = n.offsetHeight + 10;
-      if (used + h > avail) { n.remove(); continue; }
-      used += h; shown.add(d.id); keep.push(n);
-    }
-    // order in DOM = new order
-    for (const n of keep) box.appendChild(n);
-    // leaving: fade out at their old place
-    for (const [id, o] of old) {
-      if (shown.has(id)) continue;
-      const n = o.n;
-      n.classList.add("leaving");
-      n.style.top = o.top + "px";
-      box.appendChild(n);
-      setTimeout(() => n.remove(), 450);
-    }
-    // move + enter
-    for (const n of keep) {
-      const o = old.get(n.dataset.id);
-      n.classList.remove("entering");
-      if (o) {
-        const dy = o.top - n.offsetTop;
-        if (dy) {
-          n.style.transition = "none";
-          n.style.transform = `translateY(${dy}px)`;
-          void n.offsetWidth;
-          n.style.transition = "";
-          n.style.transform = "";
-        }
-      } else {
-        n.classList.add("entering");
-        void n.offsetWidth;
-        requestAnimationFrame(() => n.classList.remove("entering"));
-      }
-    }
+    R.flip(box, v.docs, { cls: "ri", px: 17 });
   }
 
   function settle() {

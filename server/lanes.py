@@ -201,6 +201,11 @@ def web_plan(intent: str = "", text: str = "", final: bool = False, answer: str 
         # qa_currency question used to fail over to Wikipedia. basic costs the same 1 credit (runs/replay_finance.json:
         # grounded 4/5 -> 5/5, ~+1.3 s per call, which speculation hides on the Arc side)
         p["search_depth"] = config.TAVILY_FINANCE_DEPTH
+    if hints and hints.get("include_domains"):
+        # Arc read-out narrowing (server/narrow.py): sources for the question's family. "prefer" boosts them and
+        # still searches the rest of the web; "restrict" returns only them. Same credit cost (docs: depth only).
+        p["include_domains"] = list(hints["include_domains"])
+        p["include_domains_mode"] = hints.get("domains_mode") or "prefer"
     if answer:
         p["include_answer"] = answer
     return p
@@ -216,6 +221,9 @@ def tavily_body(query: str, plan: dict) -> dict:
     for k in ("time_range", "max_age_hours"):
         if plan.get(k) is not None:
             body[k] = plan[k]
+    if plan.get("include_domains"):
+        body["include_domains"] = list(plan["include_domains"])[:300]
+        body["include_domains_mode"] = plan.get("include_domains_mode") or "prefer"
     return body
 
 
@@ -227,7 +235,8 @@ def norm_query(q: str) -> str:
 
 def _cache_key(query: str, body: dict) -> tuple:
     return (norm_query(query), body["search_depth"], body["topic"], body.get("time_range"), body.get("max_age_hours"),
-            body["max_results"], body.get("chunks_per_source"), str(body.get("include_answer")))
+            body["max_results"], body.get("chunks_per_source"), str(body.get("include_answer")),
+            tuple(body.get("include_domains") or ()), body.get("include_domains_mode"))
 
 
 _PROCESS = {"spent": 0.0, "blocked_until": 0.0, "blocked_why": ""}
@@ -409,16 +418,21 @@ async def tavily(query: str, plan: dict | None = None, ledger: Ledger | None = N
 # ------------------------------------------------------------------------------------------- web status + cache
 # Honesty rule: a result served from the recorded cache is never presented as live. Every such call sets
 # meter["backend"] = "cache" and meter["replayed"] = True; the metric counts them (web_replayed) and the UI flags them.
-WEB_STATUS = {"status": "unknown", "last_error": None, "last_ok": None, "down_until": 0.0, "probed_at": None}
+WEB_STATUS = {"status": "unknown", "last_error": None, "last_ok": None, "down_until": 0.0, "probed_at": None,
+              "fails": 0}
 
 
 def _web_ok():
-    WEB_STATUS.update(status="live", last_ok=time.time(), down_until=0.0)
+    WEB_STATUS.update(status="live", last_ok=time.time(), down_until=0.0, fails=0)
 
 
 def _web_fail(e: BaseException):
-    WEB_STATUS.update(status="down", last_error=f"{type(e).__name__}: {e}"[:160],
-                      down_until=time.monotonic() + config.WEB_BREAKER_S)
+    """Open the breaker only after WEB_BREAKER_FAILS consecutive network failures of the PRIMARY backend: one slow
+    call (or a timeout of the Wikipedia fallback while Tavily is healthy) must not put the whole demo on the cache."""
+    WEB_STATUS["fails"] = WEB_STATUS.get("fails", 0) + 1
+    WEB_STATUS["last_error"] = f"{type(e).__name__}: {e}"[:160]
+    if WEB_STATUS["fails"] >= config.WEB_BREAKER_FAILS:
+        WEB_STATUS.update(status="down", down_until=time.monotonic() + config.WEB_BREAKER_S)
 
 
 def web_down() -> bool:
@@ -437,7 +451,7 @@ def web_health() -> dict:
 
 def reset_web_status():
     """Tests."""
-    WEB_STATUS.update(status="unknown", last_error=None, last_ok=None, down_until=0.0, probed_at=None)
+    WEB_STATUS.update(status="unknown", last_error=None, last_ok=None, down_until=0.0, probed_at=None, fails=0)
 
 
 class WebCache:
@@ -578,7 +592,8 @@ async def web(query: str, topic: str = "general", *, intent: str = "", text: str
     except asyncio.CancelledError:
         raise
     except Exception as e:
-        if _network_failure(e):
+        primary_failed = not (config.WEB_BACKEND == "tavily" and meter.get("backend") == "wikipedia")
+        if _network_failure(e) and primary_failed:
             _web_fail(e)
         if config.WEB_CACHE_FALLBACK and len(web_cache()) and (_network_failure(e) or final):
             return _from_cache(query, meter, f"{type(e).__name__}: {e}")
