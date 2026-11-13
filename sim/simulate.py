@@ -142,9 +142,14 @@ class Simulator:
         grounded = bool(set(src_ids) & finalq_ids)
         exact = bool(m.get("draft_reused")) and m.get("draft_match") == "exact"
         eps = [e for e in events if e.get("t") == "endpoint"]
+        arc_end = eps[-1]["speech_end_ms"] / 1000 if eps else None
+        ready = m.get("ready_ms")
+        # ready measured from the waveform's speech end (independent of Arc's word-timing jitter between runs)
+        ready_vad = (round(ready + (arc_end - trace["vad_end_s"]) * 1000)
+                     if ready is not None and arc_end is not None and trace.get("vad_end_s") is not None else None)
         return {
             "id": trace["id"], "kind": trace.get("kind"), "mode": mode, "seed": seed,
-            "ready_ms": m.get("ready_ms"), "sources_ms": m.get("sources_ms"), "done_ms": m.get("done_ms"),
+            "ready_ms": ready, "ready_vad_ms": ready_vad, "arc_end_s": arc_end, "sources_ms": m.get("sources_ms"), "done_ms": m.get("done_ms"),
             "endpoint_lag_ms": m.get("endpoint_lag_ms"), "endpoint_by": m.get("endpoint_by"), "path": m.get("path"),
             "draft_match": m.get("draft_match"), "draft_reused": bool(m.get("draft_reused")),
             "query": fq, "question": m.get("question"), "answers": len(ms), "n_endpoints": len(eps),
@@ -192,6 +197,7 @@ def summarize(rows: list[dict], mode: str = "headstart") -> dict:
         "p50_ready_ms": round(statistics.mean(p50s)), "p90_ready_ms": round(statistics.mean(p90s)),
         "p50_ready_ms_sd": round(statistics.pstdev(p50s)) if len(p50s) > 1 else 0,
         "mean_ready_ms": round(statistics.mean([x for x in ready if x is not None])),
+        "p50_ready_vad_ms": pct([r.get("ready_vad_ms") for r in rs], 50),
         "p50_sources_ms": pct([r["sources_ms"] for r in rs], 50),
         "p50_endpoint_lag_ms": pct([r["endpoint_lag_ms"] for r in rs], 50),
         "paths": {k: round(v / n, 3) for k, v in Counter(str(r["path"]) for r in rs).most_common()},
@@ -244,10 +250,11 @@ def validate(sim: Simulator, seeds=range(10), ab=ROOT / "sim" / "data" / "ab_ful
                               Counter(x["path"] for x in rows if x["mode"] == mode and x["id"] == r["id"]).most_common(1)[0][0]))
         err = [b - a for _, a, b, _, _ in per_q]
         out["modes"][mode] = {
-            "sim": s, "real": {k: rs.get(k) for k in ("p50_ready_ms", "p90_ready_ms", "mean_ready_ms", "p50_sources_ms",
+            "sim": s, "real": {k: rs.get(k) for k in ("p50_ready_ms", "p90_ready_ms", "mean_ready_ms", "p50_ready_vad_ms", "p50_sources_ms",
                                                       "p50_endpoint_lag_ms", "mean_web_calls", "draft_reuse_rate")},
             "real_paths": real_paths, "real_endpoint_by": real_ep,
             "p50_err_ms": s["p50_ready_ms"] - rs["p50_ready_ms"], "p90_err_ms": s["p90_ready_ms"] - rs["p90_ready_ms"],
+            "p50_vad_err_ms": (s["p50_ready_vad_ms"] - rs["p50_ready_vad_ms"]) if s.get("p50_ready_vad_ms") else None,
             "p50_rel_err": round((s["p50_ready_ms"] - rs["p50_ready_ms"]) / rs["p50_ready_ms"], 3),
             "per_q_mae_ms": round(float(np.mean(np.abs(err)))) if err else None,
             "per_q_bias_ms": round(float(np.mean(err))) if err else None,
@@ -295,6 +302,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--prefetch", action="store_true")
     ap.add_argument("--validate", action="store_true")
+    ap.add_argument("--fetch-missing", action="store_true", help="fetch queries logged by sweep workers")
     ap.add_argument("--seeds", type=int, default=10, help="seeds (validate / single config); prefetch: 3 is plenty")
     ap.add_argument("--profile", default="wikipedia")
     ap.add_argument("--set", action="append", default=[], help="KNOB=value (env var names, e.g. SPEC_WEB_BUDGET=4)")
@@ -305,8 +313,20 @@ def main():
     if a.prefetch:
         prefetch(sim, seeds=range(a.seeds))
         return
+    if a.fetch_missing:
+        mp = fakes.CACHE / "missing.txt"
+        if mp.exists():
+            sim.caches.missing_web |= {q for q in mp.read_text().splitlines() if q}
+            print(f"fetched {asyncio.run(sim.caches.fetch_missing())} missing queries")
+            sim.caches.save()
+            mp.unlink()
+        return
     if a.validate:
         out, rows = validate(sim, seeds=range(a.seeds))
+        if sim.caches.missing_web:            # fetch what this run missed, then validate again
+            asyncio.run(sim.caches.fetch_missing())
+            sim.caches.save()
+            out, rows = validate(sim, seeds=range(a.seeds))
         sim.caches.save()
         p = Path(a.out or ROOT / "runs" / "sim_validate.json")
         p.write_text(json.dumps({"validation": out, "rows": rows}, indent=1, default=float))

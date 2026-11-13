@@ -62,8 +62,8 @@ class Profile:
     qembed_ms: tuple = (38.0, 55.0)      # CPU query embedding
     qembed_tail_p: float = 0.08          # CPU contention with Arc (measured local-lane tail)
     qembed_tail_ms: tuple = (100.0, 380.0)
-    dembed_base_ms: float = 30.0         # GPU doc embedding: base + per-doc, jittered, capped at 160+
-    dembed_per_doc_ms: float = 25.0
+    dembed_base_ms: float = 40.0         # GPU doc embedding: base + per-doc, jittered (calibrated: BL endpoint->sources)
+    dembed_per_doc_ms: float = 35.0
     audio_ms: tuple = (120.0, 300.0)
 
 
@@ -122,7 +122,7 @@ def qembed_ms(p: Profile, s: Sampler) -> float:
 
 def dembed_ms(p: Profile, s: Sampler, n: int) -> float:
     u1, = s.u("dembed", str(n))
-    return min(p.dembed_base_ms + p.dembed_per_doc_ms * n, 170.0) * (0.75 + 0.5 * u1)
+    return min(p.dembed_base_ms + p.dembed_per_doc_ms * n, 220.0) * (0.75 + 0.5 * u1)
 
 
 # ------------------------------------------------------------------------------------------------ content caches

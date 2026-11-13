@@ -57,7 +57,12 @@ def _eval(cfg: dict) -> dict:
     rows = _W["sim"].run_set(_W["traces"], cfg, _W["prof"], seeds=_W["seeds"], bl_rows=_W["bl"])
     s = summarize(rows)
     s["sim_s"] = round(time.perf_counter() - t, 2)
-    return {"cfg": cfg, "summary": s, "per_q": {r["id"] + f"#{r['seed']}": r["ready_ms"] for r in rows}}
+    miss = _W["sim"].caches.missing_web
+    if miss:            # queries never fetched (rare timing-dependent fires): logged, fetched before the next stage
+        with open(OUT / "sim_cache" / "missing.txt", "a") as f:
+            f.write("".join(q + "\n" for q in sorted(miss)))
+        miss.clear()
+    return {"cfg": cfg, "summary": s}
 
 
 def _baseline_summary() -> dict:
@@ -77,10 +82,10 @@ def run(profile: str, cfgs: list[dict], seeds: list[int], workers: int, out: Pat
     t = time.perf_counter()
     with ProcessPoolExecutor(max_workers=workers, initializer=_init, initargs=(profile, seeds)) as ex:
         res["baseline"] = ex.submit(_baseline_summary).result()
-        for i, r in enumerate(ex.map(_eval, cfgs, chunksize=2)):
+        for i, r in enumerate(ex.map(_eval, cfgs, chunksize=8)):
             r["is_current"] = r["cfg"] == CURRENT
             res["results"].append(r)
-            if i % 20 == 0 or i == len(cfgs) - 1:
+            if i % 250 == 0 or i == len(cfgs) - 1:
                 s = r["summary"]
                 print(f"[{tag} {i + 1}/{len(cfgs)}] {time.perf_counter() - t:.0f}s p50={s['p50_ready_ms']} "
                       f"p90={s['p90_ready_ms']} risky={s['risky_rate']} web={s['web_calls_per_q']}", flush=True)
@@ -94,11 +99,12 @@ OBJ = [("p50_ready_ms", 1), ("p90_ready_ms", 1), ("risky_rate", 1), ("web_calls_
 
 
 def pareto(results: list[dict], keys=OBJ) -> list[dict]:
-    pts = [(r, [r["summary"][k] * s for k, s in keys]) for r in results]
+    import numpy as np
+    V = np.array([[r["summary"][k] * s for k, s in keys] for r in results], float)
     front = []
-    for r, v in pts:
-        dominated = any(all(a <= b for a, b in zip(w, v)) and any(a < b for a, b in zip(w, v)) for _, w in pts)
-        if not dominated:
+    for i, r in enumerate(results):
+        dom = np.all(V <= V[i], axis=1) & np.any(V < V[i], axis=1)
+        if not dom.any():
             front.append(r)
     return front
 
