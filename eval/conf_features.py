@@ -38,8 +38,16 @@ def main():
     ap.add_argument("--traces", default=str(ROOT / "runs" / "flux_traces.jsonl"))
     ap.add_argument("--no-arc", action="store_true")
     ap.add_argument("--out", default=str(OUT))
+    ap.add_argument("--audio-dir", default=str(ROOT / "eval" / "audio"))
+    ap.add_argument("--shard", default="0/1", help="i/n: this process takes every n-th trace from i")
     a = ap.parse_args()
     rows = [json.loads(x) for x in Path(a.traces).read_text().splitlines() if x.strip()]
+    si, sn = (int(v) for v in a.shard.split("/"))
+    rows = rows[si::sn]
+    done = set()
+    if Path(a.out).exists():                  # resumable
+        done = {json.loads(x)["id"] for x in Path(a.out).read_text().splitlines() if x.strip()}
+    rows = [r for r in rows if r["id"] not in done]
     t = Tagger(domain="assistant")
     cc_scores = {}                                  # word index -> score of the newest command_complete event there
     _poll = t.poll
@@ -53,7 +61,9 @@ def main():
     t.poll = poll
     ts = TagState(t)
     arc = None if a.no_arc else ArcReplay()
-    out = open(a.out, "w")
+    if arc is not None:
+        arc.audio_dir = a.audio_dir
+    out = open(a.out, "a")
     for tr in rows:
         msgs = tr["msgs"]
         tis = [(i, m) for i, m in enumerate(msgs) if m.get("type") == "TurnInfo"]
