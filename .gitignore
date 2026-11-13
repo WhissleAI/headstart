@@ -8,3 +8,4 @@ models/arctag/*.onnx
 vendor/arctag/*.dylib
 index/data/
 eval/audio/*.wav
+film/clips/
