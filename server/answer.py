@@ -211,3 +211,85 @@ class Stream:
         if not self.task.done():
             self.task.cancel()
         self._finish("cancelled")
+
+
+class Race:
+    """TAVILY_ANSWER: the Haiku stream vs Tavily's include_answer (one non-streamed string from a parallel /search
+    call). Whichever has text first is the answer; the loser is dropped. Same interface as Stream.
+
+    Tavily's answer arrives whole, so it wins only when (search + Tavily's answer generation) beats (search + Haiku
+    time to first token): see PROGRESS.md for when that can happen."""
+
+    def __init__(self, primary, alt_task: asyncio.Task, poll_s: float = 0.005):
+        self.primary, self.alt, self.poll_s = primary, alt_task, poll_s
+        self.by: str | None = None
+        self.alt_text: str | None = None
+        self.alt_error: str | None = None
+        self.docs = getattr(primary, "docs", [])
+        alt_task.add_done_callback(lambda t: t.cancelled() or t.exception())   # never "exception never retrieved"
+
+    @property
+    def hedged(self):
+        return getattr(self.primary, "hedged", False)
+
+    @property
+    def done(self):
+        return self.primary.done if self.by != "tavily" else True
+
+    @property
+    def error(self):
+        return None if self.by == "tavily" else self.primary.error
+
+    def _alt_answer(self) -> str | None:
+        if not self.alt.done() or self.alt.cancelled():
+            return None
+        exc = self.alt.exception()
+        if exc is not None:
+            self.alt_error = f"{type(exc).__name__}: {exc}"[:200]
+            return None
+        return (getattr(self.alt.result(), "answer", None) or "").strip() or None
+
+    async def _decide(self):
+        """Event-driven: wakes on the primary's first token / end (Stream._waiters) or on the alt task finishing; only
+        waits on what can still change (a finished alt is never re-awaited, so no spin)."""
+        loop = asyncio.get_running_loop()
+        while self.by is None:
+            if self.primary.tokens:
+                self.by = "llm"
+            elif (a := self._alt_answer()) is not None:
+                self.by, self.alt_text = "tavily", a
+            elif self.primary.done and (self.alt.done() or self.primary.error is None):
+                self.by = "llm"            # Haiku finished (or failed) and Tavily has nothing better
+            else:
+                waiters = getattr(self.primary, "_waiters", None)
+                if waiters is None:        # a primary without the notify hook (test fakes): poll
+                    await asyncio.sleep(self.poll_s)
+                    continue
+                w = loop.create_future()
+                waiters.add(w)
+                ws = {w} if self.primary.done or self.alt.done() else {w, self.alt}
+                if self.primary.done:      # primary over and failed: only the alt can still change anything
+                    ws = {self.alt}
+                try:
+                    await asyncio.wait(ws, return_when=asyncio.FIRST_COMPLETED)
+                finally:
+                    waiters.discard(w)
+                    w.cancel()
+        if self.by == "tavily":
+            self.primary.cancel()
+
+    async def follow(self):
+        await self._decide()
+        if self.by == "tavily":
+            yield self.alt_text
+            return
+        async for tok in self.primary.follow():
+            yield tok
+
+    def text(self):
+        return self.alt_text if self.by == "tavily" else self.primary.text()
+
+    def cancel(self):
+        self.primary.cancel()
+        if not self.alt.done():
+            self.alt.cancel()

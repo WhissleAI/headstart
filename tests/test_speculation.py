@@ -33,7 +33,7 @@ WEB_CALLS: list[str] = []
 WEB_DELAY = 0.15
 
 
-async def fake_web(query, topic="general"):
+async def fake_web(query, topic="general", **kw):
     WEB_CALLS.append(query)
     await asyncio.sleep(WEB_DELAY)
     return [lanes.Doc(id=f"web:{query}:{i}", title=query.title(), text=f"About {query}: fact {i}.", url="",

@@ -36,6 +36,7 @@ class Fire:
     docs: list = field(default_factory=list)
     used: bool = False
     n_words: int = 0
+    meter: dict = field(default_factory=dict)   # web lane: backend, depth, topic, credits, cached, fallback
 
 
 @dataclass
@@ -62,8 +63,11 @@ def _non_answer(text: str) -> bool:
 
 
 class Speculator:
-    def __init__(self, emit, mode: str = "headstart", t0: float | None = None):
+    def __init__(self, emit, mode: str = "headstart", t0: float | None = None, ledger: lanes.Ledger | None = None):
         self.emit = emit
+        self.ledger = ledger if ledger is not None else lanes.Ledger()   # Tavily credits + cache (per session)
+        self.budget_noted = False
+        self.answer_meter: dict = {}
         self.mode = mode
         self.t0 = t0 or time.perf_counter()
         self.fires: list[Fire] = []
@@ -95,9 +99,10 @@ class Speculator:
     def _ev(self, **kw):
         self.emit({"t": "spec", **kw})
 
-    def _fire(self, lane: str, query: str, f: Frame | None, coro_fn):
+    def _fire(self, lane: str, query: str, f: Frame | None, coro_fn, meter: dict | None = None):
         fire = Fire(id=f"f{next(_ids)}", lane=lane, query=query, frame_sig=f.sig if f else (),
-                    content=f.content if f else (), t_fire=time.perf_counter(), n_words=f.n if f else 0)
+                    content=f.content if f else (), t_fire=time.perf_counter(), n_words=f.n if f else 0,
+                    meter=meter if meter is not None else {})
         self.fires.append(fire)
         self.fired_queries[(lane.replace("final-", ""), query)] = fire
         self._ev(id=fire.id, lane=lane, query=query, state="fired", ms=self.ms(fire.t_fire))
@@ -113,7 +118,7 @@ class Speculator:
                 fire.state = "done" if fire.state == "fired" else fire.state     # with vector-less docs)
                 self._ev(id=fire.id, lane=lane, query=query, state=fire.state, ms=self.ms(fire.t_done),
                          took=round((fire.t_done - fire.t_fire) * 1000), n=len(docs),
-                         top=[d.title for d in docs[:3]], ids=[d.id for d in docs])
+                         top=[d.title for d in docs[:3]], ids=[d.id for d in docs], **self._meter_ev(fire))
             except asyncio.CancelledError:
                 fire.t_done = time.perf_counter()
                 if fire.state == "fired":               # a stale fire stays "stale" (revivable; counted as stale)
@@ -124,11 +129,36 @@ class Speculator:
                 fire.state = "error"
                 fire.t_done = time.perf_counter()
                 self._ev(id=fire.id, lane=lane, query=query, state="error", ms=self.ms(fire.t_done),
-                         error=f"{type(e).__name__}: {e}"[:200])
+                         error=f"{type(e).__name__}: {e}"[:200], **self._meter_ev(fire))
             return fire
 
         fire.task = asyncio.create_task(run())
         return fire
+
+    @staticmethod
+    def _meter_ev(fire: Fire) -> dict:
+        m = fire.meter
+        if not m:
+            return {}
+        return {k: m[k] for k in ("backend", "depth", "topic", "credits", "cached", "fallback") if k in m}
+
+    def _web(self, q: str, f: Frame, final: bool):
+        """(coroutine factory, meter) for one web-lane call of this question."""
+        meter: dict = {}
+        topic = "news" if f.intent in NEWS_INTENTS else "general"
+        return (lambda: lanes.web(q, topic=topic, intent=f.intent, text=f.resolved_text, final=final,
+                                  ledger=self.ledger, meter=meter)), meter
+
+    def _web_affordable(self) -> bool:
+        """Speculation stops (quietly) when the session's Tavily credits are down to the final-query reserve."""
+        if config.WEB_BACKEND != "tavily":
+            return True
+        why = self.ledger.allow(lanes.COST.get(config.TAVILY_SPEC_DEPTH, 2), final=False)
+        if why and not self.budget_noted:
+            self.budget_noted = True
+            self._ev(id="budget", lane="web", query="", state="skipped", ms=self.ms(), reason=why,
+                     spent=self.ledger.spent)
+        return why is None
 
     async def _add_docs(self, docs):
         """Give every doc a vector, then put it in the pool (the pool only ever holds ranked-ready docs).
@@ -235,10 +265,10 @@ class Speculator:
         q = f.query()
         if not q:
             return
-        topic = "news" if f.intent in NEWS_INTENTS else "general"
-        if f.route in ("web", "both") and ("web", q) not in self.fired_queries and self.web_used < config.WEB_BUDGET:
+        if (f.route in ("web", "both") and ("web", q) not in self.fired_queries and self.web_used < config.WEB_BUDGET
+                and self._web_affordable()):
             self.web_used += 1
-            self._fire("web", q, f, lambda q=q, topic=topic: lanes.web(q, topic=topic))
+            self._fire("web", q, f, *self._web(q, f, final=False))
         if (f.route in ("local", "both") and len(lanes.index()) and ("local", q) not in self.fired_queries
                 and self.local_used < config.LOCAL_BUDGET):
             self.local_used += 1
@@ -276,6 +306,13 @@ class Speculator:
             if fire.state == "stale" and fire.content and set(fire.content) <= cur and fire.docs:
                 fire.state = "done"                 # the speaker came back to it (ASR flip-flop)
                 self._ev(id=fire.id, lane=fire.lane, query=fire.query, state="done", ms=self.ms(), revived=True)
+                continue
+            if (fire.state == "stale" and not fire.docs and fire.task is not None and fire.task.done()
+                    and fire.content and set(fire.content) <= cur
+                    and self.fired_queries.get((fire.lane, fire.query)) is fire):
+                # back to a query whose search was cancelled before its results were in: forget it so the next frame
+                # fires it again (the web lane's cache usually holds the paid-for, finished request: free + instant)
+                del self.fired_queries[(fire.lane, fire.query)]
                 continue
             if fire.state not in ("fired", "done") or fire.lane.startswith("final") or fire.lane == "audio":
                 continue
@@ -358,14 +395,15 @@ class Speculator:
 
         q = f.query() or " ".join(f.words)
         qtext = f.resolved_text
-        topic = "news" if f.intent in NEWS_INTENTS else "general"
         qvec_task = asyncio.create_task(embed.arun(embed.encode_queries, [qtext]))
         reuse_draft = None
+        alt = None
         try:
             if self.mode == "baseline":
+                alt = self._answer_race(q, f)
                 waits = []
                 if f.route in ("web", "both"):
-                    waits.append(self._fire("final-web", q, f, lambda: lanes.web(q, topic=topic)).task)
+                    waits.append(self._fire("final-web", q, f, *self._web(q, f, final=True)).task)
                 if f.route in ("local", "both") and len(lanes.index()):
                     waits.append(self._fire("final-local", q, f, lambda: lanes.local_text(q)).task)
                 await asyncio.gather(*waits, return_exceptions=True)
@@ -382,8 +420,9 @@ class Speculator:
                     return superseded()
                 if reuse_draft is None:
                     # 2) the final query already fired (in flight or done)? wait for it, don't re-search
+                    # (a stale fire cancelled before its results landed doesn't count: it brought nothing)
                     same = [x for x in self.fires if x.query == q and x.lane in ("web", "local")
-                            and x.state in ("fired", "done", "stale")]
+                            and (x.state in ("fired", "done") or (x.state == "stale" and x.docs))]
                     pending = [x.task for x in same if x.state == "fired" and x.task]
                     top = self.rank(qvec, 1)
                     best = top[0][1] if top else 0.0
@@ -397,9 +436,10 @@ class Speculator:
                         m["path"] = "pool-commit"
                     else:
                         m["path"] = "speculative-miss"
+                        alt = self._answer_race(q, f)
                         waits = []
                         if f.route in ("web", "both") and self.web_used < config.WEB_BUDGET + 1:
-                            waits.append(self._fire("final-web", q, f, lambda: lanes.web(q, topic=topic)).task)
+                            waits.append(self._fire("final-web", q, f, *self._web(q, f, final=True)).task)
                         if f.route in ("local", "both") and len(lanes.index()):
                             waits.append(self._fire("final-local", q, f, lambda: lanes.local_text(q)).task)
                         await asyncio.gather(*waits, return_exceptions=True)
@@ -408,6 +448,8 @@ class Speculator:
         finally:
             if not qvec_task.done():
                 qvec_task.cancel()
+            if alt is not None and not live():
+                alt.cancel()                      # superseded: nobody will race it
         if not live():
             return superseded()
         self.last_qvec = qvec
@@ -421,6 +463,8 @@ class Speculator:
         else:
             docs = [d for d, _ in ranked]
             st = answer.Stream(qtext, docs, tag="final", context=self.context)
+            if alt is not None:
+                st = answer.Race(st, alt)
         t_sources = time.perf_counter()
         m["n_sources"] = len(docs)
         emit({"t": "sources", "ms": self.ms(t_sources),
@@ -465,12 +509,35 @@ class Speculator:
             "drafts": len(self.drafts),
             "draft_reused": reuse_draft is not None,
             "hedged": getattr(st, "hedged", False),
+            "answer_by": getattr(st, "by", None) or ("draft" if reuse_draft is not None else "llm"),
+            **self._credits(),
             "answer": st.text(),
             "sources": [d.title for d in docs],
             "error": st.error,
         })
         emit({"t": "metric", **{k: v for k, v in m.items() if k != "answer"}})
         return m
+
+    def _answer_race(self, q: str, f: Frame):
+        """TAVILY_ANSWER=1: on the after-endpoint path, also ask Tavily for its own answer (include_answer) in a
+        parallel request; whichever of it and Haiku produces text first is spoken. Returns the task or None."""
+        if not (config.TAVILY_ANSWER and config.WEB_BACKEND == "tavily" and f.route in ("web", "both")):
+            return None
+        plan = lanes.web_plan(f.intent, f.resolved_text, final=True, answer=config.TAVILY_ANSWER_DEPTH)
+        return asyncio.create_task(lanes.tavily(q, plan, self.ledger, self.answer_meter, final=True))
+
+    def _credits(self) -> dict:
+        """Tavily credits this question cost (speculative vs final), cache hits, and the session's running total."""
+        web = [x for x in self.fires if x.lane in ("web", "final-web")]
+        spec = sum(x.meter.get("credits", 0.0) for x in web if x.lane == "web")
+        final = sum(x.meter.get("credits", 0.0) for x in web if x.lane == "final-web")
+        final += self.answer_meter.get("credits", 0.0)
+        return {"credits": spec + final, "credits_spec": spec, "credits_final": final,
+                "web_cached": sum(1 for x in web if x.meter.get("cached")),
+                "web_fallbacks": sum(1 for x in web if x.meter.get("fallback")),
+                "web_backend": next((x.meter.get("backend") for x in reversed(web) if x.meter.get("backend")),
+                                    config.WEB_BACKEND),
+                "session_credits": self.ledger.spent}
 
     def _nothing_new(self, f: Frame) -> bool:
         """True if every content word of the final question was already covered by some non-stale search."""

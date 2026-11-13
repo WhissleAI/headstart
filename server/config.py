@@ -31,6 +31,29 @@ TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY", "")
 WEB_BACKEND = os.environ.get("WEB_BACKEND", "tavily" if TAVILY_API_KEY else "wikipedia")
 INDEX_DIR = Path(os.environ.get("INDEX_DIR", ROOT / "index/data"))
 
+# Tavily web lane (docs.tavily.com/documentation/api-reference/endpoint/search). Credits: ultra-fast/fast/basic = 1,
+# advanced = 2. Speculative fires are hidden behind speech, so they take a fast depth; the final (post-endpoint) query
+# is on the user's critical path, so it defaults to the same fast depth (and baseline uses it too: same lanes).
+TAVILY_BASE_URL = os.environ.get("TAVILY_BASE_URL", "https://api.tavily.com").rstrip("/")
+TAVILY_SPEC_DEPTH = os.environ.get("TAVILY_SPEC_DEPTH", "fast")
+TAVILY_FINAL_DEPTH = os.environ.get("TAVILY_FINAL_DEPTH", "fast")
+TAVILY_MAX_RESULTS = int(os.environ.get("TAVILY_MAX_RESULTS", "5"))
+TAVILY_CHUNKS = int(os.environ.get("TAVILY_CHUNKS", "2"))              # 1-3; ignored by ultra-fast
+TAVILY_TIMEOUT_S = float(os.environ.get("TAVILY_TIMEOUT_S", "4.0"))
+TAVILY_WEATHER_MAX_AGE_H = int(os.environ.get("TAVILY_WEATHER_MAX_AGE_H", "6"))   # 0 = don't send max_age_hours
+TAVILY_FINANCE_MAX_AGE_H = int(os.environ.get("TAVILY_FINANCE_MAX_AGE_H", "1"))
+TAVILY_SESSION_CREDITS = float(os.environ.get("TAVILY_SESSION_CREDITS", "120"))   # per Session; 0 = unlimited
+TAVILY_FINAL_RESERVE = float(os.environ.get("TAVILY_FINAL_RESERVE", "2"))        # speculation can't touch these
+TAVILY_PROCESS_CREDITS = float(os.environ.get("TAVILY_PROCESS_CREDITS", "800"))   # whole server; 0 = unlimited
+TAVILY_CACHE_TTL_S = float(os.environ.get("TAVILY_CACHE_TTL_S", "900"))
+TAVILY_FRESH_TTL_S = float(os.environ.get("TAVILY_FRESH_TTL_S", "120"))         # news / finance / weather
+# session: each Session has its own cache (A/B-honest: baseline never reads Head Start's results). global: one cache
+# for the server (saves credits on a demo booth replaying the same questions; do NOT use for A/B timing).
+TAVILY_CACHE_SCOPE = os.environ.get("TAVILY_CACHE_SCOPE", "session")
+# Race Tavily's own include_answer against Haiku on the after-endpoint path (miss + baseline). Off by default.
+TAVILY_ANSWER = os.environ.get("TAVILY_ANSWER", "0") == "1"
+TAVILY_ANSWER_DEPTH = os.environ.get("TAVILY_ANSWER_DEPTH", "basic")              # include_answer: basic | advanced
+
 # Speculation policy (see speculator.py)
 MIN_WORDS = int(os.environ.get("SPEC_MIN_WORDS", "3"))
 STABLE_UPDATES = int(os.environ.get("SPEC_STABLE_UPDATES", "1"))

@@ -133,7 +133,7 @@
     if (e.mode === "sys") {
       if (e.t === "ready") { if (e.warm !== undefined) warm = !!e.warm; paintStatus(); }
       else if (e.t === "error") toast(e.error || "server error", true);
-      else if (e.t === "run_done" && run) { run.running = false; finishRun(); }
+      else if (e.t === "run_done" && run) { run.running = false; finishRun(); settlePipe(run.q); }
       return;
     }
     if (!run) return;
@@ -174,6 +174,11 @@
         if (mode !== q.wordsMode) return;
         q.frame = e;
         q.spans = e.spans || [];
+        if (e.corrected && Array.isArray(e.slots)) {
+          // a corrected-away entity ("Canada, actually make that Turkey") stays in spans but not in slots
+          const keep = new Set(e.slots.map((x) => String(x[1]).toLowerCase()));
+          q.spans = q.spans.filter((sp) => !/^entity|^number/.test(sp.type) || keep.has(String(sp.text).toLowerCase().replace(/[^\w' -]/g, "").trim()));
+        }
         renderSpans(q);
         renderFrame(e, !!e.final);
         if (e.carried) pipe("tagger", `memory: ${pronounIn(q.words) || "it"} → ${titleCase(e.carried)}`);
@@ -228,7 +233,7 @@
         q.answer[mode] = (q.answer[mode] || "") + (e.delta || "");
         q.lastAnsMs = e.ms;
         renderAnswer(mode);
-        pipe("answer", `${MODE_NAME[mode]} streaming…`);
+        if (Object.keys(q.metric).length) settlePipe(q); else pipe("answer", `${MODE_NAME[mode]} streaming…`);
         break;
       case "answer_error":
         q.error[mode] = e.error || "answer failed";
@@ -259,6 +264,7 @@
         renderAnswer(mode);
         renderMetric(mode);
         recordTurn(q, mode);
+        settlePipe(q);
         if (mode === "headstart" || !run.modes.includes("headstart")) pipe("answer", `ready ${fmtS(readyAdj(q, mode))} after you stopped`);
         break;
     }
@@ -308,15 +314,36 @@
       li.querySelector("small").textContent = PIPE_IDLE[st];
     });
   }
+  // once answers are in, replace transient states ("drafting…", "streaming…") with what actually happened
+  function settlePipe(q) {
+    if (!run) return;
+    const done = run.modes.filter((m) => q.metric[m]);
+    if (!done.length) return;
+    const SHORT = { headstart: "Head Start", baseline: "Baseline" };
+    setPipe("answer", run.modes.map((m) => q.metric[m] ? `${SHORT[m]} ${fmtS(readyAdj(q, m))}` : `${SHORT[m]} streaming…`).join(" · "));
+    const hm = q.metric.headstart;
+    if (hm) {
+      const bits = [`${hm.spec_fires ?? 0} early searches`];
+      if (hm.stale) bits.push(`${hm.stale} stale`);
+      if (hm.drafts) bits.push(hm.draft_reused ? "draft reused" : `${hm.drafts} draft${hm.drafts > 1 ? "s" : ""} unused`);
+      setPipe("spec", bits.join(" · "));
+    } else if (!run.modes.includes("headstart")) setPipe("spec", "off (baseline only)");
+  }
+  function setPipe(stage, sub) {
+    const li = document.querySelector(`#pipe li[data-st="${stage}"]`);
+    if (li) li.querySelector("small").textContent = sub;
+  }
+
   function pipeSpec(q, e) {
     const fires = Array.from(q.fires.values());
     if (e.lane === "draft") {
+      if (q.metric.headstart) return;
       if (e.state === "fired") pipe("spec", "drafting an answer early");
       else if (e.state === "reused") pipe("spec", "draft reused at endpoint");
       return;
     }
     const spec = fires.filter((f) => !f.lane.startsWith("final") && f.lane !== "draft");
-    if (!e.lane.startsWith("final")) {
+    if (!e.lane.startsWith("final") && !q.metric.headstart) {
       const stale = spec.filter((f) => f.state === "stale" || f.state === "cancelled").length;
       const mem = q.frame && q.frame.carried ? `memory: ${titleCase(q.frame.carried)} · ` : "";
       pipe("spec", `${mem}${spec.length} early search${spec.length === 1 ? "" : "es"}${stale ? ` · ${stale} stale` : ""}`);
@@ -527,12 +554,14 @@
     path.className = "path" + (m.path ? " p-" + m.path : "");
     const st = [];
     if (mode === "headstart") {
-      st.push(`spec fires <b>${m.spec_fires ?? 0}</b>`, `fed answer <b>${m.spec_used ?? 0}</b>`, `stale <b>${m.stale ?? 0}</b>`,
-        `drafts <b>${m.drafts ?? 0}</b>${m.draft_reused ? " (reused)" : ""}`);
+      st.push(`fires <b>${m.spec_fires ?? 0}</b>`, `fed <b>${m.spec_used ?? 0}</b>`, `stale <b>${m.stale ?? 0}</b>`,
+        `drafts <b>${m.drafts ?? 0}</b>${m.draft_reused ? "↺" : ""}`);
     }
-    st.push(`web calls <b>${m.web_calls ?? 0}</b>`, `sources <b>${fmtS(m.sources_ms)}</b>`, `done <b>${fmtS(m.done_ms)}</b>`);
-    if (m.endpoint_lag_ms != null) st.push(`endpoint lag <b>${m.endpoint_lag_ms} ms</b>`);
-    pk(mode, "stats").innerHTML = st.map((s) => `<span>${s}</span>`).join("");
+    st.push(`web <b>${m.web_calls ?? 0}</b>` + (m.credits ? ` · <b>${m.credits}</b> cr` : ""), `sources <b>${fmtS(m.sources_ms)}</b>`);
+    if (mode !== "headstart") st.push(`done <b>${fmtS(m.done_ms)}</b>`);
+    const box = pk(mode, "stats");
+    box.innerHTML = st.map((s) => `<span>${s}</span>`).join("");
+    box.title = `spec fires ${m.spec_fires ?? 0} · fed the answer ${m.spec_used ?? 0} · stale/cancelled ${m.stale ?? 0} · drafts ${m.drafts ?? 0}${m.draft_reused ? " (one reused)" : ""} · web calls ${m.web_calls ?? 0} · sources ${fmtS(m.sources_ms)} · done ${fmtS(m.done_ms)} · endpoint lag ${m.endpoint_lag_ms ?? "—"} ms (all after you stopped talking)`;
     if (m.error && !q.answer[mode]) { q.error[mode] = m.error; renderAnswer(mode); }
     // delta when both modes have finished
     const hs = q.metric.headstart, bl = q.metric.baseline;
@@ -647,8 +676,17 @@
     const w = axis.clientWidth || 800;
     const step = NICE.find((s) => (span / s) * 64 <= w) || 10000;
     let tickHtml = "";
+    const SPK = "you stopped talking";
+    let spkA = null, spkB = null;
+    if (q.speechEnd != null) {
+      const sp = (X(q.speechEnd) / 100) * w, sw = SPK.length * 6.3 + 14;
+      [spkA, spkB] = X(q.speechEnd) > 78 ? [sp - sw, sp] : [sp, sp + sw];
+    }
     for (let t = Math.ceil(a0 / step) * step; t <= a0 + span; t += step) {
-      tickHtml += `<div class="tick" style="left:${X(t)}%"><span>${t >= 1000 ? (t / 1000).toFixed(step % 1000 ? (step % 500 ? 2 : 1) : 0) + " s" : t + " ms"}</span></div>`;
+      const lab = t >= 1000 ? (t / 1000).toFixed(step % 1000 ? (step % 500 ? 2 : 1) : 0) + " s" : t + " ms";
+      const tp = (X(t) / 100) * w, la = tp + 2, lb = tp + 6 + lab.length * 6.6;
+      const hid = spkA != null && lb > spkA - 2 && la < spkB + 2;
+      tickHtml += `<div class="tick" style="left:${X(t)}%"><span${hid ? ' class="hid"' : ""}>${lab}</span></div>`;
     }
     if (axis._h !== tickHtml) { axis.innerHTML = tickHtml; axis._h = tickHtml; }
 
@@ -670,16 +708,18 @@
     const marks = [];
     if (run.running) marks.push({ cls: "now", at: serverNow() });
     if (q.speechEnd != null) marks.push({ cls: "spk", at: q.speechEnd, label: "you stopped talking", top: true });
-    const seen = new Set();
+    // endpoint markers: one dashed line each, one shared label when they're close (saves a label lane)
+    const eps = [];
     for (const m of run.modes) {
       const at = q.endpointMs[m];
       if (at == null) continue;
-      const lab = q.epBy[m] === "semantic" ? "semantic endpoint" : "Arc endpoint";
-      const k = lab + Math.round(at / 60);
-      if (seen.has(k)) continue;
-      seen.add(k);
-      marks.push({ cls: "ep dash", at, label: lab });
+      const lab = q.epBy[m] === "semantic" ? "semantic" : "Arc";
+      if (!eps.some((x) => x.lab === lab && Math.abs(x.at - at) < 60)) eps.push({ at, lab });
     }
+    eps.sort((a, b) => a.at - b.at);
+    const close = eps.length > 1 && eps.at(-1).at - eps[0].at < 400;
+    eps.forEach((x, i) => marks.push({ cls: "ep dash", at: x.at,
+      label: close ? (i === 0 ? eps.map((y) => y.lab).join(" + ") + " endpoint" : null) : x.lab + " endpoint" }));
     for (const o of q.old) if (o.ep != null) marks.push({ cls: "ep dash", at: o.ep, label: o.by === "semantic" ? "semantic endpoint (early)" : "endpoint (early)" });
     for (const m of run.modes) {
       const met = q.metric[m];
@@ -693,23 +733,32 @@
     const tw = mk.clientWidth || 800;
     // de-collide bottom labels
     const bottoms = marks.filter((m) => m.label && !m.top).sort((a, b) => a.at - b.at);
-    const ends = [];                 // right edge (px) of the last label per level
+    // place each label right or left of its marker, on the lowest level where it doesn't overlap another label
+    const occ = [];                  // per level: [[a, b], ...] occupied px intervals
+    const fits = (lv, a, b) => !(occ[lv] || []).some(([x, y]) => a < y + 6 && b > x - 6);
     for (const m of bottoms) {
       const px = (X(m.at) / 100) * tw;
       const w = m.label.length * 6 + 14;
-      const flip = X(m.at) > 78;
-      const a = flip ? px - w : px, b = flip ? px : px + w;
-      let lv = 0;
-      while (ends[lv] != null && ends[lv] > a - 4) lv++;
-      ends[lv] = b;
+      const opts = [[px, px + w, false], [px - w, px, true]].filter(([a, b]) => a >= -4 && b <= tw + 4);
+      if (!opts.length) opts.push(px > tw / 2 ? [px - w, px, true] : [px, px + w, false]);
+      let lv = 0, pick = null;
+      for (; lv < 6 && !pick; lv++) pick = opts.find(([a, b]) => fits(lv, a, b));
+      lv--;
+      pick = pick || opts[0];
+      (occ[lv] = occ[lv] || []).push([pick[0], pick[1]]);
       m.level = lv;
+      m.flip = pick[2];
     }
+    const ends = occ;
+    const band = 12 + Math.max(1, ends.length) * 16;
+    const tlEl = $("#tl");
+    if (tlEl._band !== band) { tlEl.style.paddingBottom = band + "px"; tlEl._band = band; }
     let html = "";
     for (const m of marks) {
       const left = X(m.at);
       if (left < -1 || left > 101) continue;
-      const right = left > 78 ? " right" : "";
-      const lab = m.label ? `<span style="${m.top ? "" : `top:auto;bottom:${4 + (m.level || 0) * 16}px`}">${esc(m.label)}</span>` : "";
+      const right = (m.top ? left > 78 : m.flip) ? " right" : "";
+      const lab = m.label ? `<span style="${m.top ? "" : `top:auto;bottom:${8 + (m.level || 0) * 16}px`}">${esc(m.label)}</span>` : "";
       html += `<div class="mark ${m.cls}${right}" style="left:${left}%">${lab}</div>`;
     }
     // "stopped -> ready" gap lines along the bottom
@@ -747,13 +796,25 @@
     if (r.kind === "sec") return;
     if (r.kind === "speech") {
       const track = n.lastChild;
-      const sig = q.words.map((w) => w.w + w.t0 + w.t1).join("|") + "@" + q.axStart + ":" + Math.round(q.axEnd);
+      const tw = track.clientWidth || 600;
+      const sig = q.words.map((w) => w.w + w.t0 + w.t1).join("|") + "@" + q.axStart + ":" + Math.round(q.axEnd) + ":" + tw;
       if (track._sig === sig) return;
       track._sig = sig;
-      track.innerHTML = q.words.filter((w) => w.t0 != null).map((w) => {
-        const a = X(w.t0 * 1000), b = X((w.t1 ?? w.t0 + 0.2) * 1000);
-        return `<div class="sw" style="left:${a}%;width:${Math.max(0.6, b - a)}%" title="${esc(w.w)}">${esc(w.w)}</div>`;
-      }).join("");
+      // words are placed at their spoken times but never overlap: each chip starts at least 3 px after the previous
+      // one ends, is clipped to the next word's start, and drops its text when too narrow to read
+      const ws = q.words.filter((w) => w.t0 != null);
+      const px = (ms) => (X(ms) / 100) * tw;
+      let prevEnd = -1e9, html = "";
+      ws.forEach((w, i) => {
+        const a = Math.max(px(w.t0 * 1000), prevEnd + 3);
+        const nextA = i + 1 < ws.length ? px(ws[i + 1].t0 * 1000) : Infinity;
+        let b = Math.max(px((w.t1 ?? w.t0 + 0.2) * 1000), a + 4);
+        b = Math.min(b, Math.max(a + 4, nextA - 3));
+        const wd = b - a;
+        html += `<div class="sw${wd < 16 ? " tiny" : ""}" style="left:${a.toFixed(1)}px;width:${wd.toFixed(1)}px" title="${esc(w.w)}">${wd < 16 ? "" : esc(w.w)}</div>`;
+        prevEnd = b;
+      });
+      track.innerHTML = html;
       return;
     }
     const lab = n.firstChild, bar = n.lastChild.firstChild, bt = bar.firstChild;
@@ -1115,8 +1176,16 @@
     if (!R) { body.innerHTML = '<p class="muted">No results yet. The eval harness writes <code>runs/ab_latest.json</code>.</p>'; $("#resSub").textContent = ""; return; }
     $("#resSub").textContent = R.pairs.length ? `${R.pairs.length} questions · ready ms after the speaker stopped` : "";
     const tile = (lab, v, cls = "", extra = "") => `<div class="tile ${cls}"><label>${lab}</label><div class="v">${v == null ? "—" : fmtS(v)}${extra}</div></div>`;
-    const speed = R.hs50 != null && R.bl50 != null ? R.bl50 - R.hs50 : null;
-    let html = `<div class="res-tiles">${tile("Head Start p50", R.hs50, "hs")}${tile("Baseline p50", R.bl50)}${tile("p50 saved", speed, "hs", R.hs50 && R.bl50 ? ` <small>${(R.bl50 / Math.max(1, R.hs50)).toFixed(1)}×</small>` : "")}${tile("p90 HS / BL", R.hs90, "", ` <small>/ ${fmtS(R.bl90)}</small>`)}</div>`;
+    // the saving is the PAIRED median (median over questions of baseline − head start), not p50(BL) − p50(HS)
+    const P = R.raw && R.raw.paired && typeof R.raw.paired === "object" ? R.raw.paired : {};
+    const both = R.pairs.filter((r) => r.h != null && r.b != null);
+    const saved = num(P.p50_saved_ms) ?? pct(both.map((r) => r.b - r.h), 0.5);
+    const nPair = num(P.n) ?? num(P.n_paired) ?? both.length;
+    let fasterN = num(P.headstart_faster) ?? num(P.n_headstart_faster);
+    if (fasterN != null && fasterN > 0 && fasterN <= 1 && nPair > 1) fasterN = Math.round(fasterN * nPair);   // a rate
+    if (fasterN == null && both.length) fasterN = both.filter((r) => r.h < r.b).length;
+    const fasterTxt = fasterN != null && nPair ? ` <small>faster on ${fasterN}/${nPair}</small>` : "";
+    let html = `<div class="res-tiles">${tile("Head Start p50", R.hs50, "hs")}${tile("Baseline p50", R.bl50)}${tile("median saving per question", saved, "hs", fasterTxt)}${tile("p90 HS / BL", R.hs90, "", ` <small>/ ${fmtS(R.bl90)}</small>`)}</div>`;
     const acc = (m) => num(R.summary[m]?.accuracy);
     if (acc("headstart") != null || acc("baseline") != null) {
       const a = (v) => (v == null ? "—" : Math.round(v * 100) + "%");

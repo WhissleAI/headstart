@@ -162,7 +162,7 @@ def test_cancel_mid_embed_keeps_pool_consistent(monkeypatch):
         return fn(*a)
     monkeypatch.setattr(embed, "arun", slow_arun)
 
-    async def web(q, topic="general"):
+    async def web(q, topic="general", **kw):
         await asyncio.sleep(0.05)
         # both queries return the same (popular) page, as Wikipedia/Tavily often do
         return [lanes.Doc(id="wiki:shared", title="Shared", text="shared fact", source="wikipedia"),
@@ -289,7 +289,7 @@ def test_superseded_soft_answer_emits_nothing(monkeypatch):
     monkeypatch.setattr(config, "SEMANTIC_ENDPOINT", True)
     monkeypatch.setattr(config, "SEM_STABLE_MS", 150)
 
-    async def slow_web(q, topic="general"):
+    async def slow_web(q, topic="general", **kw):
         WEB_CALLS.append(q)
         await asyncio.sleep(1.5)
         return [lanes.Doc(id=f"web:{q}:{i}", title=q.title(), text=f"About {q} {i}", source="fake") for i in range(3)]
@@ -641,3 +641,24 @@ def test_url_less_web_results_get_distinct_stable_ids():
     b = lanes._doc_id("tavily", "", "Title B", "text b")
     assert a != b and a == lanes._doc_id("tavily", "", "Title A", "text a") and a.startswith("tavily:")
     assert lanes._doc_id("tavily", "https://x.org/a", "T", "t") == "https://x.org/a"
+
+
+def test_flip_back_to_cancelled_query_fires_again():
+    """A stale fire cancelled before its results landed brings nothing: coming back to that query searches again (the
+    Tavily lane's cache holds the finished, paid-for request, so that is free), and a final query that matches only
+    such a fire is not a 'speculative hit' with no results."""
+    async def go():
+        sp = Speculator(lambda e: None, "headstart")
+        a, b = F("who founded the company acronis"), F("who founded the company nvidia")
+        sp.on_frame(a)
+        await asyncio.sleep(0.05)
+        sp.on_frame(b)                    # acronis goes stale, cancelled mid-flight (no docs)
+        await asyncio.sleep(0.01)
+        sp.on_frame(a)                    # the speaker comes back to it
+        await asyncio.sleep(0.4)
+        acr = [x for x in sp.fires if "acronis" in x.query]
+        m = await sp.finalize(a, time.perf_counter())
+        return acr, m
+    acr, m = asyncio.run(go())
+    assert [x.state for x in acr] == ["stale", "done"]
+    assert m["n_sources"] > 0 and any("Acronis" in s for s in m["sources"])
