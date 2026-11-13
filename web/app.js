@@ -557,7 +557,7 @@
       st.push(`fires <b>${m.spec_fires ?? 0}</b>`, `fed <b>${m.spec_used ?? 0}</b>`, `stale <b>${m.stale ?? 0}</b>`,
         `drafts <b>${m.drafts ?? 0}</b>${m.draft_reused ? "↺" : ""}`);
     }
-    st.push(`web <b>${m.web_calls ?? 0}</b>`, `sources <b>${fmtS(m.sources_ms)}</b>`);
+    st.push(`web <b>${m.web_calls ?? 0}</b>` + (m.credits ? ` · <b>${m.credits}</b> cr` : ""), `sources <b>${fmtS(m.sources_ms)}</b>`);
     if (mode !== "headstart") st.push(`done <b>${fmtS(m.done_ms)}</b>`);
     const box = pk(mode, "stats");
     box.innerHTML = st.map((s) => `<span>${s}</span>`).join("");
