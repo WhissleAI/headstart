@@ -35,7 +35,7 @@ def model_opts(model: str) -> dict:
     return {"output_config": {"effort": "low"}}
 
 
-def build_prompt(question: str, docs) -> str:
+def build_prompt(question: str, docs, context: str = "") -> str:
     lines = []
     for i, d in enumerate(docs, 1):
         where = f" (moment at {int(d.t // 60):02d}:{int(d.t % 60):02d})" if d.t is not None else ""
@@ -48,7 +48,8 @@ def build_prompt(question: str, docs) -> str:
                 text = f"({meta['role']}) " + text
         lines.append(f"[{i}] {d.title}{where}: {text[:1000]}")
     src = "\n".join(lines) if lines else "(no results)"
-    return f"Sources:\n{src}\n\nSpoken question: {question}"
+    prev = f"Previous turn (for resolving 'it', 'he', 'there'):\n{context}\n\n" if context else ""
+    return f"{prev}Sources:\n{src}\n\nSpoken question: {question}"
 
 
 async def warm():
@@ -63,10 +64,11 @@ async def warm():
 class Stream:
     """An answer being generated. Tokens are buffered so a late consumer can replay them, then follow live."""
 
-    def __init__(self, question: str, docs, tag: str = ""):
+    def __init__(self, question: str, docs, tag: str = "", context: str = ""):
         self.question = question
         self.docs = list(docs)
         self.tag = tag
+        self.context = context
         self.tokens: list[str] = []
         self.done = False
         self.error: str | None = None
@@ -83,7 +85,7 @@ class Stream:
         async with client().messages.stream(model=config.ANSWER_MODEL, max_tokens=160, system=SYSTEM,
                                             **model_opts(config.ANSWER_MODEL),
                                             messages=[{"role": "user",
-                                                       "content": build_prompt(self.question, self.docs)}]) as s:
+                                                       "content": build_prompt(self.question, self.docs, self.context)}]) as s:
             async for text in s.text_stream:
                 if self.winner is None:
                     self.winner = i

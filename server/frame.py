@@ -46,6 +46,13 @@ LOCAL_CUES = ["in the game", "the announcer", "the commentator", "in the clip", 
               "the attorney", "the witness", "in the debate", "the commentators", "the host"]
 NEWS_INTENTS = {"discourse.intent.news_query"}
 
+PRONOUNS = {"it", "its", "it's", "he", "she", "his", "her", "him", "they", "them", "their", "there", "that", "this",
+            "those", "these"}
+PERSONAL = {"he", "she", "his", "her", "him", "hers", "himself", "herself"}
+WEAK_PRONOUNS = {"there", "that", "this", "those", "these"}     # often not referential: only for short questions
+NUMBER_TYPES = {"date", "time", "time_of_day", "duration", "money", "percent", "cardinal", "ordinal", "quantity",
+                "number", "numeral", "age", "year"}
+
 _PUNCT = re.compile(r"[^\w'\- ]+")
 
 
@@ -62,6 +69,7 @@ class Frame:
     slots: tuple = ()                # sorted ((type, text), ...)
     content: tuple = ()              # content words, in order, after correction handling
     corrected: bool = False
+    carried: str = ""                # entity inherited from the previous question ("when was it founded")
     route: str = "web"               # web | local | both
     act_question: bool = False
     command_complete: bool = False
@@ -84,6 +92,11 @@ class Frame:
         """Coarser signature used to decide if a drafted answer still fits: intent + slots + content words."""
         return (self.intent, self.slots, tuple(sorted(set(self.content))))
 
+    @property
+    def resolved_text(self) -> str:
+        """The question with its carried referent spelled out, for ranking and for the answer model."""
+        return f"{self.text} ({self.carried})" if self.carried else self.text
+
     def query(self) -> str:
         """Search query: content words in spoken order + an intent hint word when it adds information."""
         q = list(self.content)
@@ -98,7 +111,7 @@ class Frame:
     def to_json(self):
         return {"intent": self.intent, "p": round(self.intent_p, 2), "coarse": self.coarse,
                 "slots": [list(s) for s in self.slots], "content": list(self.content), "route": self.route,
-                "corrected": self.corrected, "query": self.query(), "n": self.n,
+                "corrected": self.corrected, "carried": self.carried, "query": self.query(), "n": self.n,
                 "command_complete": self.command_complete}
 
 
@@ -118,7 +131,7 @@ def _cls(s: dict) -> str:
 
 
 def build(words: list[str], spans: list[dict], current: dict | None, events_seen: set | None = None,
-          prev_intent: tuple | None = None, local_ok: bool = True) -> Frame:
+          prev_intent: tuple | None = None, local_ok: bool = True, carry: dict | None = None) -> Frame:
     toks = [norm(w) for w in words]
     f = Frame(words=list(words), spans=spans)
     cur = current or {}
@@ -183,6 +196,27 @@ def build(words: list[str], spans: list[dict], current: dict | None, events_seen
             continue
         seen.add(t)
         content.append(t)
+    # conversation memory: "who founded Nvidia?" → "when was it founded?" — a pronoun and no entity of its own
+    # inherits the previous question's entity (carry = that frame's mention slots)
+    has_mention = any(t not in NUMBER_TYPES for t, _ in f.slots)
+    strong = any(t in PRONOUNS - WEAK_PRONOUNS for t in toks)
+    weak = any(t in WEAK_PRONOUNS for t in toks) and len(content) <= 2
+    ent = None
+    if carry and not has_mention and (strong or weak):
+        # he/she → a person (often named only in the previous ANSWER: "relativity?" → "Einstein" → "where was he
+        # born"); it/they/there → the thing the previous question was about, else any entity
+        personal = any(t in PERSONAL for t in toks)
+        order = ["person", "thing"] if personal else ["thing", "person"]
+        for k in order:
+            if carry.get(k):
+                ent = carry[k][0]
+                break
+    if ent:
+        f.carried = ent[1]
+        f.slots = tuple(sorted(set(f.slots) | {ent}))
+        for w in reversed(ent[1].split()):
+            if w not in content:
+                content.insert(0, w)
     f.content = tuple(content)
 
     low = " " + " ".join(toks) + " "

@@ -82,6 +82,7 @@ class Speculator:
         self.draft_busy = False
         self.closed = False
         self.answer_stream = None
+        self.context = ""                      # previous turn (question + answer), for follow-ups
 
     # ------------------------------------------------------------------ helpers
     def ms(self, t=None):
@@ -142,6 +143,25 @@ class Speculator:
         for d, v in zip(need, vec):
             self.vecs[d.id] = v
 
+    def seed(self, pool: dict):
+        """Start with the previous question's documents (already embedded): follow-ups rank them instantly."""
+        for d, v in pool.values():
+            self.pool.setdefault(d.id, d)
+            self.vecs.setdefault(d.id, v)
+        if pool:
+            self.carried_ids = set(pool)
+
+    def export_pool(self, k: int = 12) -> dict:
+        """The docs that fed or nearly fed this answer, for the next question."""
+        used = []
+        for x in self.fires:
+            if x.used or x.state == "done":
+                used += [d for d in x.docs if d.id in self.vecs]
+        out = {}
+        for d in used[:k]:
+            out[d.id] = (d, self.vecs[d.id])
+        return out
+
     def rank(self, qvec: np.ndarray, k: int = 5, fresh_only: bool = True):
         """Top-k pool docs by cosine. Docs that only came from stale searches (a misheard or corrected-away query) are
         left out when enough fresh ones exist."""
@@ -151,6 +171,7 @@ class Speculator:
             for x in self.fires:
                 if x.state in ("done", "fired"):
                     fresh |= {d.id for d in x.docs}
+            fresh |= getattr(self, "carried_ids", set())
             keep = [i for i in ids if i in fresh]
             if len(keep) >= 3:
                 ids = keep
@@ -251,14 +272,14 @@ class Speculator:
 
         async def go():
             try:
-                qvec = (await embed.arun(embed.encode_queries, [f.text]))[0]
+                qvec = (await embed.arun(embed.encode_queries, [f.resolved_text]))[0]
                 top = [d for d, _ in self.rank(qvec)]
                 if not top or self.closed or self.last_sig != f.sig:
                     return                          # the question moved on while we embedded
                 own = {d.id for x in ready for d in x.docs}
                 if not own & {d.id for d in top}:
                     return                          # don't draft from other questions' results
-                st = answer.Stream(f.text, top, tag="draft")
+                st = answer.Stream(f.resolved_text, top, tag="draft", context=self.context)
                 d = Draft(id=f"d{next(_ids)}", meaning_sig=f.meaning_sig, question=f.text, qvec=qvec, stream=st,
                           t_start=time.perf_counter(), doc_ids=tuple(x.id for x in top), content=f.content)
                 self.drafts.append(d)
@@ -280,7 +301,7 @@ class Speculator:
         m = {"mode": self.mode, "question": f.text, "query": f.query(), "intent": f.intent, "endpoint_by": by,
              "endpoint_lag_ms": round((t_end - t_speech_end) * 1000)}
         q = f.query() or " ".join(f.words)
-        qtext = f.text
+        qtext = f.resolved_text
         topic = "news" if f.intent in NEWS_INTENTS else "general"
         qvec_task = asyncio.create_task(embed.arun(embed.encode_queries, [qtext]))
         reuse_draft = None
@@ -332,7 +353,7 @@ class Speculator:
             self._ev(id=reuse_draft.id, lane="draft", query=reuse_draft.question, state="reused", ms=self.ms())
         else:
             docs = [d for d, _ in ranked]
-            st = answer.Stream(qtext, docs, tag="final")
+            st = answer.Stream(qtext, docs, tag="final", context=self.context)
         t_sources = time.perf_counter()
         m["n_sources"] = len(docs)
         self.emit({"t": "sources", "ms": self.ms(t_sources),

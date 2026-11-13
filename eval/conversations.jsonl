@@ -1,0 +1,6 @@
+{"id": "conv01", "voice": "Samantha", "turns": ["Who founded the company Nvidia?", "When was it founded?"], "files": ["conv01_1.wav", "conv01_2.wav"], "expect": [["jensen", "huang"], ["1993"]], "kind": "conversation"}
+{"id": "conv02", "voice": "Daniel", "turns": ["Who painted the Mona Lisa?", "Which museum is it in?"], "files": ["conv02_1.wav", "conv02_2.wav"], "expect": [["leonardo"], ["louvre"]], "kind": "conversation"}
+{"id": "conv03", "voice": "Samantha", "turns": ["Who wrote Pride and Prejudice?", "When was she born?"], "files": ["conv03_1.wav", "conv03_2.wav"], "expect": [["austen"], ["1775"]], "kind": "conversation"}
+{"id": "conv04", "voice": "Daniel", "turns": ["What is the capital of Australia?", "What is the population there?"], "files": ["conv04_1.wav", "conv04_2.wav"], "expect": [["canberra"], []], "kind": "conversation"}
+{"id": "conv05", "voice": "Samantha", "turns": ["Who developed the theory of general relativity?", "Where was he born?"], "files": ["conv05_1.wav", "conv05_2.wav"], "expect": [["einstein"], ["ulm"]], "kind": "conversation"}
+{"id": "conv06", "voice": "Daniel", "turns": ["Which company makes the PlayStation?", "Where is its headquarters?"], "files": ["conv06_1.wav", "conv06_2.wav"], "expect": [["sony"], ["tokyo"]], "kind": "conversation"}

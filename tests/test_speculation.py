@@ -43,7 +43,7 @@ async def fake_web(query, topic="general"):
 class FakeStream:
     instances: list["FakeStream"] = []
 
-    def __init__(self, question, docs, tag=""):
+    def __init__(self, question, docs, tag="", context=""):
         self.question, self.docs, self.tag = question, list(docs), tag
         self.tokens, self.done, self.error = [], False, None
         self.t_start = time.perf_counter()
@@ -283,3 +283,20 @@ def test_late_revision_in_final_marks_stale():
     m, ev = asyncio.run(speak("who founded the company Nvidia", "headstart", revisions={4: (5.0, "Acronis")}))
     assert specs(ev, state="stale") and "nvidia" in m["query"]
     assert m["path"] == "speculative-miss" and all("Acronis" not in s for s in m["sources"][:3])
+
+
+def test_conversation_memory_resolves_pronouns(tagger):
+    carry = {"person": [("person", "albert einstein")], "thing": [("organization", "nvidia")]}
+    def last(text):
+        tagger.reset()
+        ws = text.split()
+        tagger.push(ws)
+        r = tagger.poll()
+        return frame.build(ws, r.get("spans", []), r.get("current"), local_ok=False, carry=carry)
+    f = last("when was it founded")
+    assert f.carried == "nvidia" and "nvidia" in f.query() and "(nvidia)" in f.resolved_text
+    assert last("where was he born").carried == "albert einstein"
+    g = last("what is the stock price of Apple")
+    assert g.carried == "" and "apple" in g.query()          # has its own entity: no carry
+    h = last("is there a good pizza place in Boston")
+    assert h.carried == ""                                    # weak pronoun in a full question: no carry

@@ -42,6 +42,10 @@ class Session:
         self.pending_final = None
         self.final_task: asyncio.Task | None = None
         self.soft: dict | None = None        # a semantic-endpoint answer awaiting the ear's confirmation
+        self.carry: dict = {}                # {"person": [...], "thing": [...]} from the last question + answer
+        self.context = ""                    # last question + answer text, for the answer model
+        self.ans_tagger = Tagger(domain="talk")
+        self.carry_pool: dict = {}           # its documents + vectors, seeded into the next speculator
         self._new_question()
 
     def _new_question(self):
@@ -56,6 +60,9 @@ class Session:
         self.audio: list[np.ndarray] = []
         self.q_audio_start: float | None = None      # audio time (s) of the first word of this question
         self.spec = Speculator(self.emit, self.mode, self.t0)
+        if getattr(self, "carry_pool", None):
+            self.spec.seed(self.carry_pool)
+        self.spec.context = getattr(self, "context", "")
         self.busy = False
         self.soft = None
         self.words_changed_at = time.perf_counter()
@@ -125,7 +132,7 @@ class Session:
         if self.busy:
             return
         changed, k = self._sync_words(ws)
-        f = framemod.build(self.words, self.spans, self.current, self.events, self.prev_intent, local_ok=bool(len(lanes.index())))
+        f = framemod.build(self.words, self.spans, self.current, self.events, self.prev_intent, local_ok=bool(len(lanes.index())), carry=self.carry)
         if f.intent.startswith("discourse.intent."):
             self.prev_intent = (f.intent, f.intent_p)
         if changed:
@@ -180,7 +187,7 @@ class Session:
         self._sync_words(ws)
         self.tagger.endpoint()
         self._apply(self.tagger.poll())
-        f = framemod.build(self.words, self.spans, self.current, self.events, self.prev_intent, local_ok=bool(len(lanes.index())))
+        f = framemod.build(self.words, self.spans, self.current, self.events, self.prev_intent, local_ok=bool(len(lanes.index())), carry=self.carry)
         self.emit({"t": "words", "words": [{"w": w, "t0": t[0], "t1": t[1]} for w, t in zip(self.words, self.times)],
                    "from": 0, "final": True, "ms": self.spec.ms()})
         self.emit({"t": "frame", **f.to_json(), "final": True, "spans": [
@@ -211,6 +218,8 @@ class Session:
                 m["superseded_soft"] = self.soft is not None
         finally:
             self.spec.close()
+        self._remember(f, m)
+        self.carry_pool = self.spec.export_pool()
         self.history.append(m)
         self._new_question()
         nxt, self.pending_final = self.pending_final, None
@@ -218,9 +227,34 @@ class Session:
             await self.on_final(nxt)
         return m
 
+    def _remember(self, f, m):
+        """Conversation memory: entities of the question and of the answer, typed person vs thing."""
+        person, thing = [], []
+        for t, txt in f.slots:
+            if t in framemod.NUMBER_TYPES:
+                continue
+            (person if t == "person" else thing).append((t, txt))
+        try:
+            r = self.ans_tagger.tag_text(re.sub(r"\[\d+\]", "", m.get("answer") or ""))
+            for sp in r.get("spans", []):
+                if sp.get("family") != "entity" or not sp["type"].startswith("entity.mention"):
+                    continue
+                t = sp["type"].split(".")[-1]
+                item = (t, framemod.norm(sp["text"]))
+                if t == "person":
+                    person.append(item)        # answer's people come after the question's
+                elif not thing:
+                    thing.append(item)
+        except Exception:
+            pass
+        if person or thing:
+            self.carry = {"person": person, "thing": thing}
+        self.context = f"Q: {f.text}\nA: {(m.get('answer') or '')[:300]}"
+
     def close(self):
         if self.soft is not None and self.soft.get("metric") is not None and not self.busy:
             self.history.append(self.soft["metric"])      # the ear never confirmed (stream ended): keep the answer
             self.soft = None
         self.spec.close()
         self.tagger.close()
+        self.ans_tagger.close()
