@@ -24,7 +24,7 @@ from urllib.parse import urlencode
 
 import numpy as np
 
-from . import config
+from . import arcmeta, config
 
 _arc = None
 _arc_lock = threading.Lock()
@@ -50,6 +50,8 @@ def warmup():
     for i in range(20):
         s.feed(z if i % 2 else rng.standard_normal(1600).astype(np.float32) * 0.001)
     s.flush()
+    if config.EAR == "flux":
+        arcmeta.warmup()                     # Arc Transcriber (ARC_META=transcriber) loads ~3 GB: do it before the demo
     return time.perf_counter() - t
 
 
@@ -70,6 +72,7 @@ def describe() -> dict:
     if config.EAR == "flux":
         d["flux"] = {"eager_eot_threshold": flux_eager(), "eot_threshold": config.FLUX_EOT,
                      "eot_timeout_ms": config.FLUX_EOT_TIMEOUT_MS, "soft": config.FLUX_SOFT}
+        d["arc_meta"] = arcmeta.variant()
     return d
 
 
@@ -530,6 +533,12 @@ class FluxEar(DeepgramEar):
     def __init__(self, sinks: list, domain: str = "assistant", on_event=None, key: str | None = None,
                  url: str | None = None):
         super().__init__(sinks, domain=domain, on_event=on_event, key=key, url=url or flux_url())
+        self.meta = None
+        if arcmeta.variant() != "off":
+            try:
+                self.meta = arcmeta.ArcMeta(self._on_meta, domain=domain)
+            except Exception as e:  # noqa: BLE001 (metadata is optional: the words path never depends on it)
+                self.on_event({"t": "ear", "kind": "warning", "ear": "flux", "text": f"arc meta off: {e}"[:240]})
         self.turn_index = None
         self.n_turninfo = 0
         self.eager_at: float | None = None     # audio time of the last EagerEndOfTurn of the open turn
@@ -537,6 +546,19 @@ class FluxEar(DeepgramEar):
     @property
     def model(self) -> str:
         return config.FLUX_MODEL
+
+    def _on_meta(self, m: dict):
+        if self.closed:
+            return
+        for s in self.sinks:
+            f = getattr(s, "on_meta", None)
+            if f is not None:
+                f(m)
+
+    async def feed(self, pcm: np.ndarray):
+        if self.meta is not None and self.failed is None and not self.closed:
+            self.meta.feed(np.asarray(pcm, np.float32).reshape(-1))
+        await super().feed(pcm)
 
     def keepalive(self):
         # Flux defines no KeepAlive message: keep the socket alive with 100 ms of silence (it is real audio time,
@@ -572,6 +594,9 @@ class FluxEar(DeepgramEar):
                 self._final("turn_change")         # a turn we never saw end (shouldn't happen): close it
             self.turn_index = ti
             self.interim = self._words(d)
+            if self.meta is not None and d.get("words"):
+                self.meta.words([{"text": w.get("word") or "", "start": w.get("start"), "end": w.get("end")}
+                                 for w in d["words"] if w.get("word")], final=ev == "EndOfTurn")
             if ev in ("EagerEndOfTurn", "TurnResumed", "EndOfTurn", "StartOfTurn"):
                 self.on_event({"t": "ear", "kind": ev, "ear": "flux", "turn": ti, "text": d.get("transcript", ""),
                                "eot_p": _num(d.get("end_of_turn_confidence")), "trigger": d.get("trigger"),
@@ -615,8 +640,15 @@ class FluxEar(DeepgramEar):
             async with self.fb_lock:
                 if self.fb is not None:
                     await self.fb.flush()
+        if self.meta is not None:
+            await self.meta.flush()
         if self.final_tasks:
             await asyncio.gather(*self.final_tasks, return_exceptions=True)
+
+    def close(self):
+        if self.meta is not None:
+            self.meta.close()
+        super().close()
 
 
 def _num(x):

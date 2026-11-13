@@ -112,8 +112,20 @@ FLUX_EOT_TIMEOUT_MS = int(os.environ.get("FLUX_EOT_TIMEOUT_MS", "1000"))   # 500
 FLUX_KEYTERMS = [t.strip() for t in os.environ.get("FLUX_KEYTERMS", "").split(",") if t.strip()]
 # What an EagerEndOfTurn does in the Head Start session: "eager" = soft answer now (no silence / settle wait: Flux's
 # turn model already judged the pause); "eager+gate" = only if our tagger gate (session.gate_open) also agrees;
-# "off" = ignore eager events (the tagger+silence semantic endpoint still runs on Flux's words either way).
+# "eager+arc" = now if Arc's command_complete (ARC_META) fired near the last word, else when it does while the words
+# hold; "off" = ignore eager events (the tagger+silence semantic endpoint still runs on Flux's words either way).
 FLUX_SOFT = os.environ.get("FLUX_SOFT", "eager").strip().lower()
+# Arc audio metadata on the cloud ear's words (server/arcmeta.py): mini | transcriber | off. Arc runs its heads in
+# external-transcript mode (no decoder): for-me (device-directed), command_complete, act/intent, speaker role, events.
+ARC_META = os.environ.get("ARC_META", "mini").strip().lower()
+ARC_CC_WINDOW_S = float(os.environ.get("ARC_CC_WINDOW_S", "0.6"))   # Arc cc event this close to the last word counts
+ARC_META_MAX_PENDING = int(os.environ.get("ARC_META_MAX_PENDING", "20"))    # chunks queued before audio is dropped
+ARC_T_CODE = Path(os.environ.get("ARC_T_CODE", "/Users/karan/dv3work/arc/arc_transcriber"))   # arc_transcriber 1.2.x
+ARC_T_WEIGHTS = Path(os.environ.get("ARC_T_WEIGHTS", str(Path.home() / ".cache/huggingface/hub/models--WhissleAI--arc-v1.1/"
+                                                          "snapshots/6f637153ea4953d81811e68168cd29572316d32b")))
+ARC_T_DEVICE = os.environ.get("ARC_T_DEVICE", "mps")
+ARC_T_CHUNK_S = float(os.environ.get("ARC_T_CHUNK_S", "0.5"))   # Parakeet backbone stream chunk (model default 10 s)
+ARC_T_CTX_S = float(os.environ.get("ARC_T_CTX_S", "1.0"))       # context each side (model default 2 s)
 SEM_WORDGAP_MS = int(os.environ.get("SEM_WORDGAP_MS", "600"))   # noisy rooms: ASR word gap that counts as a pause
 CHATTER_RATIO = float(os.environ.get("CHATTER_RATIO", "0.25"))   # -12 dB vs the last answered question = chatter
 
