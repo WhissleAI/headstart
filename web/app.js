@@ -1297,7 +1297,7 @@
   // so the last word and its pause reach the ear.
   const ptt = { held: false, starting: false, tail: null };
   addEventListener("keydown", async (e) => {
-    if (e.target.closest("input, textarea") || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target?.closest?.("input, textarea") || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.code === "Space") {
       e.preventDefault();
       if (e.repeat || ptt.held) return;
