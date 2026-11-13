@@ -1281,14 +1281,41 @@
   $("#micBtn").addEventListener("click", () => (mic.on ? stopMic(true) : startMic()));
 
   // ------------------------------------------------------------------ keyboard
-  addEventListener("keydown", (e) => {
+  // Push-to-talk: hold Space to talk, release to send. Key auto-repeat is ignored (holding a key fires keydown
+  // many times a second, which used to toggle the mic on/off/on…). After release the mic keeps streaming briefly
+  // so the last word and its pause reach the ear.
+  const ptt = { held: false, starting: false, tail: null };
+  addEventListener("keydown", async (e) => {
     if (e.target.closest("input, textarea") || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.code === "Space") { e.preventDefault(); mic.on ? stopMic(true) : startMic(); }
+    if (e.code === "Space") {
+      e.preventDefault();
+      if (e.repeat || ptt.held) return;
+      ptt.held = true;
+      if (ptt.tail) { clearTimeout(ptt.tail); ptt.tail = null; }
+      if (!mic.on && !ptt.starting) {
+        ptt.starting = true;
+        try { await startMic(); } finally { ptt.starting = false; }
+        if (!ptt.held && mic.on) ptt.tail = setTimeout(() => { ptt.tail = null; stopMic(true); }, 500);
+      }
+      return;
+    }
     else if (/^[1-9]$/.test(e.key)) {
       const i = +e.key - 1;
       const b = document.querySelector(`.qlist button[data-i="${i}"]`);
       if (b && questions[i]) playItem(questions[i], b);
     } else if (e.key === "r" || e.key === "R") { if (lastReplay) playItem(lastReplay.item, lastReplay.btn); }
+  });
+
+  addEventListener("keyup", (e) => {
+    if (e.code !== "Space" || !ptt.held) return;
+    e.preventDefault();
+    ptt.held = false;
+    if (mic.on && !ptt.starting) ptt.tail = setTimeout(() => { ptt.tail = null; stopMic(true); }, 500);
+  });
+  addEventListener("blur", () => {           // window lost focus while holding Space: treat as release
+    if (!ptt.held) return;
+    ptt.held = false;
+    if (mic.on) ptt.tail = setTimeout(() => { ptt.tail = null; stopMic(true); }, 500);
   });
 
   // ------------------------------------------------------------------ results (runs/ab_latest.json)
