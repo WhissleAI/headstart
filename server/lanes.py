@@ -409,16 +409,21 @@ async def tavily(query: str, plan: dict | None = None, ledger: Ledger | None = N
 # ------------------------------------------------------------------------------------------- web status + cache
 # Honesty rule: a result served from the recorded cache is never presented as live. Every such call sets
 # meter["backend"] = "cache" and meter["replayed"] = True; the metric counts them (web_replayed) and the UI flags them.
-WEB_STATUS = {"status": "unknown", "last_error": None, "last_ok": None, "down_until": 0.0, "probed_at": None}
+WEB_STATUS = {"status": "unknown", "last_error": None, "last_ok": None, "down_until": 0.0, "probed_at": None,
+              "fails": 0}
 
 
 def _web_ok():
-    WEB_STATUS.update(status="live", last_ok=time.time(), down_until=0.0)
+    WEB_STATUS.update(status="live", last_ok=time.time(), down_until=0.0, fails=0)
 
 
 def _web_fail(e: BaseException):
-    WEB_STATUS.update(status="down", last_error=f"{type(e).__name__}: {e}"[:160],
-                      down_until=time.monotonic() + config.WEB_BREAKER_S)
+    """Open the breaker only after WEB_BREAKER_FAILS consecutive network failures of the PRIMARY backend: one slow
+    call (or a timeout of the Wikipedia fallback while Tavily is healthy) must not put the whole demo on the cache."""
+    WEB_STATUS["fails"] = WEB_STATUS.get("fails", 0) + 1
+    WEB_STATUS["last_error"] = f"{type(e).__name__}: {e}"[:160]
+    if WEB_STATUS["fails"] >= config.WEB_BREAKER_FAILS:
+        WEB_STATUS.update(status="down", down_until=time.monotonic() + config.WEB_BREAKER_S)
 
 
 def web_down() -> bool:
@@ -437,7 +442,7 @@ def web_health() -> dict:
 
 def reset_web_status():
     """Tests."""
-    WEB_STATUS.update(status="unknown", last_error=None, last_ok=None, down_until=0.0, probed_at=None)
+    WEB_STATUS.update(status="unknown", last_error=None, last_ok=None, down_until=0.0, probed_at=None, fails=0)
 
 
 class WebCache:
@@ -578,7 +583,8 @@ async def web(query: str, topic: str = "general", *, intent: str = "", text: str
     except asyncio.CancelledError:
         raise
     except Exception as e:
-        if _network_failure(e):
+        primary_failed = not (config.WEB_BACKEND == "tavily" and meter.get("backend") == "wikipedia")
+        if _network_failure(e) and primary_failed:
             _web_fail(e)
         if config.WEB_CACHE_FALLBACK and len(web_cache()) and (_network_failure(e) or final):
             return _from_cache(query, meter, f"{type(e).__name__}: {e}")

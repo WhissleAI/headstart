@@ -310,3 +310,9 @@ def test_health_and_ready_event_report_degraded(tmp_path, monkeypatch):
         with c.websocket_connect("/ws") as ws:
             r = ws.receive_json()
             assert r["t"] == "ready" and set(r["degraded"]) == {"web", "answer"} and r["web"]["status"] == "cache"
+
+
+@pytest.fixture(autouse=True)
+def _one_failure_breaker(monkeypatch):
+    """These tests exercise the breaker itself: open it on the first primary failure (production default is 2)."""
+    monkeypatch.setattr(config, "WEB_BREAKER_FAILS", 1)

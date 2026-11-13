@@ -115,3 +115,4 @@ ANSWER_DEADLINE_MS = int(os.environ.get("ANSWER_DEADLINE_MS", "4000"))   # no fi
 ANSWER_BREAKER_S = float(os.environ.get("ANSWER_BREAKER_S", "30"))
 ANSWER_MAX_RETRIES = int(os.environ.get("ANSWER_MAX_RETRIES", "2"))     # SDK retries per request (SDK default; the hedge is another)
 STALE_CANCEL = os.environ.get("STALE_CANCEL", "0") == "1"   # cancel in-flight searches the speaker revised away
+WEB_BREAKER_FAILS = int(os.environ.get("WEB_BREAKER_FAILS", "2"))   # consecutive primary-backend failures before the cache takes over
