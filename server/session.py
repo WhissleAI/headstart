@@ -230,34 +230,63 @@ class Session:
         speech_stop = wall - silence_ms / 1000
         # chatter guard: an utterance much quieter than the last question we answered (a neighbour, the room) gets no
         # early answer; the ear's own endpoint still answers it if it really is a question
-        quiet = (self.answered_level is not None and len(self.q_levels) >= 3
-                 and float(np.median(self.q_levels)) < self.answered_level * config.CHATTER_RATIO)
+        quiet = self._quiet()
         # the words are trustworthy if they held through one ASR refresh, or if they last changed in a refresh made
         # after the speaker went quiet (that refresh already saw the whole question)
         settled = stable_ms >= config.SEM_STABLE_MS or self.words_changed_at >= speech_stop + config.SEM_COVER_S
-        sig = meaning(f)
-        if (self.semantic and not self.busy and not quiet and f.n >= 2 and silence_ms >= config.SEM_SILENCE_MS
-                and settled and gate_open(f, self.cc_at, self.spans) and f.has_content()
-                and (self.soft is None or self.soft["sig"] != sig)):
-            # semantic endpoint: the tagger says the request is complete and the speaker paused briefly. Answer now
-            # (soft), but keep listening and keep the speculator warm: the ear's final confirms or extends it.
-            if self.final_task is not None and not self.final_task.done():
-                self.final_task.cancel()               # superseded by this longer question: one soft answer at a time
-            prev = self.soft
-            self.soft = {"words": [framemod.norm(w) for w in self.words], "sig": sig, "metric": None,
-                         "end": ws[-1].get("end") or 0.0, "failed": False}
-            self.final_task = asyncio.create_task(self._soft_answer(self.spec, self.soft, f, extended=prev is not None))
+        if (self.semantic and not quiet and f.n >= 2 and silence_ms >= config.SEM_SILENCE_MS
+                and settled and gate_open(f, self.cc_at, self.spans) and self._soft(ws, f, by="tagger")):
             return
         qa = self.question_audio()
         if qa is not None:
             self.spec.on_audio(qa, f.route, f.n)
+
+    def _quiet(self) -> bool:
+        return (self.answered_level is not None and len(self.q_levels) >= 3
+                and float(np.median(self.q_levels)) < self.answered_level * config.CHATTER_RATIO)
+
+    def _soft(self, ws: list[dict], f, by: str) -> bool:
+        """Semantic endpoint: the request looks complete and the speaker paused. Answer now (soft), but keep listening
+        and keep the speculator warm: the ear's final confirms or extends it. by = what fired it (tagger: our gate +
+        silence; eager: the ear's own early end-of-turn, Deepgram Flux EagerEndOfTurn)."""
+        sig = meaning(f)
+        if self.busy or not f.has_content() or (self.soft is not None and self.soft["sig"] == sig):
+            return False
+        if self.final_task is not None and not self.final_task.done():
+            self.final_task.cancel()               # superseded by this longer question: one soft answer at a time
+        prev = self.soft
+        self.soft = {"words": [framemod.norm(w) for w in self.words], "sig": sig, "metric": None,
+                     "end": ws[-1].get("end") or 0.0, "failed": False, "by": by}
+        self.final_task = asyncio.create_task(self._soft_answer(self.spec, self.soft, f, extended=prev is not None))
+        return True
+
+    def on_eager(self, ws: list[dict], now: float | None = None):
+        """The ear's own early end-of-turn (Flux EagerEndOfTurn: Flux's turn model is moderately confident the
+        speaker is done; the EndOfTurn that follows carries the same words unless a TurnResumed comes first).
+        config.FLUX_SOFT: eager = soft answer now; eager+gate = only if our tagger gate agrees; off = ignore."""
+        if self.closed or not self.semantic or config.FLUX_SOFT == "off":
+            return
+        try:
+            ws = self._fresh(ws)
+            if not ws:
+                return
+            self._on_partial(ws, now)                 # same words the partial just carried: normally a no-op sync
+            f = self.frame or self._build()
+            if self.soft is not None and self.soft["sig"] == meaning(f):
+                return                                 # the tagger gate already answered exactly this
+            if f.n < 1 or self._quiet() or (config.FLUX_SOFT == "eager+gate" and not gate_open(f, self.cc_at, self.spans)):
+                self.emit({"t": "eager_skip", "ms": self.spec.ms(), "words": list(self.words)})
+                return
+            self._soft(ws, f, by="eager")
+        except Exception as e:
+            self.emit({"t": "error", "where": "on_eager", "error": f"{type(e).__name__}: {e}"[:300]})
 
     async def _soft_answer(self, spec: Speculator, soft: dict, f, extended: bool):
         last_end = soft["end"]
         if extended:
             self.emit({"t": "extended", "ms": spec.ms(), "words": soft["words"]})
         self.emit({"t": "endpoint", "ms": spec.ms(), "speech_end_ms": round(last_end * 1000),
-                   "frame": f.to_json(), "by": "semantic", "soft": True})
+                   "frame": f.to_json(), "by": "semantic", "trigger": soft.get("by"), "soft": True})
         try:
             m = await spec.finalize(f, self.t0 + last_end, close=False, by="semantic")
         except Exception as e:
@@ -268,6 +297,7 @@ class Session:
         if m.get("superseded"):
             return None
         m["endpoint_by"] = "semantic"
+        m["endpoint_trigger"] = soft.get("by")
         soft["metric"] = m
         return m
 

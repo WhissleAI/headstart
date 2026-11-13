@@ -54,26 +54,33 @@ def warmup():
 
 
 # ---------------------------------------------------------------------------------------------------- factory
+DG_EARS = ("deepgram", "flux")
+
+
 def selected() -> str:
     """The ear new runs will use (before any per-run fallback)."""
-    return "deepgram" if config.EAR == "deepgram" and config.DEEPGRAM_API_KEY else "arc"
+    return config.EAR if config.EAR in DG_EARS and config.DEEPGRAM_API_KEY else "arc"
 
 
 def describe() -> dict:
     d = {"ear": selected(), "ear_requested": config.EAR}
-    if config.EAR == "deepgram":
+    if config.EAR in DG_EARS:
         d["deepgram_key"] = bool(config.DEEPGRAM_API_KEY)
-        d["deepgram_model"] = config.DG_MODEL
+        d["deepgram_model"] = config.FLUX_MODEL if config.EAR == "flux" else config.DG_MODEL
+    if config.EAR == "flux":
+        d["flux"] = {"eager_eot_threshold": flux_eager(), "eot_threshold": config.FLUX_EOT,
+                     "eot_timeout_ms": config.FLUX_EOT_TIMEOUT_MS, "soft": config.FLUX_SOFT}
     return d
 
 
 def make_ear(sinks: list, domain: str = "assistant", on_event=None):
     on_event = on_event or (lambda e: None)
-    if config.EAR == "deepgram":
+    if config.EAR in DG_EARS:
         if config.DEEPGRAM_API_KEY:
-            return DeepgramEar(sinks, domain=domain, on_event=on_event)
+            cls = FluxEar if config.EAR == "flux" else DeepgramEar
+            return cls(sinks, domain=domain, on_event=on_event)
         on_event({"t": "ear", "kind": "warning", "ear": "arc",
-                  "text": "EAR=deepgram but DEEPGRAM_API_KEY is not set: using the Arc ear"})
+                  "text": f"EAR={config.EAR} but DEEPGRAM_API_KEY is not set: using the Arc ear"})
     elif config.EAR not in ("arc", ""):
         on_event({"t": "ear", "kind": "warning", "ear": "arc", "text": f"unknown EAR={config.EAR!r}: using the Arc ear"})
     return ArcEar(sinks, domain=domain, on_event=on_event)
@@ -221,7 +228,7 @@ class DeepgramEar:
         self.n_results = 0
         self.rx: asyncio.Task | None = None
         self.arcx = self.adapter = None
-        if config.DG_ARC_EVENTS:             # optional: Arc on the same audio + Deepgram's words, for its events only
+        if config.DG_ARC_EVENTS and self.name == "deepgram":             # optional: Arc on the same audio + Deepgram's words, for its events only
             sys.path.insert(0, str(config.ARC_DIR))
             from arc_audio import WordEventAdapter
             self.arcx = arc().stream(domain=domain, transcript="external", name_source="word",
@@ -235,7 +242,14 @@ class DeepgramEar:
 
     @property
     def active(self) -> str:
-        return "arc" if self.failed else "deepgram"
+        return "arc" if self.failed else self.name
+
+    @property
+    def model(self) -> str:
+        return config.DG_MODEL
+
+    def keepalive(self):
+        return KEEPALIVE
 
     # ------------------------------------------------------------------ audio in
     async def feed(self, pcm: np.ndarray):
@@ -288,7 +302,7 @@ class DeepgramEar:
         if self.closed:
             await self._close_ws()
             return
-        self.on_event({"t": "ear", "kind": "connected", "ear": "deepgram", "model": config.DG_MODEL,
+        self.on_event({"t": "ear", "kind": "connected", "ear": self.name, "model": self.model,
                        "at": round(self.at_s, 2)})
         self.rx = asyncio.create_task(self._recv())
         try:
@@ -296,7 +310,7 @@ class DeepgramEar:
                 try:
                     item = await asyncio.wait_for(self.out.get(), timeout=config.DG_KEEPALIVE_S)
                 except asyncio.TimeoutError:
-                    item = KEEPALIVE                # no audio for a while: Deepgram drops idle sockets after 10 s
+                    item = self.keepalive()         # no audio for a while: Deepgram drops idle sockets after 10 s
                 if item is None:
                     break
                 await self.ws.send(item)
@@ -335,7 +349,7 @@ class DeepgramEar:
         if self.failed is not None or self.closed:
             return
         self.failed = reason
-        self.on_event({"t": "ear", "kind": "fallback", "from": "deepgram", "to": "arc", "reason": reason,
+        self.on_event({"t": "ear", "kind": "fallback", "from": self.name, "to": "arc", "reason": reason,
                        "at": round(self.at_s, 2)})
         self.done, self.interim, self.last_partial_key = [], [], None
         async with self.fb_lock:
@@ -404,7 +418,7 @@ class DeepgramEar:
         elif t == "Metadata":
             self.request_id = d.get("request_id")
         elif t == "Error":
-            self.on_event({"t": "ear", "kind": "error", "ear": "deepgram",
+            self.on_event({"t": "ear", "kind": "error", "ear": self.name,
                            "text": f"{d.get('variant') or ''} {d.get('description') or d.get('message') or ''}".strip()})
 
     def _partial(self):
@@ -415,7 +429,7 @@ class DeepgramEar:
         if key == self.last_partial_key:
             return
         self.last_partial_key = key
-        self.on_event({"t": "ear", "kind": "partial", "ear": "deepgram", "text": " ".join(key), "at": round(self.at_s, 2)})
+        self.on_event({"t": "ear", "kind": "partial", "ear": self.name, "text": " ".join(key), "at": round(self.at_s, 2)})
         now = time.perf_counter()
         for s in self.sinks:
             s.on_partial(list(ws), now)
@@ -427,7 +441,7 @@ class DeepgramEar:
             return
         self.boundary_s = max(self.boundary_s, ws[-1]["end"])
         self._trim_ring()
-        self.on_event({"t": "ear", "kind": "final", "ear": "deepgram", "text": " ".join(w["text"] for w in ws),
+        self.on_event({"t": "ear", "kind": "final", "ear": self.name, "text": " ".join(w["text"] for w in ws),
                        "reason": reason, "start": ws[0]["start"], "end": ws[-1]["end"], "at": round(self.at_s, 2)})
         for s in self.sinks:
             self.final_tasks.append(asyncio.create_task(s.on_final(list(ws))))
@@ -468,3 +482,145 @@ class DeepgramEar:
         if self.rx is not None:
             rx = self.rx
             asyncio.get_running_loop().call_later(2.5, lambda: rx.done() or rx.cancel())
+
+
+# ---------------------------------------------------------------------------------------------------- Deepgram Flux
+def flux_eager() -> float | None:
+    v = (config.FLUX_EAGER_EOT or "").strip().lower()
+    if v in ("", "off", "none", "0"):
+        return None
+    return min(float(v), config.FLUX_EOT)          # Flux rejects eager > eot
+
+
+def flux_url(base: str | None = None) -> str:
+    """Flux /v2/listen query (developers.deepgram.com/reference/speech-to-text/listen-flux): raw PCM16 at 16 kHz needs
+    encoding + sample_rate; no language/interim/endpointing params (Flux's turn model replaces them)."""
+    q = [("model", config.FLUX_MODEL), ("encoding", "linear16"), ("sample_rate", 16000),
+         ("eot_threshold", config.FLUX_EOT), ("eot_timeout_ms", config.FLUX_EOT_TIMEOUT_MS)]
+    e = flux_eager()
+    if e is not None:
+        q.append(("eager_eot_threshold", e))
+    q += [("keyterm", t) for t in config.FLUX_KEYTERMS]
+    return (base or config.FLUX_URL) + "?" + urlencode(q)
+
+
+_EDGE = re.compile(r"^[^\w']+|[^\w']+$")
+FORCE_END = json.dumps({"type": "ForceEndTurn"})
+
+
+def flux_word(t: str) -> str:
+    """Flux words are punctuated and cased ("Hey.", "Chicago", "tomorrow?"); our sessions speak Arc's lowercase,
+    unpunctuated words (internal ' . - kept: "what's", "3.5", "u.s")."""
+    return _EDGE.sub("", t.strip()).lower()
+
+
+class FluxEar(DeepgramEar):
+    """Same contract as DeepgramEar (and its Arc fallback), words from Deepgram Flux.
+
+    Flux "TurnInfo" messages carry the WHOLE current turn every time (transcript + words with start/end in seconds of
+    the stream, i.e. our audio clock): Update (~every 240 ms of audio), StartOfTurn, EagerEndOfTurn, TurnResumed,
+    EndOfTurn. A turn = one of our utterances:
+      Update / StartOfTurn / TurnResumed -> on_partial(turn words)
+      EagerEndOfTurn                     -> on_partial + sinks' on_eager(turn words): the session's soft answer
+      EndOfTurn                          -> on_final(turn words) (docs: identical to the preceding eager transcript
+                                            unless a TurnResumed came between)
+    flush() sends ForceEndTurn (-> EndOfTurn trigger=manual); close() sends CloseStream."""
+    name = "flux"
+
+    def __init__(self, sinks: list, domain: str = "assistant", on_event=None, key: str | None = None,
+                 url: str | None = None):
+        super().__init__(sinks, domain=domain, on_event=on_event, key=key, url=url or flux_url())
+        self.turn_index = None
+        self.n_turninfo = 0
+        self.eager_at: float | None = None     # audio time of the last EagerEndOfTurn of the open turn
+
+    @property
+    def model(self) -> str:
+        return config.FLUX_MODEL
+
+    def keepalive(self):
+        # Flux defines no KeepAlive message: keep the socket alive with 100 ms of silence (it is real audio time,
+        # but only sent when the caller stopped feeding for DG_KEEPALIVE_S)
+        return bytes(3200)
+
+    def _words(self, d: dict) -> list[dict]:
+        out = []
+        for w in d.get("words") or []:
+            if w.get("start") is None or w.get("end") is None:
+                continue
+            text = flux_word(w.get("word") or "")
+            start, end = float(w["start"]), float(w["end"])
+            if not text or end <= self.boundary_s + 1e-3:
+                continue
+            out.append({"text": text, "start": start, "end": end})
+        return out
+
+    def _on_message(self, m: str):
+        if self.closed or self.failed is not None:
+            return
+        try:
+            d = json.loads(m)
+        except ValueError:
+            return
+        t = d.get("type")
+        if t == "TurnInfo":
+            self.n_turninfo += 1
+            self.n_results = self.n_turninfo
+            ev = d.get("event")
+            ti = d.get("turn_index")
+            if self.turn_index is not None and ti != self.turn_index and self.interim:
+                self._final("turn_change")         # a turn we never saw end (shouldn't happen): close it
+            self.turn_index = ti
+            self.interim = self._words(d)
+            if ev in ("EagerEndOfTurn", "TurnResumed", "EndOfTurn", "StartOfTurn"):
+                self.on_event({"t": "ear", "kind": ev, "ear": "flux", "turn": ti, "text": d.get("transcript", ""),
+                               "eot_p": _num(d.get("end_of_turn_confidence")), "trigger": d.get("trigger"),
+                               "word_end": self.interim[-1]["end"] if self.interim else None,
+                               "at": round(self.at_s, 2)})
+            if ev == "EndOfTurn":
+                self.eager_at = None
+                self.finalized.set()
+                self._final("eot_" + str(d.get("trigger") or "model"))
+                return
+            self._partial()
+            if ev == "EagerEndOfTurn" and self.interim:
+                self.eager_at = self.at_s
+                now = time.perf_counter()
+                for s in self.sinks:
+                    f = getattr(s, "on_eager", None)
+                    if f is not None:
+                        f(list(self.interim), now)
+            elif ev == "TurnResumed":
+                self.eager_at = None
+        elif t == "Connected":
+            self.request_id = d.get("request_id")
+        elif t in ("Error", "Warning", "ConfigureFailure"):
+            self.on_event({"t": "ear", "kind": "error" if t == "Error" else "warning", "ear": "flux",
+                           "text": f"{d.get('code') or ''} {d.get('description') or ''}".strip()})
+
+    async def flush(self):
+        """End of the run: ForceEndTurn makes Flux close the open turn now (EndOfTurn, trigger=manual)."""
+        if self.closed:
+            return
+        if self.failed is None and self.interim:
+            self.finalized.clear()
+            self.out.put_nowait(FORCE_END)
+            try:
+                await asyncio.wait_for(self.finalized.wait(), timeout=config.DG_FLUSH_TIMEOUT_S)
+            except asyncio.TimeoutError:
+                pass
+        if self.failed is None:
+            self._final("flush")
+        else:
+            async with self.fb_lock:
+                if self.fb is not None:
+                    await self.fb.flush()
+        if self.final_tasks:
+            await asyncio.gather(*self.final_tasks, return_exceptions=True)
+
+
+def _num(x):
+    try:
+        return round(float(x), 3)
+    except (TypeError, ValueError):
+        return None

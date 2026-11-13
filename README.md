@@ -46,7 +46,12 @@ mic ─▶ Arc (streaming ASR + events) ─▶ Arc Tagger (10M, 0.7 ms/word) ─
 Keys in `.env` (git-ignored): `ANTHROPIC_API_KEY`; `TAVILY_API_KEY` switches the web lane from Wikipedia to Tavily.
 Ear: `EAR=deepgram` + `DEEPGRAM_API_KEY` streams the same audio to Deepgram nova-3 (interim results, 300 ms endpointing)
 for the words; without a key, or if the socket fails/drops, the run falls back to Arc (the open utterance is re-fed).
-`/api/health` and the `ready` event report `ear` (active) and `ear_requested`. Tuning: `DG_*` in `server/config.py`.
+`/api/health` and the `ready` event report `ear` (active) and `ear_requested`.
+`EAR=flux` streams to Deepgram **Flux** (`flux-general-en`, `wss://api.deepgram.com/v2/listen`) instead: Flux's turn model
+gives the endpoints. `EagerEndOfTurn` → Head Start's soft answer at once (`FLUX_SOFT=eager`; `eager+gate` also requires
+our tagger gate; `off` ignores it), `TurnResumed` → the longer question is answered again, `EndOfTurn` → the ear's final
+(confirms the soft answer). Lowest-latency defaults: `FLUX_EAGER_EOT=0.3` (docs minimum), `FLUX_EOT=0.7`,
+`FLUX_EOT_TIMEOUT_MS=1000`; same Arc fallback as nova-3. Tuning: `DG_*` in `server/config.py`.
 Tavily lane knobs (`server/config.py`): `TAVILY_SPEC_DEPTH`/`TAVILY_FINAL_DEPTH` (fast), `TAVILY_SESSION_CREDITS`,
 `TAVILY_CACHE_SCOPE`, `TAVILY_ANSWER`. Measure a new key with `eval/tavily_probe.py --yes`; run keyless against the fake
 with `uvicorn --app-dir tests fake_tavily:app --port 8799` + `TAVILY_API_KEY=tvly-fake TAVILY_BASE_URL=http://127.0.0.1:8799`.
