@@ -230,3 +230,44 @@ types, span-level PII, jailbreak) and the UI shows it in a "read-out" row of the
 - Sim (tavily profile, 58 traces × 5 seeds): identical to main (p50 1598 / p90 2295 ms, paths hit 53 % / miss 26 % /
   draft 21 %, grounded 98.6 %): the eval traces contain no PII / money / injection, and the sim's web lane ignores the
   Tavily plan, so freshness/topic effects are measured only by the replay.
+
+## Search narrowing from the Arc read-out (branch search-narrowing; server/narrow.py, eval/narrow_eval.py)
+Offline, real Tavily (fast, 1 credit), 80 questions (30 showcase + 12 current + 38 web), heard text replayed word by
+word through the native tagger; the speculator's fire policy replayed on the partial frames. Blind judge (Haiku 5.5,
+fixed 0/1/2 rubric, every distinct result graded once, shuffled, no variant labels): runs/narrow_judge.json.
+283 Tavily credits, judge calls est. 150-190 (one per question per 25-result chunk, 3 passes; not counted), 400 answer calls. runs/narrow_eval.json (+ runs/narrow_cache.json: re-analysis
+costs 0 credits). Families: Arc intent where reliable (weather / news / stock), else content words — Arc's fine
+intents misfire here ("screenshot on a Mac" = cooking_recipe, "ramen places" = general_joke, ibuprofen = weather).
+
+Top-5 relevance, paired on the questions whose final results changed (g@5 = mean grade of the top 5, 0-2):
+| variant | n changed | P@5 | g@5 | top-1 graded 2 | nDCG@5 | a "2" in top 5 | Tavily ms (paired p50) |
+|---|---|---|---|---|---|---|---|
+| include_domains **prefer**, all families | 32 | .76 → .76 | 1.28 → 1.18 | **.41 → .63** | .82 → .90 | .88 → .78 | **−88 ms** (n=74) |
+| include_domains **restrict** | 36 | .73 → **.59** | 1.21 → **.91** | .39 → .39 | .81 → .80 | .86 → **.58** | **−219 ms** (n=36) |
+| query shaping (generic words out, family noun, explicit dates) | 23 | .67 → **.82** | 1.08 → 1.20 | .35 → .39 | .78 → .80 | .83 → .83 | — |
+| shaping + prefer, all families | 36 | .74 → .79 | 1.22 → 1.21 | .39 → .61 | .80 → .89 | .86 → .78 | |
+| **shaping + prefer on finance/weather/travel/reviews/local/health/recipe/home (default)** | 33 | .73 → **.80** | 1.19 → **1.26** | .39 → **.58** | .80 → **.86** | .85 → .79 | |
+All 80: base P@5 .797 / top-1 .519 / nDCG .830 → default .828 / .595 / .854.
+- Domains per family (prefer): helped finance (+0.24 g@5), weather w/ shaping (+0.17), travel, reviews; hurt sports
+  (−0.9: ESPN/nba.com pages are schedules/hubs, not the result), convert (−0.5), tech (−0.5), definition (−0.3) →
+  those are off by default. Family selection is on this same data (n = 1-6 per family): treat as a prior, not proven.
+- restrict: fastest (Tavily's own response_time p50 0.44 → 0.20 s) but drops relevant non-listed sources: rejected.
+- Answers (Haiku on each variant's final top 5): keyword-correct 50/53 in every variant, grounded 76/80 base vs
+  75/80 default — narrowing changes which page is first, not whether the answer model finds the answer.
+- Read-out rerank (entity phrase / content coverage / family domain / freshness on Tavily's order): top-1 +1 of 79,
+  nDCG −0.001 → no effect; kept behind NARROW_RERANK=0 (Tavily's order already uses the query; the live final
+  ranking is EmbeddingGemma cosine over the pool, not re-measured here).
+- Speculative fires (showcase sc01–19, real policy): base 58 fires = 3.05 credits/q, 23 useful (a result in the final
+  top 5, or the final query itself), 35 wasted. Gate "≥2 content words" (default) drops the lone-entity-prefix fires
+  ("kansas", "manchester", "apple", "$100"): 4–6 fires, 0 useful lost. "≥3" would cut 38 % of speculative credits
+  (−1.16/q) but loses 2 useful fires and 1 of 9 early top-1 hits (NARROW_GATE_MIN_CONTENT=3).
+- Results while you speak (earliest word whose speculative results already contain the final top-1): base 9/19
+  questions, words before the end [1,1,1,2,3,5,5,6,6], p50 at 73 % of the utterance; default 8/19,
+  [1,1,2,3,3,5,5,5], 70 %. Narrowing does not make the top-1 appear earlier (partial queries rarely have the family).
+- Frame fix (all modes): "what does the word ubiquitous actually mean exactly" — "actually" + a continuation verb was
+  treated as a self-correction and dropped "ubiquitous" (query "word mean exactly"); now kept.
+- Not done: policy simulator for the −88 ms prefer latency (its Tavily lane is a fixed latency model; the shift is
+  small next to the 550 ms + lognormal model) and EmbeddingGemma pool ranking on these results.
+Flags (server/config.py): NARROW_DOMAINS off|prefer|restrict, NARROW_DOMAIN_FAMILIES, NARROW_QUERY, NARROW_DATES,
+NARROW_GATE / NARROW_GATE_MIN_CONTENT, NARROW_RERANK (+ weights). Re-run: `nice -n 19 .venv/bin/python
+eval/narrow_eval.py --variants base,query_domsel --spec base,query_domsel --spec-ids sc0,sc1 --judge --answers base,query_domsel`.

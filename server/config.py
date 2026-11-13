@@ -49,6 +49,24 @@ TAVILY_CACHE_TTL_S = float(os.environ.get("TAVILY_CACHE_TTL_S", "900"))
 TAVILY_FINANCE_DEPTH = os.environ.get("TAVILY_FINANCE_DEPTH", "basic")   # topic=finance is refused on fast / ultra-fast
 TAGGER_HINTS = os.environ.get("TAGGER_HINTS", "1") == "1"   # Tavily topic / freshness from the full Arc read-out
 TAVILY_FRESH_TTL_S = float(os.environ.get("TAVILY_FRESH_TTL_S", "120"))         # news / finance / weather
+# Search narrowing from the Arc read-out (server/narrow.py; measured by eval/narrow_eval.py -> runs/narrow_eval.json)
+# Defaults = the measured best (PROGRESS.md "Search narrowing"): shaped query + include_domains (prefer) on the
+# families where it helped; restrict OFF (top-5 grade -0.30, answering-doc-in-top-5 86 -> 58 %, though -219 ms);
+# rerank OFF (no measurable effect on Tavily's own order).
+NARROW_DOMAINS = os.environ.get("NARROW_DOMAINS", "prefer")       # off | prefer | restrict : Tavily include_domains per family
+NARROW_DOMAIN_FAMILIES = os.environ.get(                           # comma list; "" = every family in narrow.FAMILY_DOMAINS
+    "NARROW_DOMAIN_FAMILIES", "finance,weather,travel,reviews,local,health,recipe,home")
+NARROW_PREFER_ONLY = os.environ.get("NARROW_PREFER_ONLY", "reference,news")   # families never restricted
+NARROW_QUERY = os.environ.get("NARROW_QUERY", "1") == "1"          # generic words out, family noun in
+NARROW_DATES = os.environ.get("NARROW_DATES", "1") == "1"          # (with NARROW_QUERY) "tomorrow" -> "November 13 2026"
+NARROW_GATE = os.environ.get("NARROW_GATE", "1") == "1"            # no speculative credit on a low-information partial
+NARROW_GATE_MIN_CONTENT = int(os.environ.get("NARROW_GATE_MIN_CONTENT", "2"))
+NARROW_RERANK = os.environ.get("NARROW_RERANK", "0") == "1"        # read-out rerank of web results
+NARROW_W_ENTITY = float(os.environ.get("NARROW_W_ENTITY", "0.5"))
+NARROW_W_COVER = float(os.environ.get("NARROW_W_COVER", "0.5"))
+NARROW_W_DOMAIN = float(os.environ.get("NARROW_W_DOMAIN", "0.3"))
+NARROW_W_FRESH = float(os.environ.get("NARROW_W_FRESH", "0.3"))
+NARROW_TODAY = os.environ.get("NARROW_TODAY", "")                  # tests / eval: fixed "today" (YYYY-MM-DD)
 # session: each Session has its own cache (A/B-honest: baseline never reads Head Start's results). global: one cache
 # for the server (saves credits on a demo booth replaying the same questions; do NOT use for A/B timing).
 TAVILY_CACHE_SCOPE = os.environ.get("TAVILY_CACHE_SCOPE", "session")
