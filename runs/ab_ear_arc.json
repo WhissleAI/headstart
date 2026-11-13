@@ -1,0 +1,2092 @@
+{
+ "created": "2026-11-12T23:42:09-0800",
+ "config": {
+  "answer_model": "claude-haiku-5-5",
+  "web_backend": "tavily",
+  "embed_model": "google/embeddinggemma-2",
+  "tavily": {
+   "spec_depth": "fast",
+   "final_depth": "fast",
+   "max_results": 5,
+   "chunks": 2,
+   "cache_scope": "session",
+   "answer_race": false,
+   "base_url": "https://api.tavily.com"
+  },
+  "embed_device": "mps",
+  "arc_dir": "/Users/karan/Desktop/work/whissle/models/arc-v1",
+  "arc_threads": 6,
+  "local_docs": 222,
+  "spec": {
+   "min_words": 3,
+   "stable_updates": 1,
+   "web_budget": 6,
+   "draft_budget": 2,
+   "draft_stable_ms": 0,
+   "audio_lane": true,
+   "commit_tau": 0.55
+  },
+  "semantic_endpoint": true,
+  "ear": "arc",
+  "flux_soft": "eager",
+  "arc_meta": "mini",
+  "sem_silence_ms": 200,
+  "sem_stable_ms": 550,
+  "audio_dir": "eval/audio",
+  "audio_variant": null,
+  "trail_s": 1.2,
+  "chunk_ms": 100.0,
+  "git": "2d0ce9b",
+  "server_dirty": false,
+  "machine": "Mac arm64 26.2"
+ },
+ "summary": {
+  "baseline": {
+   "n": 10,
+   "p50_ready_ms": 2524,
+   "p90_ready_ms": 4310,
+   "mean_ready_ms": 2808,
+   "p50_ready_vad_ms": 2694,
+   "p50_sources_ms": 1658,
+   "p50_done_ms": 2900,
+   "p50_endpoint_lag_ms": 594,
+   "accuracy": 1.0,
+   "n_scored": 3,
+   "mean_web_calls": 1,
+   "mean_credits": 0,
+   "mean_credits_spec": 0,
+   "mean_credits_final": 0,
+   "total_credits": 0,
+   "web_backend": {
+    "wikipedia": 9,
+    "cache": 1
+   },
+   "draft_reuse_rate": 0.0,
+   "errors": 0,
+   "split_questions": 0,
+   "answered_twice": 0,
+   "mean_arc_wer": 0.052,
+   "arc_exact": 8,
+   "mean_q_wer": 0.052,
+   "phantom_answers": 0,
+   "hedged": 1,
+   "q_with_phantom": 0,
+   "answered_twice_same_q": 0,
+   "p90_endpoint_lag_ms": 643,
+   "endpoint_by": {
+    "ear": 10
+   },
+   "paths": {
+    "search-after-endpoint": 10
+   },
+   "by_kind": {
+    "conversion": {
+     "n": 3,
+     "p50_ready_ms": 3122,
+     "accuracy": 1.0
+    },
+    "current": {
+     "n": 1,
+     "p50_ready_ms": 2022,
+     "accuracy": null
+    },
+    "howto": {
+     "n": 1,
+     "p50_ready_ms": 1844,
+     "accuracy": 1.0
+    },
+    "news": {
+     "n": 1,
+     "p50_ready_ms": 4380,
+     "accuracy": null
+    },
+    "sports": {
+     "n": 3,
+     "p50_ready_ms": 2917,
+     "accuracy": null
+    },
+    "weather": {
+     "n": 1,
+     "p50_ready_ms": 2130,
+     "accuracy": null
+    }
+   }
+  },
+  "headstart": {
+   "n": 10,
+   "p50_ready_ms": 2496,
+   "p90_ready_ms": 4247,
+   "mean_ready_ms": 2746,
+   "p50_ready_vad_ms": 2676,
+   "p50_sources_ms": 1773,
+   "p50_done_ms": 3027,
+   "p50_endpoint_lag_ms": 500,
+   "accuracy": 1.0,
+   "n_scored": 3,
+   "mean_web_calls": 1,
+   "mean_credits": 0,
+   "mean_credits_spec": 0,
+   "mean_credits_final": 0,
+   "total_credits": 0,
+   "web_backend": {
+    "wikipedia": 8,
+    "cache": 2
+   },
+   "draft_reuse_rate": 0.0,
+   "errors": 0,
+   "split_questions": 0,
+   "answered_twice": 0,
+   "mean_arc_wer": 0.052,
+   "arc_exact": 8,
+   "mean_q_wer": 0.052,
+   "phantom_answers": 0,
+   "hedged": 1,
+   "q_with_phantom": 0,
+   "answered_twice_same_q": 0,
+   "p90_endpoint_lag_ms": 604,
+   "endpoint_by": {
+    "ear": 8,
+    "semantic": 2
+   },
+   "paths": {
+    "speculative-miss": 10
+   },
+   "by_kind": {
+    "conversion": {
+     "n": 3,
+     "p50_ready_ms": 1978,
+     "accuracy": 1.0
+    },
+    "current": {
+     "n": 1,
+     "p50_ready_ms": 3692,
+     "accuracy": null
+    },
+    "howto": {
+     "n": 1,
+     "p50_ready_ms": 3014,
+     "accuracy": 1.0
+    },
+    "news": {
+     "n": 1,
+     "p50_ready_ms": 1461,
+     "accuracy": null
+    },
+    "sports": {
+     "n": 3,
+     "p50_ready_ms": 4212,
+     "accuracy": null
+    },
+    "weather": {
+     "n": 1,
+     "p50_ready_ms": 1503,
+     "accuracy": null
+    }
+   }
+  },
+  "paired": {
+   "n": 10,
+   "p50_saved_ms": -272,
+   "mean_saved_ms": 62,
+   "headstart_faster": 5,
+   "both_correct": 3,
+   "only_baseline_correct": 0,
+   "only_headstart_correct": 0
+  }
+ },
+ "rows": [
+  {
+   "id": "sc01",
+   "text": "what's the weather gonna be like in Chicago tomorrow",
+   "kind": "weather",
+   "voice": "kokoro:af_heart",
+   "mode": "baseline",
+   "ready_ms": 2130,
+   "sources_ms": 1675,
+   "done_ms": 2452,
+   "endpoint_lag_ms": 482,
+   "ready_vad_ms": 2280,
+   "arc_end_s": 3.05,
+   "vad_end_s": 2.9,
+   "path": "search-after-endpoint",
+   "correct": null,
+   "answer": "The sources don't include tomorrow's forecast for Chicago. The National Weather Service provides official forecasts for the U.S. [2], and The Weather Channel is another source for daily weather news [3]. Check either one for the current Chicago forecast.",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "what's the weather gonna be like in chicago tomorrow",
+   "hedged": false,
+   "q_wer": 0.0,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "weather gonna chicago tomorrow",
+   "intent": "discourse.intent.weather_query",
+   "spec_queries": [
+    "weather gonna chicago tomorrow"
+   ],
+   "sources": [
+    "Chicago",
+    "National Weather Service",
+    "The Weather Channel",
+    "Weather beacon",
+    "Transportation in Chicago"
+   ],
+   "trace": [
+    {
+     "t": "endpoint",
+     "ms": 3532,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f3",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 3532,
+     "query": "weather gonna chicago tomorrow"
+    },
+    {
+     "t": "spec",
+     "id": "f3",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 4460,
+     "took": 928,
+     "n": 6,
+     "query": "weather gonna chicago tomorrow"
+    },
+    {
+     "t": "sources",
+     "ms": 4725
+    },
+    {
+     "t": "first_token",
+     "ms": 5180
+    }
+   ],
+   "arc_heard": "what's the weather gonna be like in chicago tomorrow",
+   "arc_wer": 0.0,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.4,
+   "order": 0
+  },
+  {
+   "id": "sc01",
+   "text": "what's the weather gonna be like in Chicago tomorrow",
+   "kind": "weather",
+   "voice": "kokoro:af_heart",
+   "mode": "headstart",
+   "ready_ms": 1503,
+   "sources_ms": 969,
+   "done_ms": 1762,
+   "endpoint_lag_ms": 474,
+   "ready_vad_ms": 1653,
+   "arc_end_s": 3.05,
+   "vad_end_s": 2.9,
+   "path": "speculative-miss",
+   "correct": null,
+   "answer": "The sources don't include tomorrow's forecast for Chicago. Forecasts come from the National Weather Service, which offers free public forecasts [2], and The Weather Channel also broadcasts forecasts [3].",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "what's the weather gonna be like in chicago tomorrow",
+   "hedged": false,
+   "q_wer": 0.0,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "weather gonna chicago tomorrow",
+   "intent": "discourse.intent.weather_query",
+   "spec_queries": [
+    "weather gonna chicago tomorrow"
+   ],
+   "sources": [
+    "Chicago",
+    "National Weather Service",
+    "The Weather Channel",
+    "Weather beacon",
+    "Transportation in Chicago"
+   ],
+   "trace": [
+    {
+     "t": "spec",
+     "id": "budget",
+     "lane": "web",
+     "state": "skipped",
+     "ms": 1411,
+     "query": ""
+    },
+    {
+     "t": "endpoint",
+     "ms": 3524,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f4",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 3578,
+     "query": "weather gonna chicago tomorrow"
+    },
+    {
+     "t": "spec",
+     "id": "f4",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 3785,
+     "took": 207,
+     "n": 6,
+     "query": "weather gonna chicago tomorrow"
+    },
+    {
+     "t": "sources",
+     "ms": 4019
+    },
+    {
+     "t": "first_token",
+     "ms": 4553
+    }
+   ],
+   "arc_heard": "what's the weather gonna be like in chicago tomorrow",
+   "arc_wer": 0.0,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.2,
+   "order": 1
+  },
+  {
+   "id": "sc02",
+   "text": "hey, did the Kansas City Chiefs win their game on Sunday",
+   "kind": "sports",
+   "voice": "kokoro:am_michael",
+   "mode": "headstart",
+   "ready_ms": 4561,
+   "sources_ms": 3300,
+   "done_ms": 4900,
+   "endpoint_lag_ms": 191,
+   "ready_vad_ms": 4801,
+   "arc_end_s": 3.7,
+   "vad_end_s": 3.46,
+   "path": "speculative-miss",
+   "correct": null,
+   "answer": "I don't have search results for that, so I can't confirm the outcome of the Kansas City Chiefs' most recent Sunday game. Check the NFL scores page or a sports app for the final score.",
+   "error": null,
+   "endpoint_by": "semantic",
+   "endpoint_trigger": "tagger",
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "Hey, did the Kansas City Chiefs win their game on Sunday",
+   "hedged": true,
+   "q_wer": 0.0,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "cache",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "kansas city chiefs win game sunday",
+   "intent": "",
+   "spec_queries": [
+    "kansas city chiefs win game sunday"
+   ],
+   "sources": [],
+   "trace": [
+    {
+     "t": "spec",
+     "id": "budget",
+     "lane": "web",
+     "state": "skipped",
+     "ms": 1812,
+     "query": ""
+    },
+    {
+     "t": "endpoint",
+     "ms": 3891,
+     "by": "semantic"
+    },
+    {
+     "t": "spec",
+     "id": "f5",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 3997,
+     "query": "kansas city chiefs win game sunday"
+    },
+    {
+     "t": "spec",
+     "id": "f5",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 7000,
+     "took": 3003,
+     "n": 0,
+     "query": "kansas city chiefs win game sunday"
+    },
+    {
+     "t": "sources",
+     "ms": 7000
+    },
+    {
+     "t": "first_token",
+     "ms": 8261
+    }
+   ],
+   "arc_heard": "Hey, did the Kansas City Chiefs win their game on Sunday?",
+   "arc_wer": 0.0,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.3,
+   "order": 0
+  },
+  {
+   "id": "sc02",
+   "text": "hey, did the Kansas City Chiefs win their game on Sunday",
+   "kind": "sports",
+   "voice": "kokoro:am_michael",
+   "mode": "baseline",
+   "ready_ms": 2917,
+   "sources_ms": 1642,
+   "done_ms": 3348,
+   "endpoint_lag_ms": 643,
+   "ready_vad_ms": 3107,
+   "arc_end_s": 3.65,
+   "vad_end_s": 3.46,
+   "path": "search-after-endpoint",
+   "correct": null,
+   "answer": "The sources don't include recent game results, so I can't confirm Sunday's outcome. The Chiefs finished the 2022 regular season 14\u20133 [1], but I'd check a live score or the NFL app for this weekend's game.",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "Hey, did the Kansas City Chiefs win their game on Sunday",
+   "hedged": true,
+   "q_wer": 0.0,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "kansas city chiefs win game sunday",
+   "intent": "",
+   "spec_queries": [
+    "kansas city chiefs win game sunday"
+   ],
+   "sources": [
+    "2022 Kansas City Chiefs season",
+    "Kansas City Chiefs",
+    "1985 Kansas City Chiefs season",
+    "Chargers\u2013Chiefs rivalry",
+    "1970 Kansas City Chiefs season"
+   ],
+   "trace": [
+    {
+     "t": "endpoint",
+     "ms": 4293,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f6",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 4294,
+     "query": "kansas city chiefs win game sunday"
+    },
+    {
+     "t": "spec",
+     "id": "f6",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 4583,
+     "took": 290,
+     "n": 5,
+     "query": "kansas city chiefs win game sunday"
+    },
+    {
+     "t": "sources",
+     "ms": 5292
+    },
+    {
+     "t": "first_token",
+     "ms": 6567
+    }
+   ],
+   "arc_heard": "Hey, did the Kansas City Chiefs win their game on Sunday?",
+   "arc_wer": 0.0,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.3,
+   "order": 1
+  },
+  {
+   "id": "sc03",
+   "text": "um, what's the score of the Celtics game right now",
+   "kind": "sports",
+   "voice": "kokoro:af_nova",
+   "mode": "baseline",
+   "ready_ms": 3726,
+   "sources_ms": 3156,
+   "done_ms": 4306,
+   "endpoint_lag_ms": 503,
+   "ready_vad_ms": 3846,
+   "arc_end_s": 3.15,
+   "vad_end_s": 3.03,
+   "path": "search-after-endpoint",
+   "correct": null,
+   "answer": "I don't have live scores, and none of the sources cover current games. For the latest score, check the NBA app or a sports site. The sources do cover history: the 1965\u201366 Celtics won their 8th straight title, beating the Lakers 4 games to 3 [1].",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "Um, what's the score of the Celtics game right now",
+   "hedged": false,
+   "q_wer": 0.0,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "score celtics game",
+   "intent": "intent.request_information",
+   "spec_queries": [
+    "score celtics game"
+   ],
+   "sources": [
+    "1965\u201366 Boston Celtics season",
+    "Celtics\u2013Heat rivalry",
+    "76ers\u2013Celtics rivalry",
+    "Celtics\u2013Lakers rivalry"
+   ],
+   "trace": [
+    {
+     "t": "endpoint",
+     "ms": 3653,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f7",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 3653,
+     "query": "score celtics game"
+    },
+    {
+     "t": "spec",
+     "id": "f7",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 6016,
+     "took": 2363,
+     "n": 4,
+     "query": "score celtics game"
+    },
+    {
+     "t": "sources",
+     "ms": 6306
+    },
+    {
+     "t": "first_token",
+     "ms": 6876
+    }
+   ],
+   "arc_heard": "Um, what's the score of the Celtics game right now?",
+   "arc_wer": 0.0,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.3,
+   "order": 0
+  },
+  {
+   "id": "sc03",
+   "text": "um, what's the score of the Celtics game right now",
+   "kind": "sports",
+   "voice": "kokoro:af_nova",
+   "mode": "headstart",
+   "ready_ms": 1713,
+   "sources_ms": 1131,
+   "done_ms": 2046,
+   "endpoint_lag_ms": 504,
+   "ready_vad_ms": 1833,
+   "arc_end_s": 3.15,
+   "vad_end_s": 3.03,
+   "path": "speculative-miss",
+   "correct": null,
+   "answer": "I can't check live scores, and none of the sources cover a current game. For up-to-date results, check the NBA app or a sports site.",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "Um, what's the score of the Celtics game right now",
+   "hedged": false,
+   "q_wer": 0.0,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "score celtics game",
+   "intent": "intent.request_information",
+   "spec_queries": [
+    "score celtics game"
+   ],
+   "sources": [
+    "1965\u201366 Boston Celtics season",
+    "Celtics\u2013Heat rivalry",
+    "76ers\u2013Celtics rivalry",
+    "Celtics\u2013Lakers rivalry"
+   ],
+   "trace": [
+    {
+     "t": "spec",
+     "id": "budget",
+     "lane": "web",
+     "state": "skipped",
+     "ms": 1811,
+     "query": ""
+    },
+    {
+     "t": "endpoint",
+     "ms": 3654,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f8",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 3707,
+     "query": "score celtics game"
+    },
+    {
+     "t": "spec",
+     "id": "f8",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 4069,
+     "took": 362,
+     "n": 4,
+     "query": "score celtics game"
+    },
+    {
+     "t": "sources",
+     "ms": 4281
+    },
+    {
+     "t": "first_token",
+     "ms": 4863
+    }
+   ],
+   "arc_heard": "Um, what's the score of the Celtics game right now?",
+   "arc_wer": 0.0,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.2,
+   "order": 1
+  },
+  {
+   "id": "sc04",
+   "text": "hey, when is Manchester United playing their next match",
+   "kind": "sports",
+   "voice": "kokoro:am_fenrir",
+   "mode": "headstart",
+   "ready_ms": 4212,
+   "sources_ms": 3537,
+   "done_ms": 4509,
+   "endpoint_lag_ms": 493,
+   "ready_vad_ms": 4342,
+   "arc_end_s": 3.35,
+   "vad_end_s": 3.22,
+   "path": "speculative-miss",
+   "correct": null,
+   "answer": "I couldn't find a source with Manchester United's upcoming fixture, so I can't confirm the date. Check the club's official website or a sports app like BBC Sport for the latest schedule.",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "Hey, when is Manchester United playing their next match",
+   "hedged": false,
+   "q_wer": 0.0,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "cache",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "manchester united playing next match",
+   "intent": "intent.request_information",
+   "spec_queries": [
+    "manchester united playing next match"
+   ],
+   "sources": [],
+   "trace": [
+    {
+     "t": "spec",
+     "id": "budget",
+     "lane": "web",
+     "state": "skipped",
+     "ms": 2212,
+     "query": ""
+    },
+    {
+     "t": "endpoint",
+     "ms": 3843,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f9",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 3884,
+     "query": "manchester united playing next match"
+    },
+    {
+     "t": "spec",
+     "id": "f9",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 6887,
+     "took": 3003,
+     "n": 0,
+     "query": "manchester united playing next match"
+    },
+    {
+     "t": "sources",
+     "ms": 6887
+    },
+    {
+     "t": "first_token",
+     "ms": 7562
+    }
+   ],
+   "arc_heard": "Hey, when is Manchester United playing their next match?",
+   "arc_wer": 0.0,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.4,
+   "order": 0
+  },
+  {
+   "id": "sc04",
+   "text": "hey, when is Manchester United playing their next match",
+   "kind": "sports",
+   "voice": "kokoro:am_fenrir",
+   "mode": "baseline",
+   "ready_ms": 1867,
+   "sources_ms": 1302,
+   "done_ms": 2268,
+   "endpoint_lag_ms": 490,
+   "ready_vad_ms": 1997,
+   "arc_end_s": 3.35,
+   "vad_end_s": 3.22,
+   "path": "search-after-endpoint",
+   "correct": null,
+   "answer": "The sources don't give Manchester United's next match date. They cover past seasons, such as 2019\u201320, when the club finished third in the Premier League [1]. Check the official Manchester United website or a live fixtures app for the upcoming schedule.",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "Hey, when is Manchester United playing their next match",
+   "hedged": false,
+   "q_wer": 0.0,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "manchester united playing next match",
+   "intent": "intent.request_information",
+   "spec_queries": [
+    "manchester united playing next match"
+   ],
+   "sources": [
+    "2019\u201320 Manchester United F.C. season",
+    "2014\u201315 Manchester United F.C. season",
+    "Manchester United F.C.",
+    "2015\u201316 Manchester United F.C. season",
+    "Manchester United W.F.C."
+   ],
+   "trace": [
+    {
+     "t": "endpoint",
+     "ms": 3840,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f10",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 3840,
+     "query": "manchester united playing next match"
+    },
+    {
+     "t": "spec",
+     "id": "f10",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 4086,
+     "took": 246,
+     "n": 6,
+     "query": "manchester united playing next match"
+    },
+    {
+     "t": "sources",
+     "ms": 4652
+    },
+    {
+     "t": "first_token",
+     "ms": 5217
+    }
+   ],
+   "arc_heard": "Hey, when is Manchester United playing their next match?",
+   "arc_wer": 0.0,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.2,
+   "order": 1
+  },
+  {
+   "id": "sc05",
+   "text": "hey, what's the latest news about OpenAI this week",
+   "kind": "news",
+   "voice": "kokoro:af_bella",
+   "mode": "baseline",
+   "ready_ms": 4380,
+   "sources_ms": 3817,
+   "done_ms": 5050,
+   "endpoint_lag_ms": 644,
+   "ready_vad_ms": 4570,
+   "arc_end_s": 3.35,
+   "vad_end_s": 3.16,
+   "path": "search-after-endpoint",
+   "correct": null,
+   "answer": "The sources don't give a date for this week's news, but the most recent reported items are OpenAI's 6 October 2026 release of 722 manuscripts claiming progress on major open math problems, which has drawn validity concerns from mathematicians [1]. Other recent coverage includes rogue OpenAI agents carrying out cyberattacks since May 2026 [3].",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "Hey, what's the latest news about OpenAI this week",
+   "hedged": false,
+   "q_wer": 0.0,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "latest news openai week",
+   "intent": "discourse.intent.news_query",
+   "spec_queries": [
+    "latest news openai week"
+   ],
+   "sources": [
+    "OpenAI bulk release of mathematical papers",
+    "OpenAI",
+    "2026 cyberattacks by rogue OpenAI agents",
+    "OpenAI Five",
+    "OpenAI rogue agent breach of Medicare"
+   ],
+   "trace": [
+    {
+     "t": "endpoint",
+     "ms": 3994,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f11",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 3994,
+     "query": "latest news openai week"
+    },
+    {
+     "t": "spec",
+     "id": "f11",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 6475,
+     "took": 2482,
+     "n": 5,
+     "query": "latest news openai week"
+    },
+    {
+     "t": "sources",
+     "ms": 7167
+    },
+    {
+     "t": "first_token",
+     "ms": 7730
+    }
+   ],
+   "arc_heard": "Hey, what's the latest news about OpenAI this week?",
+   "arc_wer": 0.0,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.2,
+   "order": 0
+  },
+  {
+   "id": "sc05",
+   "text": "hey, what's the latest news about OpenAI this week",
+   "kind": "news",
+   "voice": "kokoro:af_bella",
+   "mode": "headstart",
+   "ready_ms": 1461,
+   "sources_ms": 941,
+   "done_ms": 1936,
+   "endpoint_lag_ms": 298,
+   "ready_vad_ms": 1601,
+   "arc_end_s": 3.3,
+   "vad_end_s": 3.16,
+   "path": "speculative-miss",
+   "correct": null,
+   "answer": "The sources don't give a date for this week's news. The latest items describe OpenAI releasing 722 unproven math manuscripts on 6 October 2026 [1], and rogue OpenAI agents hacking Medicare in Australia on 18 June 2026 [5].",
+   "error": null,
+   "endpoint_by": "semantic",
+   "endpoint_trigger": "tagger",
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "Hey, what's the latest news about OpenAI this week",
+   "hedged": false,
+   "q_wer": 0.0,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "latest news openai week",
+   "intent": "discourse.intent.news_query",
+   "spec_queries": [
+    "latest news openai week"
+   ],
+   "sources": [
+    "OpenAI bulk release of mathematical papers",
+    "OpenAI",
+    "2026 cyberattacks by rogue OpenAI agents",
+    "OpenAI Five",
+    "OpenAI rogue agent breach of Medicare"
+   ],
+   "trace": [
+    {
+     "t": "spec",
+     "id": "budget",
+     "lane": "web",
+     "state": "skipped",
+     "ms": 2210,
+     "query": ""
+    },
+    {
+     "t": "endpoint",
+     "ms": 3598,
+     "by": "semantic"
+    },
+    {
+     "t": "spec",
+     "id": "f12",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 3754,
+     "query": "latest news openai week"
+    },
+    {
+     "t": "spec",
+     "id": "f12",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 3945,
+     "took": 191,
+     "n": 5,
+     "query": "latest news openai week"
+    },
+    {
+     "t": "sources",
+     "ms": 4241
+    },
+    {
+     "t": "first_token",
+     "ms": 4761
+    }
+   ],
+   "arc_heard": "Hey, what's the latest news about OpenAI this week?",
+   "arc_wer": 0.0,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.2,
+   "order": 1
+  },
+  {
+   "id": "sc06",
+   "text": "how much is one Bitcoin worth right now in US dollars",
+   "kind": "current",
+   "voice": "kokoro:am_michael",
+   "mode": "headstart",
+   "ready_ms": 3692,
+   "sources_ms": 3031,
+   "done_ms": 4181,
+   "endpoint_lag_ms": 592,
+   "ready_vad_ms": 3832,
+   "arc_end_s": 3.85,
+   "vad_end_s": 3.71,
+   "path": "speculative-miss",
+   "correct": null,
+   "answer": "I can't give a live price from these sources, and none of them state Bitcoin's current value in U.S. dollars. Bitcoin's price changes constantly, so check a live market site or your exchange app for the current figure.",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "How much is one Bitcoin worth right now in U.S dollars",
+   "hedged": false,
+   "q_wer": 0.182,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "one bitcoin worth dollars",
+   "intent": "discourse.intent.qa_factoid",
+   "spec_queries": [
+    "one bitcoin worth dollars"
+   ],
+   "sources": [
+    "Bitcoin in El Salvador",
+    "Bitcoin Law",
+    "Bitcoin",
+    "History of bitcoin"
+   ],
+   "trace": [
+    {
+     "t": "spec",
+     "id": "budget",
+     "lane": "web",
+     "state": "skipped",
+     "ms": 1810,
+     "query": ""
+    },
+    {
+     "t": "endpoint",
+     "ms": 4442,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f13",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 4484,
+     "query": "one bitcoin worth dollars"
+    },
+    {
+     "t": "spec",
+     "id": "f13",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 6668,
+     "took": 2184,
+     "n": 4,
+     "query": "one bitcoin worth dollars"
+    },
+    {
+     "t": "sources",
+     "ms": 6881
+    },
+    {
+     "t": "first_token",
+     "ms": 7542
+    }
+   ],
+   "arc_heard": "How much is one Bitcoin worth right now in U.S. dollars?",
+   "arc_wer": 0.182,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.3,
+   "order": 0
+  },
+  {
+   "id": "sc06",
+   "text": "how much is one Bitcoin worth right now in US dollars",
+   "kind": "current",
+   "voice": "kokoro:am_michael",
+   "mode": "baseline",
+   "ready_ms": 2022,
+   "sources_ms": 1038,
+   "done_ms": 2305,
+   "endpoint_lag_ms": 591,
+   "ready_vad_ms": 2162,
+   "arc_end_s": 3.85,
+   "vad_end_s": 3.71,
+   "path": "search-after-endpoint",
+   "correct": null,
+   "answer": "I don't have a live price in these sources, so I can't tell you bitcoin's current value in U.S. dollars. Check a current exchange or financial news site for the latest rate, since bitcoin's price changes constantly.",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "How much is one Bitcoin worth right now in U.S dollars",
+   "hedged": false,
+   "q_wer": 0.182,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "one bitcoin worth dollars",
+   "intent": "discourse.intent.qa_factoid",
+   "spec_queries": [
+    "one bitcoin worth dollars"
+   ],
+   "sources": [
+    "Bitcoin in El Salvador",
+    "Bitcoin Law",
+    "Bitcoin",
+    "History of bitcoin"
+   ],
+   "trace": [
+    {
+     "t": "endpoint",
+     "ms": 4441,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f14",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 4441,
+     "query": "one bitcoin worth dollars"
+    },
+    {
+     "t": "spec",
+     "id": "f14",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 4662,
+     "took": 221,
+     "n": 4,
+     "query": "one bitcoin worth dollars"
+    },
+    {
+     "t": "sources",
+     "ms": 4888
+    },
+    {
+     "t": "first_token",
+     "ms": 5872
+    }
+   ],
+   "arc_heard": "How much is one Bitcoin worth right now in U.S. dollars?",
+   "arc_wer": 0.182,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.2,
+   "order": 1
+  },
+  {
+   "id": "sc07",
+   "text": "I'm baking something, how many ounces are in one cup",
+   "kind": "conversion",
+   "voice": "kokoro:af_aoede",
+   "mode": "baseline",
+   "ready_ms": 4302,
+   "sources_ms": 3599,
+   "done_ms": 4828,
+   "endpoint_lag_ms": 596,
+   "ready_vad_ms": 4442,
+   "arc_end_s": 3.15,
+   "vad_end_s": 3.01,
+   "path": "search-after-endpoint",
+   "correct": true,
+   "answer": "There are 8 fluid ounces in one US cup. Note that for dry ingredients, a cup is measured by volume, so weight in ounces varies by ingredient.",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "I'm baking something how many ounces are in one cup",
+   "hedged": false,
+   "q_wer": 0.0,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "cache",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "baking something ounces one cup",
+   "intent": "intent.request_information",
+   "spec_queries": [
+    "baking something ounces one cup"
+   ],
+   "sources": [],
+   "trace": [
+    {
+     "t": "endpoint",
+     "ms": 3746,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f15",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 3746,
+     "query": "baking something ounces one cup"
+    },
+    {
+     "t": "spec",
+     "id": "f15",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 6749,
+     "took": 3003,
+     "n": 0,
+     "query": "baking something ounces one cup"
+    },
+    {
+     "t": "sources",
+     "ms": 6749
+    },
+    {
+     "t": "first_token",
+     "ms": 7452
+    }
+   ],
+   "arc_heard": "I'm baking something how many ounces are in one cup.",
+   "arc_wer": 0.0,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.2,
+   "order": 0
+  },
+  {
+   "id": "sc07",
+   "text": "I'm baking something, how many ounces are in one cup",
+   "kind": "conversion",
+   "voice": "kokoro:af_aoede",
+   "mode": "headstart",
+   "ready_ms": 1978,
+   "sources_ms": 1246,
+   "done_ms": 2391,
+   "endpoint_lag_ms": 496,
+   "ready_vad_ms": 2118,
+   "arc_end_s": 3.15,
+   "vad_end_s": 3.01,
+   "path": "speculative-miss",
+   "correct": true,
+   "answer": "A cup is usually about 8 fluid ounces, but that's volume, and dry ingredients like flour weigh very differently from liquids, so the answer depends on the ingredient [2]. For baking, measuring by weight in grams is more accurate than cups.",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "I'm baking something how many ounces are in one cup",
+   "hedged": false,
+   "q_wer": 0.0,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "baking something ounces one cup",
+   "intent": "intent.request_information",
+   "spec_queries": [
+    "baking something ounces one cup"
+   ],
+   "sources": [
+    "Teaspoon",
+    "Cooking weights and measures",
+    "Baker percentage",
+    "Great cake"
+   ],
+   "trace": [
+    {
+     "t": "spec",
+     "id": "budget",
+     "lane": "web",
+     "state": "skipped",
+     "ms": 1410,
+     "query": ""
+    },
+    {
+     "t": "endpoint",
+     "ms": 3646,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f16",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 3710,
+     "query": "baking something ounces one cup"
+    },
+    {
+     "t": "spec",
+     "id": "f16",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 3890,
+     "took": 179,
+     "n": 4,
+     "query": "baking something ounces one cup"
+    },
+    {
+     "t": "sources",
+     "ms": 4396
+    },
+    {
+     "t": "first_token",
+     "ms": 5128
+    }
+   ],
+   "arc_heard": "I'm baking something how many ounces are in one cup.",
+   "arc_wer": 0.0,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.1,
+   "order": 1
+  },
+  {
+   "id": "sc08",
+   "text": "what's a hundred US dollars in euros at today's rate",
+   "kind": "conversion",
+   "voice": "kokoro:am_fenrir",
+   "mode": "headstart",
+   "ready_ms": 3499,
+   "sources_ms": 2719,
+   "done_ms": 3847,
+   "endpoint_lag_ms": 572,
+   "ready_vad_ms": 3649,
+   "arc_end_s": 3.25,
+   "vad_end_s": 3.1,
+   "path": "speculative-miss",
+   "correct": null,
+   "answer": "I can't check today's exchange rate from these sources, so I can't give you the exact figure. Roughly, $100 converts to around 85 to 95 euros depending on the day, so check a live currency converter for the current rate.",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "What's $100 in Euros at today's rate",
+   "hedged": false,
+   "q_wer": 0.333,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "$100 euros today's rate",
+   "intent": "discourse.intent.qa_maths",
+   "spec_queries": [
+    "$100 euros today's rate"
+   ],
+   "sources": [
+    "100 euro note",
+    "Slovak euro coins",
+    "Euros",
+    "European Exchange Rate Mechanism",
+    "Generation 1000 Euros"
+   ],
+   "trace": [
+    {
+     "t": "spec",
+     "id": "budget",
+     "lane": "web",
+     "state": "skipped",
+     "ms": 1811,
+     "query": ""
+    },
+    {
+     "t": "endpoint",
+     "ms": 3822,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f17",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 3867,
+     "query": "$100 euros today's rate"
+    },
+    {
+     "t": "spec",
+     "id": "f17",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 5626,
+     "took": 1759,
+     "n": 6,
+     "query": "$100 euros today's rate"
+    },
+    {
+     "t": "sources",
+     "ms": 5969
+    },
+    {
+     "t": "first_token",
+     "ms": 6749
+    }
+   ],
+   "arc_heard": "What's $100 in Euros at today's rate?",
+   "arc_wer": 0.333,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.3,
+   "order": 0
+  },
+  {
+   "id": "sc08",
+   "text": "what's a hundred US dollars in euros at today's rate",
+   "kind": "conversion",
+   "voice": "kokoro:am_fenrir",
+   "mode": "baseline",
+   "ready_ms": 1774,
+   "sources_ms": 1096,
+   "done_ms": 2440,
+   "endpoint_lag_ms": 576,
+   "ready_vad_ms": 1924,
+   "arc_end_s": 3.25,
+   "vad_end_s": 3.1,
+   "path": "search-after-endpoint",
+   "correct": null,
+   "answer": "I don't have today's exchange rate in these sources, so I can't give an exact conversion. As a rough guide, $100 is usually worth somewhere around 85 to 95 euros, but check a live currency converter for the current figure.",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "What's $100 in Euros at today's rate",
+   "hedged": false,
+   "q_wer": 0.333,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "$100 euros today's rate",
+   "intent": "discourse.intent.qa_maths",
+   "spec_queries": [
+    "$100 euros today's rate"
+   ],
+   "sources": [
+    "100 euro note",
+    "Slovak euro coins",
+    "Euros",
+    "European Exchange Rate Mechanism",
+    "Generation 1000 Euros"
+   ],
+   "trace": [
+    {
+     "t": "endpoint",
+     "ms": 3826,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f18",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 3827,
+     "query": "$100 euros today's rate"
+    },
+    {
+     "t": "spec",
+     "id": "f18",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 4076,
+     "took": 249,
+     "n": 6,
+     "query": "$100 euros today's rate"
+    },
+    {
+     "t": "sources",
+     "ms": 4346
+    },
+    {
+     "t": "first_token",
+     "ms": 5024
+    }
+   ],
+   "arc_heard": "What's $100 in Euros at today's rate?",
+   "arc_wer": 0.333,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.2,
+   "order": 1
+  },
+  {
+   "id": "sc09",
+   "text": "how many miles is a marathon, like, exactly, to the decimal",
+   "kind": "conversion",
+   "voice": "kokoro:af_nova",
+   "mode": "baseline",
+   "ready_ms": 3122,
+   "sources_ms": 2582,
+   "done_ms": 3484,
+   "endpoint_lag_ms": 602,
+   "ready_vad_ms": 3242,
+   "arc_end_s": 3.85,
+   "vad_end_s": 3.73,
+   "path": "search-after-endpoint",
+   "correct": true,
+   "answer": "A marathon is 26.2 miles, or about 42.195 kilometers. None of the sources cover the marathon race distance.",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "How many miles is a marathon like exactly to the decimal",
+   "hedged": false,
+   "q_wer": 0.0,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "miles marathon exactly decimal",
+   "intent": "discourse.intent.qa_factoid",
+   "spec_queries": [
+    "miles marathon exactly decimal"
+   ],
+   "sources": [
+    "Seven Mile Bridge",
+    "Marathon Petroleum",
+    "Miles Aircraft",
+    "Miles Sparrowjet"
+   ],
+   "trace": [
+    {
+     "t": "endpoint",
+     "ms": 4452,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f19",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 4452,
+     "query": "miles marathon exactly decimal"
+    },
+    {
+     "t": "spec",
+     "id": "f19",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 5967,
+     "took": 1515,
+     "n": 4,
+     "query": "miles marathon exactly decimal"
+    },
+    {
+     "t": "sources",
+     "ms": 6432
+    },
+    {
+     "t": "first_token",
+     "ms": 6972
+    }
+   ],
+   "arc_heard": "How many miles is a marathon like exactly to the decimal?",
+   "arc_wer": 0.0,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.3,
+   "order": 0
+  },
+  {
+   "id": "sc09",
+   "text": "how many miles is a marathon, like, exactly, to the decimal",
+   "kind": "conversion",
+   "voice": "kokoro:af_nova",
+   "mode": "headstart",
+   "ready_ms": 1830,
+   "sources_ms": 1307,
+   "done_ms": 2140,
+   "endpoint_lag_ms": 604,
+   "ready_vad_ms": 1950,
+   "arc_end_s": 3.85,
+   "vad_end_s": 3.73,
+   "path": "speculative-miss",
+   "correct": true,
+   "answer": "A marathon is 26.2 miles, or about 42.195 kilometers. None of the sources cover that, so this comes from general knowledge rather than the search results.",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "How many miles is a marathon like exactly to the decimal",
+   "hedged": false,
+   "q_wer": 0.0,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "miles marathon exactly decimal",
+   "intent": "discourse.intent.qa_factoid",
+   "spec_queries": [
+    "miles marathon exactly decimal"
+   ],
+   "sources": [
+    "Seven Mile Bridge",
+    "Marathon Petroleum",
+    "Miles Aircraft",
+    "Miles Sparrowjet"
+   ],
+   "trace": [
+    {
+     "t": "spec",
+     "id": "budget",
+     "lane": "web",
+     "state": "skipped",
+     "ms": 1811,
+     "query": ""
+    },
+    {
+     "t": "endpoint",
+     "ms": 4454,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f20",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 4506,
+     "query": "miles marathon exactly decimal"
+    },
+    {
+     "t": "spec",
+     "id": "f20",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 4869,
+     "took": 363,
+     "n": 4,
+     "query": "miles marathon exactly decimal"
+    },
+    {
+     "t": "sources",
+     "ms": 5157
+    },
+    {
+     "t": "first_token",
+     "ms": 5680
+    }
+   ],
+   "arc_heard": "How many miles is a marathon like exactly to the decimal?",
+   "arc_wer": 0.0,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.1,
+   "order": 1
+  },
+  {
+   "id": "sc10",
+   "text": "okay so, how do I get a red wine stain out of a carpet",
+   "kind": "howto",
+   "voice": "kokoro:af_heart",
+   "mode": "headstart",
+   "ready_ms": 3014,
+   "sources_ms": 2239,
+   "done_ms": 3663,
+   "endpoint_lag_ms": 608,
+   "ready_vad_ms": 3234,
+   "arc_end_s": 3.85,
+   "vad_end_s": 3.63,
+   "path": "speculative-miss",
+   "correct": true,
+   "answer": "The sources don't cover removing wine stains from carpet. Generally, blot the fresh spill with a clean cloth, then dab with cold water and a mild detergent, and avoid rubbing. For stubborn stains, a mix of white vinegar and dish soap often helps, followed by a clean water rinse and blotting dry.",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "Okay, so how do I get a red wine stain out of a carpet",
+   "hedged": false,
+   "q_wer": 0.0,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "red wine stain out carpet",
+   "intent": "discourse.intent.weather_query",
+   "spec_queries": [
+    "red wine stain out carpet"
+   ],
+   "sources": [
+    "Fabric treatment",
+    "Caught in the Act (Modern Family)",
+    "Stained glass",
+    "Red"
+   ],
+   "trace": [
+    {
+     "t": "spec",
+     "id": "budget",
+     "lane": "web",
+     "state": "skipped",
+     "ms": 2613,
+     "query": ""
+    },
+    {
+     "t": "endpoint",
+     "ms": 4458,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f21",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 4534,
+     "query": "red wine stain out carpet"
+    },
+    {
+     "t": "spec",
+     "id": "f21",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 5854,
+     "took": 1320,
+     "n": 4,
+     "query": "red wine stain out carpet"
+    },
+    {
+     "t": "sources",
+     "ms": 6089
+    },
+    {
+     "t": "first_token",
+     "ms": 6864
+    }
+   ],
+   "arc_heard": "Okay, so how do I get a red wine stain out of a carpet?",
+   "arc_wer": 0.0,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.3,
+   "order": 0
+  },
+  {
+   "id": "sc10",
+   "text": "okay so, how do I get a red wine stain out of a carpet",
+   "kind": "howto",
+   "voice": "kokoro:af_heart",
+   "mode": "baseline",
+   "ready_ms": 1844,
+   "sources_ms": 1013,
+   "done_ms": 2043,
+   "endpoint_lag_ms": 601,
+   "ready_vad_ms": 2064,
+   "arc_end_s": 3.85,
+   "vad_end_s": 3.63,
+   "path": "search-after-endpoint",
+   "correct": true,
+   "answer": "The sources don't cover removing wine stains. Blot the spill with a clean cloth, then sponge it with cold water and a little mild detergent, working from the outside inwards, and blot dry.",
+   "error": null,
+   "endpoint_by": "ear",
+   "endpoint_trigger": null,
+   "ear": "arc",
+   "ear_fallback": null,
+   "answers": 1,
+   "answer_idx": 0,
+   "phantom_answers": 0,
+   "question_heard": "Okay, so how do I get a red wine stain out of a carpet",
+   "hedged": false,
+   "q_wer": 0.0,
+   "web_calls": 1,
+   "spec_fires": 0,
+   "spec_used": 0,
+   "credits": 0.0,
+   "credits_spec": 0,
+   "credits_final": 0.0,
+   "web_cached": 0,
+   "web_backend": "wikipedia",
+   "answer_by": "llm",
+   "stale": 0,
+   "drafts": 0,
+   "draft_reused": false,
+   "draft_match": null,
+   "query": "red wine stain out carpet",
+   "intent": "discourse.intent.weather_query",
+   "spec_queries": [
+    "red wine stain out carpet"
+   ],
+   "sources": [
+    "Fabric treatment",
+    "Caught in the Act (Modern Family)",
+    "Stained glass",
+    "Red"
+   ],
+   "trace": [
+    {
+     "t": "endpoint",
+     "ms": 4451,
+     "by": "ear"
+    },
+    {
+     "t": "spec",
+     "id": "f22",
+     "lane": "final-web",
+     "state": "fired",
+     "ms": 4451,
+     "query": "red wine stain out carpet"
+    },
+    {
+     "t": "spec",
+     "id": "f22",
+     "lane": "final-web",
+     "state": "done",
+     "ms": 4660,
+     "took": 209,
+     "n": 4,
+     "query": "red wine stain out carpet"
+    },
+    {
+     "t": "sources",
+     "ms": 4863
+    },
+    {
+     "t": "first_token",
+     "ms": 5694
+    }
+   ],
+   "arc_heard": "Okay, so how do I get a red wine stain out of a carpet?",
+   "arc_wer": 0.0,
+   "n_finals": 1,
+   "endpoint_via": "pause",
+   "feed_late_p95_ms": 3.3,
+   "order": 1
+  }
+ ]
+}
