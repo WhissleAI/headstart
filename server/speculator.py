@@ -9,6 +9,7 @@ mode="baseline" : wait for the endpoint, then search, rerank, answer. Same lanes
 from __future__ import annotations
 
 import asyncio
+import re
 import itertools
 import time
 from dataclasses import dataclass, field
@@ -47,6 +48,17 @@ class Draft:
     t_start: float
     doc_ids: tuple
     content: tuple = ()
+
+
+_NON_ANSWER = re.compile(r"\b(don't|do not|doesn't|does not|no (?:information|mention)|not (?:mention|cover|"
+                         r"include|say|state)|can't|cannot|isn't in|aren't in|none of)\b", re.I)
+
+
+def _non_answer(text: str) -> bool:
+    """A draft that says the sources lack the answer (looking at its first sentence)."""
+    first = re.split(r"(?<=[.!?])\s", text.strip(), maxsplit=1)[0]
+    about_sources = re.search(r"\b(sources?|results?|provided|information|passages?|these)\b", first, re.I)
+    return bool(about_sources and _NON_ANSWER.search(first))
 
 
 class Speculator:
@@ -293,7 +305,8 @@ class Speculator:
                 if same:
                     m["path"] = "speculative-hit"
                     if pending:
-                        await asyncio.gather(*pending, return_exceptions=True)
+                        # don't let a slow lane hold the answer hostage: answer with what has landed after the cap
+                        await asyncio.wait(pending, timeout=config.PENDING_CAP_S)
                 elif best >= config.COMMIT_TAU and self._nothing_new(f):
                     m["path"] = "pool-commit"
                 else:
@@ -373,6 +386,9 @@ class Speculator:
         for d in reversed(self.drafts):
             if d.stream.error is not None:
                 continue
+            if d.stream.done and _non_answer(d.stream.text()):
+                m["draft_rejected_nonanswer"] = True
+                continue                    # "the sources don't mention X": answer again from the final ranking
             cos = float(d.qvec @ qvec)
             if d.meaning_sig == f.meaning_sig and cos >= 0.9:
                 m["draft_cos"], m["draft_match"] = round(cos, 3), "exact"
@@ -394,6 +410,9 @@ class Speculator:
             if any(p in txt for p in ".!?") and len(txt) > 30:
                 break
             await asyncio.sleep(0.02)
+        if _non_answer(d.stream.text()):
+            m["draft_rejected_nonanswer"] = True
+            return None
         ans = set(norm(d.stream.text()).replace("-", " ").split())
         if all(w in ans or any(a.startswith(w) for a in ans) for w in missing):
             m["draft_cos"], m["draft_match"], m["draft_covered"] = round(cos, 3), "completion", missing

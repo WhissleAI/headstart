@@ -52,9 +52,13 @@ async def health():
 
 
 @app.get("/api/questions")
-async def questions():
-    p = ROOT / "eval" / "questions.jsonl"
-    rows = [json.loads(x) for x in p.read_text().splitlines() if x.strip()] if p.exists() else []
+async def questions(set: str = "all"):
+    """set=web: eval/questions.jsonl; set=local: index/questions_local.jsonl (kind "local"); all: both."""
+    rows = []
+    srcs = {"web": [ROOT / "eval" / "questions.jsonl"], "local": [ROOT / "index" / "questions_local.jsonl"]}
+    for p in srcs.get(set, srcs["web"] + srcs["local"]):
+        if p.exists():
+            rows += [json.loads(x) for x in p.read_text().splitlines() if x.strip()]
     return JSONResponse(rows)
 
 
