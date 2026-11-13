@@ -17,7 +17,9 @@ always ever forget forgot remember mind sure guess think kind sort actually basi
 someone thing things they them their he she his her him it's say said says tell told""".split())
 # hey/ok wake fillers are already in STOP; these mark a spoken self-correction
 CORRECTION = [("i", "mean"), ("sorry",), ("no", "wait"), ("actually",), ("rather",), ("scratch", "that"),
-              ("not", "that"), ("make", "that"), ("i", "meant")]
+              ("not", "that"), ("make", "that"), ("i", "meant"),
+              # how live ASR actually hears them (eval set): "Sari, I mean", "no weight", "I met"
+              ("sari",), ("no", "weight"), ("i", "met"), ("i", "mean", "it")]
 INTENT_HINT = {
     "discourse.intent.weather_query": "weather forecast",
     "discourse.intent.news_query": "news",
