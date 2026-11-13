@@ -199,7 +199,8 @@ async def run_one(q: dict, mode: str, audio_dir: Path | None = None) -> dict:
         ear_events.append(e)
 
     sess = Session(emit, mode=mode)
-    ear = ArcEar([sess], on_event=on_ear)
+    from server import config as _cfg, ear as _ear
+    ear = ArcEar([sess], on_event=on_ear) if _cfg.EAR in ("arc", "") else _ear.make_ear([sess], on_event=on_ear)
     t0 = time.perf_counter()
     sess.t0 = t0
     sess.spec.t0 = t0
@@ -262,7 +263,10 @@ async def run_one(q: dict, mode: str, audio_dir: Path | None = None) -> dict:
         "path": m.get("path"), "correct": score(m.get("answer", ""), q.get("expect") or []),
         "answer": m.get("answer"), "error": m.get("error") or ("; ".join(task_errors) if task_errors else None)
         or (None if ms else "no answer (no metric in session.history)"),
-        "endpoint_by": m.get("endpoint_by"), "answers": len(ms), "answer_idx": pick, "phantom_answers": phantom,
+        "endpoint_by": m.get("endpoint_by"), "endpoint_trigger": m.get("endpoint_trigger"),
+        "ear": getattr(ear, "active", "arc"),
+        "ear_fallback": next((e.get("reason") for e in ear_events if e.get("kind") == "fallback"), None),
+        "answers": len(ms), "answer_idx": pick, "phantom_answers": phantom,
         "question_heard": m.get("question"), "hedged": m.get("hedged"), "q_wer": round(q_wer[pick], 3) if ms else None,
         "web_calls": m.get("web_calls"), "spec_fires": m.get("spec_fires"), "spec_used": m.get("spec_used"),
         "credits": m.get("credits"), "credits_spec": m.get("credits_spec"), "credits_final": m.get("credits_final"),
@@ -370,7 +374,8 @@ def run_config(local_docs: int) -> dict:
                                                "web_budget": config.WEB_BUDGET, "draft_budget": config.DRAFT_BUDGET,
                                                "draft_stable_ms": config.DRAFT_STABLE_MS,
                                                "audio_lane": config.AUDIO_LANE, "commit_tau": config.COMMIT_TAU},
-            "semantic_endpoint": getattr(config, "SEMANTIC_ENDPOINT", None),
+            "semantic_endpoint": getattr(config, "SEMANTIC_ENDPOINT", None), "ear": config.EAR,
+            "flux_soft": getattr(config, "FLUX_SOFT", None), "arc_meta": getattr(config, "ARC_META", None),
             "sem_silence_ms": getattr(config, "SEM_SILENCE_MS", None),
             "sem_stable_ms": getattr(config, "SEM_STABLE_MS", None),
             "audio_dir": str(AUDIO_DIR.relative_to(ROOT)) if AUDIO_DIR.is_relative_to(ROOT) else str(AUDIO_DIR),
@@ -589,7 +594,7 @@ def main():
     RUNS.mkdir(exist_ok=True)
     # Shared CPU lock (also used by sim/with_lock.sh): the FILE's existence is the lock ("<owner> pid=N ..."),
     # created exclusively; a lock whose pid is dead is stale. --wait-lock S waits for a live holder.
-    lock_path = RUNS / ".run_ab.lock"
+    lock_path = Path(os.environ.get("RUN_AB_LOCK", RUNS / ".run_ab.lock"))   # worktrees: point at the main checkout's
     deadline = time.time() + a.wait_lock
     while True:
         try:
