@@ -5,6 +5,9 @@
   .venv/bin/python eval/run_ab.py --ids q01,q26 --modes headstart
   .venv/bin/python eval/run_ab.py --kinds correction,filler --out runs/ab_corrections.json
   .venv/bin/python eval/run_ab.py --plot-only            # re-render runs/ab_latest.png from runs/ab_latest.json
+  .venv/bin/python eval/run_ab.py --plot-only --from runs/ab_full2.json   # ... from another run (copies it to latest)
+  .venv/bin/python eval/run_ab.py --audio-dir eval/audio_noisy/snr20 --out runs/ab_snr20.json   # robustness variant
+                                                         # (variants never touch runs/ab_latest.*; see make_variants.py)
 
 For each (question, mode): a fresh ArcEar + one Session(mode); the wav is fed in 100 ms chunks paced to the wall
 clock (chunk k is fed when its last sample would have been spoken), followed by 1.2 s of zeros so Arc endpoints on
@@ -20,7 +23,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import fcntl
 import json
 import os
 import platform
@@ -39,7 +41,9 @@ sys.path.insert(0, str(ROOT))
 import numpy as np  # noqa: E402
 import soundfile as sf  # noqa: E402
 
-AUDIO = ROOT / "eval" / "audio"
+AUDIO = ROOT / "eval" / "audio"          # clean set; --audio-dir points AUDIO_DIR at a variant with the same file names
+AUDIO_DIR = AUDIO
+AUDIO_META: dict = {}                     # <audio-dir>/meta.json: true speech_end_s per file (noise tails, stretch)
 RUNS = ROOT / "runs"
 CHUNK = 1600
 TRAIL_CHUNKS = 12          # 1.2 s of zeros after the file, like app.replay()
@@ -96,35 +100,89 @@ def _fold(s: str) -> str:
     return re.sub(r"(?<=\d)[,   ](?=\d{3}\b)", "", s)     # 8,849 / 8 849 -> 8849
 
 
+_UNITS = ("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen "
+          "seventeen eighteen nineteen").split()
+_TENS = "twenty thirty forty fifty sixty seventy eighty ninety".split()
+_NUMW = {w: i for i, w in enumerate(_UNITS)} | {w: 20 + 10 * i for i, w in enumerate(_TENS)}
+
+
+def _numwords(a: str) -> str:
+    """'fifteen' -> 15, 'twenty-one' / 'twenty one' -> 21, '6 percent' -> 6% (on folded text)."""
+    def comp(m):
+        t, u = m.group(1), m.group(2)
+        return str(_NUMW[t] + (_NUMW[u] if u else 0))
+    units = "|".join(_UNITS[1:10])
+    a = re.sub(rf"\b({'|'.join(_TENS)})(?:[- ]({units}))?\b", comp, a)
+    a = re.sub(rf"\b({'|'.join(_UNITS)})\b", lambda m: str(_NUMW[m.group(1)]), a)
+    return re.sub(r"(\d)\s*(?:percent|per cent)\b", r"\1%", a)
+
+
+def _stem(w: str) -> str:
+    """Tiny suffix stemmer, applied to answer and expected words alike: nailed/nails -> nail, prepping -> prep."""
+    w = re.sub(r"'s$", "", w)
+    for suf in ("ing", "ed", "es", "s"):
+        if w.endswith(suf) and len(w) - len(suf) >= 3:
+            w = w[: -len(suf)]
+            break
+    if len(w) >= 4 and w[-1] == w[-2] and w[-1] not in "aeiou":
+        w = w[:-1]
+    return w
+
+
+def _toks(s: str) -> list[str]:
+    return [_stem(t) for t in re.findall(r"[a-z0-9%]+(?:'s)?", s)]
+
+
 def score(answer: str, expect: list[str]) -> bool | None:
+    """Every expect item must match; 'a|b' = alternatives. Numbers: left word boundary on digits (number words in
+    the answer are converted first). Words: token-sequence match after a light suffix stem (case/accent-folded)."""
     if not expect:
         return None
-    a = _fold(answer)
+    a = _numwords(_fold(answer))
+    atoks = _toks(a)
     for item in expect:
         ok = False
         for alt in item.split("|"):
-            alt = _fold(alt.strip())
+            alt = _numwords(_fold(alt.strip()))
             if not alt:
                 continue
-            if alt[-1].isdigit():   # numbers: left boundary only ("299792" matches "299792458")
-                pat = rf"(?<![a-z0-9]){re.escape(alt)}"
-            else:                   # words: whole word, optional plural
-                pat = rf"(?<![a-z0-9]){re.escape(alt)}(?:s|es)?(?![a-z0-9])"
-            if re.search(pat, a):
-                ok = True
+            if any(c.isdigit() for c in alt):   # numbers: left boundary only ("299792" matches "299792458")
+                ok = re.search(rf"(?<![a-z0-9]){re.escape(alt)}", a) is not None
+            else:
+                et = _toks(alt)
+                ok = bool(et) and any(atoks[k:k + len(et)] == et for k in range(len(atoks) - len(et) + 1))
+            if ok:
                 break
         if not ok:
             return False
     return True
 
 
+def _wn(s: str) -> list[str]:
+    s = _fold(s).replace("|", " ")
+    return re.sub(r"[^a-z0-9 ]+", " ", s).split()
+
+
+def wer(ref: str, hyp: str) -> float:
+    r, h = _wn(ref), _wn(hyp)
+    d = list(range(len(h) + 1))
+    for i in range(1, len(r) + 1):
+        prev, d[0] = d[0], i
+        for j in range(1, len(h) + 1):
+            cur = min(d[j] + 1, d[j - 1] + 1, prev + (r[i - 1] != h[j - 1]))
+            prev, d[j] = d[j], cur
+    return d[len(h)] / max(1, len(r))
+
+
 # ---------------------------------------------------------------------------------------------------- one run
-async def run_one(q: dict, mode: str) -> dict:
+async def run_one(q: dict, mode: str, audio_dir: Path | None = None) -> dict:
     from server.ear import ArcEar
     from server.session import Session
 
-    wav = load_wav(AUDIO / q["file"])
-    vad_end = speech_end_s(wav)
+    adir = audio_dir or AUDIO_DIR
+    wav = load_wav(adir / q["file"])
+    meta = AUDIO_META.get(q["file"]) if adir == AUDIO_DIR else None
+    vad_end = meta["speech_end_s"] if meta and "speech_end_s" in meta else speech_end_s(wav)
     events: list[dict] = []
     ear_events: list[dict] = []
 
@@ -176,9 +234,17 @@ async def run_one(q: dict, mode: str) -> dict:
     toks = [e["_wall"] for e in events if e.get("t") == "answer" and e["_wall"] >= last_ep]
     first_tok = toks[0] if toks else None
     ms = [m for m in sess.history if m]
-    m = ms[-1] if ms else {}
+    # Which answer is the answer to THIS question? In a noisy room the ear can close extra utterances made of
+    # background chatter after the speaker stops (and the session answers them). Score the answer whose question
+    # is closest to what was actually said (ties -> the later one, i.e. the extended/longer question, as before);
+    # answers to text that shares (almost) nothing with the spoken question are counted as phantom answers.
+    q_wer = [wer(q["text"], mm.get("question") or "") for mm in ms]
+    pick = min(range(len(ms)), key=lambda i: (q_wer[i], -i)) if ms else None
+    m = ms[pick] if ms else {}
+    phantom = sum(1 for i, w in enumerate(q_wer) if i != pick and w >= 0.8)
     endpoints = [e for e in events if e.get("t") == "endpoint"]
-    arc_end_s = (endpoints[-1]["speech_end_ms"] / 1000) if endpoints else None
+    ep_m = [e for e in endpoints if (e.get("frame") or {}).get("query") == m.get("query")] or endpoints
+    arc_end_s = (ep_m[-1]["speech_end_ms"] / 1000) if ep_m else None
     ready = m.get("ready_ms")
     spec_q = [e["query"] for e in events if e.get("t") == "spec" and e.get("state") == "fired"
               and e.get("lane") != "draft"]
@@ -192,7 +258,8 @@ async def run_one(q: dict, mode: str) -> dict:
         "path": m.get("path"), "correct": score(m.get("answer", ""), q.get("expect") or []),
         "answer": m.get("answer"), "error": m.get("error") or ("; ".join(task_errors) if task_errors else None)
         or (None if ms else "no answer (no metric in session.history)"),
-        "endpoint_by": m.get("endpoint_by"), "answers": len(ms),
+        "endpoint_by": m.get("endpoint_by"), "answers": len(ms), "answer_idx": pick, "phantom_answers": phantom,
+        "question_heard": m.get("question"), "hedged": m.get("hedged"), "q_wer": round(q_wer[pick], 3) if ms else None,
         "web_calls": m.get("web_calls"), "spec_fires": m.get("spec_fires"), "spec_used": m.get("spec_used"),
         "stale": m.get("stale"), "drafts": m.get("drafts"), "draft_reused": m.get("draft_reused"),
         "draft_match": m.get("draft_match"), "query": m.get("query"), "intent": m.get("intent"),
@@ -202,6 +269,7 @@ async def run_one(q: dict, mode: str) -> dict:
                    if e.get(k) is not None} for e in events if e.get("t") in ("spec", "endpoint", "extended", "sources")]
                  + ([{"t": "first_token", "ms": round((first_tok - t0) * 1000)}] if first_tok else []),
         "arc_heard": " | ".join(e.get("text", "") for e in finals),
+        "arc_wer": round(wer(q["text"], " ".join(e.get("text", "") for e in finals)), 3),
         "n_finals": len(finals),
         "endpoint_via": "pause" if n_finals_before_flush else ("flush" if finals else "none"),
         "feed_late_p95_ms": round(float(np.percentile(feed_late, 95)) * 1000, 1) if feed_late else None,
@@ -238,6 +306,16 @@ def summarize(rows: list[dict]) -> dict:
             "errors": sum(1 for r in rs if r["error"] or r["ready_ms"] is None),
             "split_questions": sum(1 for r in rs if (r["n_finals"] or 0) > 1),
             "answered_twice": sum(1 for r in rs if (r.get("answers") or 0) > 1),
+            "mean_arc_wer": (round(statistics.mean([r["arc_wer"] for r in rs if r.get("arc_wer") is not None]), 3)
+                             if any(r.get("arc_wer") is not None for r in rs) else None),
+            "arc_exact": sum(1 for r in rs if r.get("arc_wer") == 0),
+            "mean_q_wer": (round(statistics.mean([r["q_wer"] for r in rs if r.get("q_wer") is not None]), 3)
+                           if any(r.get("q_wer") is not None for r in rs) else None),
+            "phantom_answers": sum(r.get("phantom_answers") or 0 for r in rs),
+            "hedged": sum(1 for r in rs if r.get("hedged")),
+            "q_with_phantom": sum(1 for r in rs if r.get("phantom_answers")),
+            "answered_twice_same_q": sum(1 for r in rs if (r.get("answers") or 0) - (r.get("phantom_answers") or 0) > 1),
+            "p90_endpoint_lag_ms": pct([r["endpoint_lag_ms"] for r in rs], 90),
             "endpoint_by": dict(Counter(str(r.get("endpoint_by")) for r in rs)),
             "paths": dict(Counter(str(r["path"]) for r in rs)),
             "by_kind": {k: {"n": len(g), "p50_ready_ms": pct([r["ready_ms"] for r in g], 50),
@@ -279,6 +357,8 @@ def run_config(local_docs: int) -> dict:
             "semantic_endpoint": getattr(config, "SEMANTIC_ENDPOINT", None),
             "sem_silence_ms": getattr(config, "SEM_SILENCE_MS", None),
             "sem_stable_ms": getattr(config, "SEM_STABLE_MS", None),
+            "audio_dir": str(AUDIO_DIR.relative_to(ROOT)) if AUDIO_DIR.is_relative_to(ROOT) else str(AUDIO_DIR),
+            "audio_variant": AUDIO_META.get("_"),
             "trail_s": TRAIL_CHUNKS * CHUNK / 16000, "chunk_ms": CHUNK / 16, "git": commit, "server_dirty": dirty,
             "machine": f"{platform.node()} {platform.machine()} {platform.mac_ver()[0]}"}
 
@@ -379,7 +459,9 @@ async def main_async(a) -> int:
         qs = [q for q in qs if q.get("kind") in ks]
     elif not a.kinds and config.WEB_BACKEND == "wikipedia":
         qs = [q for q in qs if q.get("kind") != "current"]
-    qs = [q for q in qs if (AUDIO / q["file"]).exists() or print(f"missing audio {q['file']}", file=sys.stderr)]
+    qs = [q for q in qs if (AUDIO_DIR / q["file"]).exists() or (AUDIO_DIR != AUDIO) or
+          print(f"missing audio {q['file']}", file=sys.stderr)]
+    qs = [q for q in qs if (AUDIO_DIR / q["file"]).exists()]     # variants may cover a subset (rate: 20 questions)
     if a.limit:
         qs = qs[: a.limit]
     modes = a.modes.split(",")
@@ -401,7 +483,7 @@ async def main_async(a) -> int:
         wq = next((q for q in load_questions() if q.get("kind") == "current"), qs[0] if qs else None)
         if wq:
             for mode in modes:
-                await run_one(wq, mode)
+                await run_one(wq, mode, audio_dir=AUDIO)
             print(f"warm-up replay done ({wq['id']})", flush=True)
 
     out = Path(a.out) if a.out else RUNS / f"ab_{time.strftime('%Y%m%d_%H%M%S')}.json"
@@ -428,13 +510,16 @@ async def main_async(a) -> int:
     res["summary"] = summarize(res["rows"])
     txt = json.dumps(res, indent=1, default=float)
     out.write_text(txt)
-    (RUNS / "ab_latest.json").write_text(txt)
-    png = plot(res, RUNS / "ab_latest.png")
+    png = False
+    if a.latest:
+        (RUNS / "ab_latest.json").write_text(txt)
+        png = plot(res, RUNS / "ab_latest.png")
     print("\nsummary:")
     for k, v in res["summary"].items():
         v = {kk: vv for kk, vv in v.items() if kk != "by_kind"}
         print(f"  {k}: {json.dumps(v)}")
-    print(f"wrote {out} and {RUNS / 'ab_latest.json'}" + (f" + {RUNS / 'ab_latest.png'}" if png else ""))
+    print(f"wrote {out}" + (f" and {RUNS / 'ab_latest.json'}" if a.latest else " (ab_latest.* untouched)")
+          + (f" + {RUNS / 'ab_latest.png'}" if png else ""))
     try:
         await lanes.client().aclose()
         await answer.client().close()
@@ -455,21 +540,66 @@ def main():
     ap.add_argument("--no-semantic", action="store_true",
                     help="SEMANTIC_ENDPOINT=0: Head Start endpoints on Arc's pause like baseline")
     ap.add_argument("--plot-only", action="store_true", help="re-render runs/ab_latest.png from runs/ab_latest.json")
+    ap.add_argument("--from", dest="from_", default="",
+                    help="with --plot-only: render from this run json and copy it to runs/ab_latest.json")
+    ap.add_argument("--audio-dir", default="", help="variant audio dir (same file names as eval/audio), e.g. "
+                    "eval/audio_noisy/snr20; implies --no-latest")
+    ap.add_argument("--no-latest", action="store_true", help="don't overwrite runs/ab_latest.{json,png}")
+    ap.add_argument("--wait-lock", type=float, default=0, help="seconds to wait for another holder of the lock")
+    ap.add_argument("--owner", default=os.environ.get("RUN_AB_OWNER", ""), help="name written into the lock file")
     a = ap.parse_args()
     if a.plot_only:
-        res = json.loads((RUNS / "ab_latest.json").read_text())
+        src = Path(a.from_) if a.from_ else RUNS / "ab_latest.json"
+        res = json.loads(src.read_text())
+        if a.from_:
+            (RUNS / "ab_latest.json").write_text(src.read_text())
         print("ok" if plot(res, RUNS / "ab_latest.png") else "matplotlib unavailable")
         return
+    global AUDIO_DIR, AUDIO_META
+    if a.audio_dir:
+        AUDIO_DIR = Path(a.audio_dir).resolve()
+        if not AUDIO_DIR.is_dir():
+            raise SystemExit(f"no such audio dir: {AUDIO_DIR}")
+        mp = AUDIO_DIR / "meta.json"
+        AUDIO_META = json.loads(mp.read_text()) if mp.exists() else {}
+    a.latest = not (a.no_latest or a.audio_dir)
     if a.no_semantic:
         os.environ["SEMANTIC_ENDPOINT"] = "0"     # before any `server` import (config reads env at import)
     RUNS.mkdir(exist_ok=True)
-    lock = open(RUNS / ".run_ab.lock", "w")
-    try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        raise SystemExit("another eval/run_ab.py is running (runs/.run_ab.lock); refusing to start a second one")
+    # Shared CPU lock (also used by sim/with_lock.sh): the FILE's existence is the lock ("<owner> pid=N ..."),
+    # created exclusively; a lock whose pid is dead is stale. --wait-lock S waits for a live holder.
+    lock_path = RUNS / ".run_ab.lock"
+    deadline = time.time() + a.wait_lock
+    while True:
+        try:
+            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+            break
+        except FileExistsError:
+            held = lock_path.read_text().strip() if lock_path.exists() else ""
+            m = re.search(r"pid=(\d+)", held)
+            alive = False
+            if m:
+                try:
+                    os.kill(int(m.group(1)), 0)
+                    alive = True
+                except (ProcessLookupError, PermissionError) as e:
+                    alive = isinstance(e, PermissionError)
+            if not alive:
+                print(f"stale lock removed: {held!r}", file=sys.stderr)
+                lock_path.unlink(missing_ok=True)
+                continue
+            if time.time() > deadline:
+                raise SystemExit(f"benchmark lock held ({held}); refusing to run concurrently (use --wait-lock S)")
+            print(f"{time.strftime('%H:%M:%S')} waiting for lock: {held}", file=sys.stderr, flush=True)
+            time.sleep(30)
+    os.write(fd, (f"{a.owner or 'run_ab'} pid={os.getpid()} since={time.strftime('%H:%M:%S')} "
+                  f"args={' '.join(sys.argv[1:])}\n").encode())
+    os.close(fd)
     os.chdir(ROOT)
-    rc = asyncio.run(main_async(a))
+    try:
+        rc = asyncio.run(main_async(a))
+    finally:
+        lock_path.unlink(missing_ok=True)
     sys.stdout.flush()
     os._exit(rc)   # torch / executor threads can keep the interpreter alive; everything is written by now
 

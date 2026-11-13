@@ -1,0 +1,129 @@
+{
+ "_": {
+  "kind": "rate",
+  "rate": 0.8,
+  "method": "TTS re-synthesis at voice rate x factor",
+  "ids": [
+   "q01",
+   "q02",
+   "q04",
+   "q05",
+   "q08",
+   "q12",
+   "q14",
+   "q16",
+   "q18",
+   "q20",
+   "q21",
+   "q24",
+   "q25",
+   "q26",
+   "q27",
+   "q29",
+   "q31",
+   "q33",
+   "local01",
+   "local05"
+  ]
+ },
+ "q01.wav": {
+  "speech_end_s": 2.28,
+  "dur_speech_s": 1.87,
+  "dur_speech_clean_s": 1.7
+ },
+ "q02.wav": {
+  "speech_end_s": 2.77,
+  "dur_speech_s": 2.35,
+  "dur_speech_clean_s": 1.87
+ },
+ "q04.wav": {
+  "speech_end_s": 2.08,
+  "dur_speech_s": 1.66,
+  "dur_speech_clean_s": 1.34
+ },
+ "q05.wav": {
+  "speech_end_s": 2.22,
+  "dur_speech_s": 1.82,
+  "dur_speech_clean_s": 1.55
+ },
+ "q08.wav": {
+  "speech_end_s": 3.32,
+  "dur_speech_s": 2.91,
+  "dur_speech_clean_s": 2.24
+ },
+ "q12.wav": {
+  "speech_end_s": 3.45,
+  "dur_speech_s": 3.03,
+  "dur_speech_clean_s": 2.3
+ },
+ "q14.wav": {
+  "speech_end_s": 3.24,
+  "dur_speech_s": 2.84,
+  "dur_speech_clean_s": 2.61
+ },
+ "q16.wav": {
+  "speech_end_s": 2.63,
+  "dur_speech_s": 2.22,
+  "dur_speech_clean_s": 1.69
+ },
+ "q18.wav": {
+  "speech_end_s": 3.91,
+  "dur_speech_s": 3.51,
+  "dur_speech_clean_s": 3.12
+ },
+ "q20.wav": {
+  "speech_end_s": 5.23,
+  "dur_speech_s": 4.83,
+  "dur_speech_clean_s": 4.14
+ },
+ "q21.wav": {
+  "speech_end_s": 6.04,
+  "dur_speech_s": 5.64,
+  "dur_speech_clean_s": 4.79
+ },
+ "q24.wav": {
+  "speech_end_s": 3.79,
+  "dur_speech_s": 3.39,
+  "dur_speech_clean_s": 3.08
+ },
+ "q25.wav": {
+  "speech_end_s": 5.69,
+  "dur_speech_s": 5.27,
+  "dur_speech_clean_s": 4.16
+ },
+ "q26.wav": {
+  "speech_end_s": 3.85,
+  "dur_speech_s": 3.44,
+  "dur_speech_clean_s": 3.13
+ },
+ "q27.wav": {
+  "speech_end_s": 4.0,
+  "dur_speech_s": 3.58,
+  "dur_speech_clean_s": 2.81
+ },
+ "q29.wav": {
+  "speech_end_s": 4.16,
+  "dur_speech_s": 3.75,
+  "dur_speech_clean_s": 3.41
+ },
+ "q31.wav": {
+  "speech_end_s": 4.23,
+  "dur_speech_s": 3.81,
+  "dur_speech_clean_s": 3.0
+ },
+ "q33.wav": {
+  "speech_end_s": 4.83,
+  "dur_speech_s": 4.41,
+  "dur_speech_clean_s": 3.59
+ },
+ "local_01.wav": {
+  "speech_end_s": 3.19,
+  "dur_speech_s": 2.79,
+  "dur_speech_clean_s": 2.54
+ },
+ "local_05.wav": {
+  "speech_end_s": 2.88,
+  "dur_speech_s": 2.48,
+  "dur_speech_clean_s": 2.26
+ }
+}

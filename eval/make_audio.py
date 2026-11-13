@@ -106,6 +106,19 @@ Q = [
     ("q35", "what's the latest news about SpaceX", "kokoro:af_bella@1.0", "current", [], "news"),
     ("q36", "what is Apple's stock price right now", "say:Reed (English (US))@175", "current", [], "stock"),
     ("q37", "will it rain in Seattle tomorrow", "kokoro:am_fenrir@1.0", "current", [], "weather"),
+    # more current events for the Tavily web lane (run: eval/run_ab.py --kinds current); no expect keywords, the
+    # answers change daily: judge by hand / by citation freshness
+    ("q43", "who won the Lakers game last night", "say:Samantha@180", "current", [], "sports score"),
+    ("q44", "what was the final score of the Warriors game", "kokoro:am_michael@1.0", "current", [],
+     "sports score"),
+    ("q45", "um, how is the S and P 500 doing today", "kokoro:af_nova@1.0", "current", [], "markets; filler"),
+    ("q46", "what is the Nvidia stock price today", "say:Samantha@170", "current", [], "stock"),
+    ("q47", "what's the weather going to be like in New York this weekend", "kokoro:af_heart@1.0", "current", [],
+     "weather; long"),
+    ("q48", "what are the top news headlines today", "say:Karen@180", "current", [], "news"),
+    ("q49", "who won the most recent Formula One race", "kokoro:am_fenrir@1.0", "current", [], "sports result"),
+    ("q50", "what's the weather in London, sorry, I mean Tokyo", "kokoro:af_bella@1.0", "current", [],
+     "weather; correction"),
 ]
 
 LEAD, TAIL = 0.4, 0.3

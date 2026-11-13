@@ -1,0 +1,269 @@
+{
+ "_": {
+  "kind": "noise",
+  "snr_db": 20.0,
+  "noise": "babble x6 (other questions) + pink 25% power",
+  "noise_tail_s": 2.0,
+  "seed": 7
+ },
+ "q01.wav": {
+  "speech_end_s": 2.11,
+  "speech_start_s": 0.41,
+  "noise_rms": 0.0188
+ },
+ "q02.wav": {
+  "speech_end_s": 2.29,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0086
+ },
+ "q03.wav": {
+  "speech_end_s": 2.65,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0107
+ },
+ "q04.wav": {
+  "speech_end_s": 1.75,
+  "speech_start_s": 0.41,
+  "noise_rms": 0.0111
+ },
+ "q05.wav": {
+  "speech_end_s": 1.95,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0129
+ },
+ "q06.wav": {
+  "speech_end_s": 1.67,
+  "speech_start_s": 0.41,
+  "noise_rms": 0.0137
+ },
+ "q07.wav": {
+  "speech_end_s": 2.35,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0188
+ },
+ "q08.wav": {
+  "speech_end_s": 2.65,
+  "speech_start_s": 0.41,
+  "noise_rms": 0.0075
+ },
+ "q09.wav": {
+  "speech_end_s": 2.23,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0159
+ },
+ "q10.wav": {
+  "speech_end_s": 3.12,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.009
+ },
+ "q11.wav": {
+  "speech_end_s": 2.34,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0153
+ },
+ "q12.wav": {
+  "speech_end_s": 2.72,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0084
+ },
+ "q13.wav": {
+  "speech_end_s": 3.68,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0086
+ },
+ "q14.wav": {
+  "speech_end_s": 3.01,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0154
+ },
+ "q15.wav": {
+  "speech_end_s": 2.81,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0077
+ },
+ "q16.wav": {
+  "speech_end_s": 2.11,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0098
+ },
+ "q17.wav": {
+  "speech_end_s": 2.03,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.009
+ },
+ "q18.wav": {
+  "speech_end_s": 3.52,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0169
+ },
+ "q19.wav": {
+  "speech_end_s": 3.79,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0107
+ },
+ "q20.wav": {
+  "speech_end_s": 4.54,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0125
+ },
+ "q21.wav": {
+  "speech_end_s": 5.19,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0126
+ },
+ "q22.wav": {
+  "speech_end_s": 4.32,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0137
+ },
+ "q23.wav": {
+  "speech_end_s": 2.9,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0102
+ },
+ "q24.wav": {
+  "speech_end_s": 3.48,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0097
+ },
+ "q25.wav": {
+  "speech_end_s": 4.58,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0117
+ },
+ "q26.wav": {
+  "speech_end_s": 3.54,
+  "speech_start_s": 0.41,
+  "noise_rms": 0.0155
+ },
+ "q27.wav": {
+  "speech_end_s": 3.23,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0089
+ },
+ "q28.wav": {
+  "speech_end_s": 2.81,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0075
+ },
+ "q29.wav": {
+  "speech_end_s": 3.82,
+  "speech_start_s": 0.41,
+  "noise_rms": 0.0145
+ },
+ "q30.wav": {
+  "speech_end_s": 3.46,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0119
+ },
+ "q31.wav": {
+  "speech_end_s": 3.42,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0085
+ },
+ "q32.wav": {
+  "speech_end_s": 3.22,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0074
+ },
+ "q33.wav": {
+  "speech_end_s": 4.01,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0136
+ },
+ "q34.wav": {
+  "speech_end_s": 2.65,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0146
+ },
+ "q35.wav": {
+  "speech_end_s": 2.13,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0124
+ },
+ "q36.wav": {
+  "speech_end_s": 2.46,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0105
+ },
+ "q37.wav": {
+  "speech_end_s": 1.86,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0099
+ },
+ "q38.wav": {
+  "speech_end_s": 2.72,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0085
+ },
+ "q39.wav": {
+  "speech_end_s": 2.98,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.019
+ },
+ "q40.wav": {
+  "speech_end_s": 2.02,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0109
+ },
+ "q41.wav": {
+  "speech_end_s": 2.23,
+  "speech_start_s": 0.42,
+  "noise_rms": 0.0145
+ },
+ "q42.wav": {
+  "speech_end_s": 2.32,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0126
+ },
+ "local_01.wav": {
+  "speech_end_s": 2.94,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0183
+ },
+ "local_02.wav": {
+  "speech_end_s": 3.26,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0119
+ },
+ "local_03.wav": {
+  "speech_end_s": 3.88,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0165
+ },
+ "local_04.wav": {
+  "speech_end_s": 3.47,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0176
+ },
+ "local_05.wav": {
+  "speech_end_s": 2.66,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0114
+ },
+ "local_06.wav": {
+  "speech_end_s": 3.94,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0148
+ },
+ "local_07.wav": {
+  "speech_end_s": 3.31,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0187
+ },
+ "local_08.wav": {
+  "speech_end_s": 3.21,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0122
+ },
+ "local_09.wav": {
+  "speech_end_s": 4.43,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0148
+ },
+ "local_10.wav": {
+  "speech_end_s": 3.4,
+  "speech_start_s": 0.4,
+  "noise_rms": 0.0187
+ }
+}
