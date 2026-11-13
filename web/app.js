@@ -474,7 +474,7 @@
       if (!fam || s.type === "entity.numeral") continue;
       for (let i = s.start; i < s.end && i < nodes.length; i++) {
         nodes[i].classList.add("slot-" + fam);
-        if (i === s.start) nodes[i].appendChild(el("span", "lab", s.type.split(".").pop().replace(/_/g, " ")));
+        if (i === s.start) nodes[i].appendChild(el("span", "lab", slotLabel(s.type.split(".").pop())));
       }
     }
   }
@@ -484,6 +484,11 @@
   const pronounIn = (words) => { for (const w of words || []) { const t = String(w.w || w).toLowerCase().replace(/[^a-z']/g, ""); if (PRONOUNS.includes(t)) return t; } return null; };
   const titleCase = (s) => String(s || "").replace(/\b\w/g, (c) => c.toUpperCase());
 
+  const SLOT_SHORT = { organization: "org", organisation: "org", location: "place", place: "place", city: "place", country: "place",
+    person: "person", date: "date", time: "time", cardinal: "num", ordinal: "ord", number: "num", numeral: "num", money: "money",
+    percent: "pct", quantity: "qty", year: "year", event: "event", product: "product", work_of_art: "work" };
+  const slotLabel = (t) => SLOT_SHORT[String(t).toLowerCase()] || String(t).replace(/_/g, " ").slice(0, 8);
+
   function renderFrame(f, final = false) {
     const badges = $("#frameBadges");
     badges.innerHTML = "";
@@ -491,14 +496,22 @@
       $("#fIntent").textContent = "—"; $("#fSlots").textContent = "—"; $("#fRoute").textContent = "—"; $("#fQuery").textContent = "—";
       return;
     }
+    // remember the last non-empty intent/slots of this utterance: a final frame can come back empty, and showing the
+    // live "listening…" placeholder on a FINAL card reads as a bug
+    const qq = run && run.q;
+    if (qq && f.intent) qq.lastIntent = { intent: f.intent, p: f.p };
+    if (qq && f.slots && f.slots.length) qq.lastSlots = f.slots;
+    const isFinal = final || !!f.final;
     const p = Math.max(0, Math.min(1, +f.p || 0));
-    $("#fIntent").innerHTML = f.intent
-      ? `<span class="nm" title="${esc(f.intent)}">${esc(stripIntent(f.intent))}</span><span class="pbar" title="p ${p.toFixed(2)}"><i style="width:${Math.round(p * 100)}%"></i></span>`
-      : `<span class="muted">listening for intent…</span>`;
+    const intentHtml = (it, pp, extra) => `<span class="nm" title="${esc(it)}">${esc(stripIntent(it))}</span><span class="pbar" title="p ${(+pp || 0).toFixed(2)}"><i style="width:${Math.round(Math.max(0, Math.min(1, +pp || 0)) * 100)}%"></i></span>${extra || ""}`;
+    if (f.intent) $("#fIntent").innerHTML = intentHtml(f.intent, p);
+    else if (isFinal && qq && qq.lastIntent) $("#fIntent").innerHTML = `<span class="from-partial">${intentHtml(qq.lastIntent.intent, qq.lastIntent.p, '<span class="fp">from partial</span>')}</span>`;
+    else $("#fIntent").innerHTML = `<span class="muted">${isFinal ? "no intent tagged" : "listening for intent…"}</span>`;
+    const chips = (list) => list.map(([t, v]) => `<span class="chip ${/^(cardinal|ordinal|money|percent|date|time|quantity|numeral|year|number)/.test(t) ? "number" : ""}" title="${esc(t)}: ${esc(v)}"><small>${esc(slotLabel(t))}</small>${esc(v)}</span>`).join("");
     const slots = f.slots || [];
-    $("#fSlots").innerHTML = slots.length
-      ? slots.map(([t, v]) => `<span class="chip ${/^(cardinal|ordinal|money|percent|date|time|quantity|numeral|year|number)/.test(t) ? "number" : ""}"><small>${esc(t.replace(/_/g, " "))}</small>${esc(v)}</span>`).join("")
-      : `<span class="muted">none yet</span>`;
+    if (slots.length) $("#fSlots").innerHTML = chips(slots);
+    else if (isFinal && !f.corrected && qq && qq.lastSlots) $("#fSlots").innerHTML = `<span class="from-partial">${chips(qq.lastSlots)}<span class="fp">from partial</span></span>`;
+    else $("#fSlots").innerHTML = `<span class="muted">${isFinal ? (f.corrected ? "no slots (corrected away)" : "no slots") : "none yet"}</span>`;
     const r = f.route || "web";
     $("#fRoute").innerHTML = `<span class="route"><span class="web ${r === "web" || r === "both" ? "on" : ""}">web</span><span class="local ${r === "local" || r === "both" ? "on" : ""}">local</span></span>`;
     $("#fQuery").textContent = f.query || "—";
@@ -547,8 +560,8 @@
       const meta = [d.cached ? `${d.source} · CACHED` : d.source, d.score != null ? `cos ${(+d.score).toFixed(2)}` : null].filter(Boolean).join(" · ");
       const ts = d.t != null ? `<span class="ts" title="moment starts at ${Math.round(d.t)} s">▶ ${mmss(d.t)}</span>` : "";
       const title = d.t != null ? String(d.title || "").replace(/\s*·\s*\d+:\d+$/, "") : d.title;
-      a.innerHTML = `<div class="st"><span class="sn">[${i + 1}]</span><span class="tt">${esc(title || "(untitled)")}</span></div>` +
-        `<div class="sm">${lane ? `<span class="ln ${esc(lane)}">${esc(lane)}</span>` : ""}${ts}<span class="mt">${esc(meta)}</span></div>`;
+      a.title = (title || "") + (meta ? `\n${lane} · ${meta}` : "") + (d.text ? "\n\n" + d.text : "");
+      a.innerHTML = `<div class="st"><span class="sn">[${i + 1}]</span>${lane ? `<span class="ln ${esc(lane)}">${esc(lane.slice(0, 3))}</span>` : ""}${ts}${d.cached ? '<span class="ln cached" title="replayed from the recorded web cache">cache</span>' : ""}<span class="tt">${esc(title || "(untitled)")}</span></div>`;
       box.appendChild(a);
     });
   }
@@ -645,6 +658,7 @@
 
   // ------------------------------------------------------------------ timeline
   const tlNodes = new Map();      // key -> row element
+  let tlFrame = 0;
   const NICE = [100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000];
 
   function tlRows(q) {
@@ -720,6 +734,20 @@
       if (!n) { n = makeRow(r); tlNodes.set(r.key, n); }
       updateRow(n, r, X, q);
     });
+    // bar labels: a label that would overlap the one in the row above is hidden (its text stays in the row tooltip)
+    if (!run.running || (tlFrame = (tlFrame + 1) % 6) === 0) {
+      let prev = null;
+      for (const k of want) {
+        const n = tlNodes.get(k);
+        const bt = n && n.querySelector(".bt");
+        if (!bt) continue;
+        bt.classList.remove("hid");
+        if (!bt.textContent) continue;
+        const r = bt.getBoundingClientRect();
+        if (prev && r.top < prev.bottom - 1 && r.left < prev.right + 4 && r.right > prev.left - 4) { bt.classList.add("hid"); continue; }
+        prev = r;
+      }
+    }
     const cur = Array.from(body.children);
     if (cur.length !== rows.length || cur.some((c, i) => c !== tlNodes.get(want[i]))) {
       want.forEach((k) => body.appendChild(tlNodes.get(k)));
