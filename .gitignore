@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.npz
+.venv/
+runs/
+models/arctag/*.onnx
+vendor/arctag/*.dylib
+index/data/
+eval/audio/*.wav
