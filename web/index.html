@@ -53,8 +53,9 @@
       <span class="hint">1–9 · R</span>
     </div>
     <div class="qtabs" id="qtabs" hidden>
-      <button data-set="web" class="on">Web facts</button>
-      <button data-set="local">Local moments</button>
+      <button data-set="web" class="on">Facts</button>
+      <button data-set="local">Local</button>
+      <button data-set="conv">Conversation</button>
     </div>
     <ol class="qlist" id="qlist"><li class="empty">Loading questions…</li></ol>
     <form class="adhoc" id="adhocForm">
@@ -72,6 +73,7 @@
           <span class="ear" id="earState">idle</span>
         </div>
         <div class="transcript" id="transcript"><span class="placeholder">Pick a question or press <kbd>Space</kbd> and ask.</span></div>
+        <div class="history" id="history" hidden></div>
       </div>
       <div class="card frame-card">
         <div class="card-head">

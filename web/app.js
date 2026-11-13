@@ -61,7 +61,8 @@
     };
   }
   function startRun(kind, modes) {
-    run = { modes, kind, running: true, clientT0: performance.now(), base: null, q: newQuestion() };
+    run = { modes, kind, running: true, clientT0: performance.now(), base: null, q: newQuestion(), prevQ: null, history: [] };
+    paintHistory();
     resetView();
     pipeReset();
     loop();
@@ -140,15 +141,26 @@
     if (e.mode === "ear") return onEar(e);
     const mode = e.mode;
     let q = run.q;
+    // the previous question's answer can still be streaming when the next question starts (conversations, mic):
+    // its late events update that turn's history entry, not the new panes
+    const pq = run.prevQ;
+    if (pq && q.endpointMs[mode] == null && pq.endpointMs[mode] != null && !pq.metric[mode] &&
+        (["sources", "answer", "answer_error", "metric", "used"].includes(e.t) || (e.t === "spec" && String(e.lane).startsWith("final")))) {
+      if (e.t === "answer") pq.answer[mode] = (pq.answer[mode] || "") + (e.delta || "");
+      else if (e.t === "metric") { pq.metric[mode] = e; recordTurn(pq, mode); }
+      return;
+    }
     switch (e.t) {
       case "words": {
         if (!acceptWords(q, mode, e)) return;
         // a new question in the same run (live mic): start a fresh view once the previous one has answered
         // (words that start after the last answered speech end; not the same utterance continuing)
         const t0w = e.words && e.words.length ? (e.words[0].t0 ?? 0) * 1000 : null;
-        if (q.speechEnd != null && t0w != null && t0w > q.speechEnd + 50 && Object.keys(q.metric).length) {
+        if (q.speechEnd != null && t0w != null && t0w > q.speechEnd + 50 && Object.keys(q.endpointMs).length) {
+          run.prevQ = q;
           run.q = q = newQuestion(Math.max(0, t0w - 400));
           resetView(true);
+          paintHistory();
         }
         if (e.final) q.finalWords++;
         q.prevWords = q.words;
@@ -164,7 +176,8 @@
         q.spans = e.spans || [];
         renderSpans(q);
         renderFrame(e, !!e.final);
-        pipe("tagger", (e.intent ? stripIntent(e.intent) : "frame") + (e.slots && e.slots.length ? ` · ${e.slots.map((x) => x[1]).join(", ")}` : e.query ? ` · ${e.query}` : ""));
+        if (e.carried) pipe("tagger", `memory: ${pronounIn(q.words) || "it"} → ${titleCase(e.carried)}`);
+        else pipe("tagger", (e.intent ? stripIntent(e.intent) : "frame") + (e.slots && e.slots.length ? ` · ${e.slots.map((x) => x[1]).join(", ")}` : e.query ? ` · ${e.query}` : ""));
         break;
       case "endpoint":
         q.endpointMs[mode] = e.ms;
@@ -245,6 +258,7 @@
         }
         renderAnswer(mode);
         renderMetric(mode);
+        recordTurn(q, mode);
         if (mode === "headstart" || !run.modes.includes("headstart")) pipe("answer", `ready ${fmtS(readyAdj(q, mode))} after you stopped`);
         break;
     }
@@ -304,7 +318,8 @@
     const spec = fires.filter((f) => !f.lane.startsWith("final") && f.lane !== "draft");
     if (!e.lane.startsWith("final")) {
       const stale = spec.filter((f) => f.state === "stale" || f.state === "cancelled").length;
-      pipe("spec", `${spec.length} early search${spec.length === 1 ? "" : "es"}${stale ? ` · ${stale} stale` : ""}`);
+      const mem = q.frame && q.frame.carried ? `memory: ${titleCase(q.frame.carried)} · ` : "";
+      pipe("spec", `${mem}${spec.length} early search${spec.length === 1 ? "" : "es"}${stale ? ` · ${stale} stale` : ""}`);
     }
     const cnt = {};
     for (const f of fires) if (f.lane !== "draft") { const l = f.lane.replace("final-", ""); cnt[l] = (cnt[l] || 0) + 1; }
@@ -319,6 +334,32 @@
     q.wordsSig = sig;
     q.wordsMode = mode;
     return true;
+  }
+
+  // ------------------------------------------------------------------ conversation history (previous turns)
+  function recordTurn(q, mode) {
+    if (!run) return;
+    let h = run.history.find((x) => x.q === q);
+    if (!h) { h = { q, question: "", answers: {} }; run.history.push(h); }
+    const m = q.metric[mode] || {};
+    h.question = h.question || m.question || q.words.map((w) => w.w).join(" ");
+    h.answers[mode] = q.answer[mode] || m.answer || "";
+    h.carried = h.carried || (q.frame && q.frame.carried) || "";
+    paintHistory();
+  }
+  function shortAnswer(t) {
+    t = String(t || "").replace(/\s*\[\d+(?:\s*[,–-]\s*\d+)*\]/g, "").trim();
+    const first = (t.match(/^.*?[.!?](\s|$)/) || [t])[0].trim();
+    return first.length > 90 ? first.slice(0, 88) + "…" : first;
+  }
+  function paintHistory() {
+    const box = $("#history");
+    const prev = run ? run.history.filter((h) => h.q !== run.q).slice(-3) : [];
+    box.hidden = !prev.length;
+    box.innerHTML = prev.length ? `<span class="hl-lab">Earlier in this conversation</span>` + prev.map((h) => {
+      const a = h.answers.headstart || h.answers.baseline || "";
+      return `<span class="turn"><span class="tq">${esc(h.question)}</span><span class="ta">→ ${esc(shortAnswer(a) || "…")}</span></span>`;
+    }).join("") : "";
   }
 
   function finishRun() {
@@ -395,6 +436,10 @@
   }
 
   // ------------------------------------------------------------------ frame card
+  const PRONOUNS = ["it", "its", "it's", "he", "she", "his", "her", "him", "they", "them", "their", "there", "that", "this"];
+  const pronounIn = (words) => { for (const w of words || []) { const t = String(w.w || w).toLowerCase().replace(/[^a-z']/g, ""); if (PRONOUNS.includes(t)) return t; } return null; };
+  const titleCase = (s) => String(s || "").replace(/\b\w/g, (c) => c.toUpperCase());
+
   function renderFrame(f, final = false) {
     const badges = $("#frameBadges");
     badges.innerHTML = "";
@@ -413,8 +458,14 @@
     const r = f.route || "web";
     $("#fRoute").innerHTML = `<span class="route"><span class="web ${r === "web" || r === "both" ? "on" : ""}">web</span><span class="local ${r === "local" || r === "both" ? "on" : ""}">local</span></span>`;
     $("#fQuery").textContent = f.query || "—";
+    if (f.carried) {
+      const m = el("span", "badge mem");
+      m.innerHTML = `<i>memory</i> ${esc(pronounIn(run && run.q ? run.q.words : []) || "it")} → ${esc(titleCase(f.carried))}`;
+      m.title = "Resolved from the previous turn of this conversation";
+      badges.appendChild(m);
+    }
     if (f.corrected) badges.appendChild(el("span", "badge corr", "corrected"));
-    if (f.command_complete) badges.appendChild(el("span", "badge cc", "complete"));
+    if (f.command_complete && !f.carried) badges.appendChild(el("span", "badge cc", "complete"));
     if (final) badges.appendChild(el("span", "badge cc", "final"));
   }
 
@@ -784,7 +835,7 @@
     ["local_09.wav", "In the recording, what did Chris Christie say about debate prep with Trump?"],
     ["local_10.wav", "In the clip, when did they say team USA won bronze?"],
   ].map(([file, text]) => ({ file, text, kind: "local" }));
-  const qsets = { web: [], local: [] };
+  const qsets = { web: [], local: [], conv: [] };
   let qset = store.get("hs-qset") || "web";
   async function loadQuestions() {
     let all = [];
@@ -798,8 +849,13 @@
         if (r.ok) qsets.local = LOCAL_QS;
       } catch { /* no local set */ }
     }
-    $("#qtabs").hidden = !qsets.local.length;
-    if (!qsets.local.length) qset = "web";
+    try {
+      const c = await (await fetch("/api/conversations", { cache: "no-store" })).json();
+      qsets.conv = Array.isArray(c) ? c.filter((r) => Array.isArray(r.files) && r.files.length) : [];
+    } catch { qsets.conv = []; }
+    for (const b of $("#qtabs").querySelectorAll("button")) b.hidden = !(qsets[b.dataset.set] || []).length;
+    $("#qtabs").hidden = !qsets.local.length && !qsets.conv.length;
+    if (!(qsets[qset] || []).length) qset = "web";
     paintQuestions();
   }
   $("#qtabs").addEventListener("click", (e) => {
@@ -822,23 +878,85 @@
       const li = el("li");
       const b = el("button");
       b.dataset.i = String(i);
-      const meta = [q.category || q.kind || q.type, q.route, q.dur_s ? `${(+q.dur_s).toFixed(1)} s` : null].filter(Boolean).join(" · ");
-      b.innerHTML = `<span class="n">${i < 9 ? i + 1 : "·"}</span><span class="qt">${esc(q.text || q.question || q.file)}${meta ? `<span class="qm">${esc(meta)}</span>` : ""}</span>`;
-      b.dataset.file = q.file;
-      if (lastReplay && lastReplay.file === q.file) b.classList.add("on");
-      b.addEventListener("click", () => replay(q.file, b));
+      const isConv = Array.isArray(q.files);
+      const meta = isConv ? `${q.files.length} turns · one run` : [q.category || q.kind || q.type, q.route, q.dur_s ? `${(+q.dur_s).toFixed(1)} s` : null].filter(Boolean).join(" · ");
+      const text = isConv ? (q.turns || q.files).map((t) => esc(t)).join('<span class="turn-sep">then</span>') : esc(q.text || q.question || q.file);
+      b.innerHTML = `<span class="n">${i < 9 ? i + 1 : "·"}</span><span class="qt">${text}${meta ? `<span class="qm">${esc(meta)}</span>` : ""}</span>`;
+      const key = isConv ? q.id || q.files.join("+") : q.file;
+      b.dataset.file = key;
+      if (lastReplay && lastReplay.key === key) b.classList.add("on");
+      b.addEventListener("click", () => playItem(q, b));
       li.appendChild(b);
       list.appendChild(li);
     });
   }
 
+  function playItem(item, btn) {
+    if (Array.isArray(item.files)) replayConversation(item, btn);
+    else replay(item.file, btn);
+  }
+
+  // A conversation is several wavs in ONE run (the server keeps memory within a run). The server's replay takes one
+  // file, so the browser streams the PCM itself, exactly like the mic: start, real-time 100 ms Float32 frames, stop.
+  let streamToken = 0;
+  async function decode16k(file) {
+    const buf = await (await fetch("/audio/" + encodeURIComponent(file), { cache: "force-cache" })).arrayBuffer();
+    const ctx = new OfflineAudioContext(1, 16000, 16000);
+    const ab = await ctx.decodeAudioData(buf);             // resampled to 16 kHz by the context
+    if (ab.numberOfChannels === 1) return ab.getChannelData(0);
+    const out = new Float32Array(ab.length);
+    for (let c = 0; c < ab.numberOfChannels; c++) { const d = ab.getChannelData(c); for (let i = 0; i < d.length; i++) out[i] += d[i] / ab.numberOfChannels; }
+    return out;
+  }
+  async function replayConversation(conv, btn, gapS = 2.5) {
+    if (mic.on) stopMic(true);
+    const my = ++streamToken;
+    const modes = modesFor(modeSel);
+    document.querySelectorAll(".qlist button.on").forEach((n) => n.classList.remove("on"));
+    if (btn) btn.classList.add("on");
+    lastReplay = { item: conv, btn, key: conv.id || conv.files.join("+") };
+    try { player.pause(); } catch { /* ignore */ }
+    let pcm;
+    try { pcm = await Promise.all(conv.files.map(decode16k)); } catch (err) { toast("Could not load conversation audio: " + err.message, true); return; }
+    if (my !== streamToken) return;
+    if (!send({ t: "start", modes })) return;
+    startRun("conversation", modes);
+    run.history = [];
+    paintHistory();
+    const F = 1600, t0 = performance.now();
+    let sent = 0;                                             // samples sent so far
+    const pace = async (n) => {                               // wait until n samples' worth of real time has passed
+      const target = t0 + (n / 16000) * 1000;
+      while (performance.now() < target - 2) await new Promise((r) => setTimeout(r, Math.min(20, target - performance.now())));
+    };
+    const sendFrame = (f) => { if (ws && ws.readyState === 1) ws.send(f.buffer); sent += f.length; };
+    const silence = async (sec) => { for (let k = 0; k < Math.round(sec * 10); k++) { if (my !== streamToken) return; await pace(sent + F); sendFrame(new Float32Array(F)); } };
+    for (let ti = 0; ti < pcm.length; ti++) {
+      if (my !== streamToken) return;
+      if (ti > 0) await silence(gapS);
+      if (my !== streamToken) return;
+      player.src = "/audio/" + encodeURIComponent(conv.files[ti]);
+      player.play().catch(() => {});
+      const x = pcm[ti];
+      for (let i = 0; i < x.length; i += F) {
+        if (my !== streamToken) return;
+        await pace(sent + F);
+        sendFrame(x.slice(i, i + F));
+      }
+    }
+    await silence(1.2);                                       // trailing pause so Arc endpoints like a live mic
+    if (my !== streamToken) return;
+    send({ t: "stop" });
+  }
+
   function replay(file, btn) {
     if (!file) return;
+    streamToken++;                                            // abort any conversation still streaming
     if (mic.on) stopMic(true);
     const modes = modesFor(modeSel);
     document.querySelectorAll(".qlist button.on").forEach((n) => n.classList.remove("on"));
     if (btn) btn.classList.add("on");
-    lastReplay = { file, btn };
+    lastReplay = { item: { file }, btn, key: file };
     try { player.pause(); } catch { /* ignore */ }
     player.src = "/audio/" + encodeURIComponent(file);
     if (!send({ t: "replay", file, modes })) return;
@@ -857,6 +975,7 @@
   const WORKLET = `class Cap extends AudioWorkletProcessor{process(i){const c=i[0]&&i[0][0];if(c)this.port.postMessage(c.slice(0));return true}}registerProcessor('hs-cap',Cap);`;
 
   async function startMic() {
+    streamToken++;
     if (!navigator.mediaDevices?.getUserMedia) { toast("Microphone not available here; use Replay", true); return; }
     if (!wsOpen) { toast("Not connected to the server yet", true); return; }
     let stream;
@@ -936,8 +1055,8 @@
     else if (/^[1-9]$/.test(e.key)) {
       const i = +e.key - 1;
       const b = document.querySelector(`.qlist button[data-i="${i}"]`);
-      if (b && questions[i]) replay(questions[i].file, b);
-    } else if (e.key === "r" || e.key === "R") { if (lastReplay) replay(lastReplay.file, lastReplay.btn); }
+      if (b && questions[i]) playItem(questions[i], b);
+    } else if (e.key === "r" || e.key === "R") { if (lastReplay) playItem(lastReplay.item, lastReplay.btn); }
   });
 
   // ------------------------------------------------------------------ results (runs/ab_latest.json)

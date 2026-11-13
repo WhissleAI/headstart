@@ -356,3 +356,17 @@ pre.raw { font: 11px/1.4 var(--mono); max-height: 240px; overflow: auto; backgro
 .delta.tie .dv { font-size: 34px; }
 .transcript.long { font-size: 18px; line-height: 1.85; }
 .stats { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
+/* conversation memory + history */
+.badge.mem { background: var(--audio); color: #fff; text-transform: none; letter-spacing: 0; font-size: 11.5px; padding: 2px 7px; animation: pop .4s ease-out; }
+.badge.mem i { font-style: normal; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; opacity: .85; margin-right: 3px; }
+.history { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; margin-top: 2px; padding-top: 5px; border-top: 1px dashed var(--line); font-size: 11.5px; color: var(--ink-3); min-width: 0; }
+.history[hidden] { display: none; }
+.history .hl-lab { font: 600 9.5px var(--mono); text-transform: uppercase; letter-spacing: .06em; }
+.history .turn { display: inline-flex; gap: 5px; min-width: 0; max-width: 100%; }
+.history .tq { color: var(--ink-2); font-weight: 600; white-space: nowrap; }
+.history .ta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.turn-sep { display: inline-block; margin: 0 5px; font: 600 9.5px var(--mono); text-transform: uppercase; color: var(--ink-3); }
+.qtabs button[hidden] { display: none; }
+.frame-card .card-head h2 { white-space: nowrap; }
+.badges { flex-wrap: nowrap; min-width: 0; overflow: hidden; }
+.badge { white-space: nowrap; }
