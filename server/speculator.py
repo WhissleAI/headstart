@@ -269,7 +269,7 @@ class Speculator:
         asyncio.create_task(go())
 
     # ------------------------------------------------------------------ endpoint
-    async def finalize(self, f: Frame, t_speech_end: float, close: bool = True) -> dict:
+    async def finalize(self, f: Frame, t_speech_end: float, close: bool = True, by: str = "ear") -> dict:
         """Called when the question is over (close=True), or at a soft semantic endpoint (close=False: keep
         speculating on later words; a later finalize supersedes this answer). Streams the answer; returns metrics."""
         t_end = time.perf_counter()
@@ -277,7 +277,7 @@ class Speculator:
         if self.answer_stream is not None:
             self.answer_stream.cancel()           # superseded soft answer
         self.closed = close
-        m = {"mode": self.mode, "question": f.text, "query": f.query(), "intent": f.intent,
+        m = {"mode": self.mode, "question": f.text, "query": f.query(), "intent": f.intent, "endpoint_by": by,
              "endpoint_lag_ms": round((t_end - t_speech_end) * 1000)}
         q = f.query() or " ".join(f.words)
         qtext = f.text

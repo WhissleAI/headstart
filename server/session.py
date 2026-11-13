@@ -162,7 +162,7 @@ class Session:
             self.emit({"t": "extended", "ms": self.spec.ms(), "words": nw})
         self.emit({"t": "endpoint", "ms": self.spec.ms(), "speech_end_ms": round(last_end * 1000),
                    "frame": f.to_json(), "by": "semantic", "soft": True})
-        m = await self.spec.finalize(f, self.t0 + last_end, close=False)
+        m = await self.spec.finalize(f, self.t0 + last_end, close=False, by="semantic")
         m["endpoint_by"] = "semantic"
         if self.soft is not None and self.soft["words"] == nw:
             self.soft["metric"] = m
