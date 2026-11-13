@@ -19,6 +19,7 @@ Metrics per Head Start answer (beyond ready_ms and path):
 """
 from __future__ import annotations
 
+import os
 import argparse
 import asyncio
 import json
@@ -223,7 +224,7 @@ def summarize(rows: list[dict], mode: str = "headstart") -> dict:
 
 
 # ---------------------------------------------------------------------------------------------------- validation
-def validate(sim: Simulator, seeds=range(10), ab=ROOT / "sim" / "data" / "ab_full2.json") -> dict:
+def validate(sim: Simulator, seeds=range(10), ab=ROOT / "sim" / "data" / os.environ.get("SIM_AB", "ab_full3.json")) -> dict:
     real = json.loads(Path(ab).read_text())
     ids = {r["id"] for r in real["rows"]}
     traces = [t for t in load_traces(ids=ids)]
