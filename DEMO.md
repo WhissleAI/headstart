@@ -15,8 +15,10 @@ Warm-up takes ~40 s; check the header shows ready. Have the replay list ready in
 4. **Moments search (30 s).** Switch to Local moments, replay local_05: *"In the hearing, where was the gun found?"*
    The audio lane fires on the raw sound of the question (EmbeddingGemma 2 puts speech and text in one space) and
    the answer cites the moment with its timestamp.
-5. **Evidence (30 s).** Results panel: real-audio A/B over 48 spoken questions (13 voices, fillers, corrections,
-   local moments): p50/p90 time-to-answer, accuracy parity, web calls per question. "Same ASR, same search, same
+5. **Evidence (30 s).** Results panel: real-audio A/B over 58 spoken questions (13 voices; factoids, fillers,
+   corrections, 20 local moments; runs/ab_full5.json): p50 1.16 vs 1.54 s, p90 1.76 vs 2.13 s, faster on 44/58
+   (median 348 ms saved), accuracy 96.6 % in both modes, web calls 2.38 vs 0.66 per question.
+   At 20 dB room babble Head Start is still faster on 35/48 (440 ms saved; runs/robustness.md). "Same ASR, same search, same
    reranker, same answer model; the only difference is when we start."
 
 Lines for judges: "10-million-parameter tagger in C, ~1 ms per word, on the laptop: routing for free."
