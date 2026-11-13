@@ -121,6 +121,8 @@ class Session:
     def on_partial(self, ws: list[dict], now: float | None = None):
         if self.busy:
             return
+        if ws and (ws[0].get("start") or 0.0) <= self.last_answered_end + 0.05:
+            return      # still the utterance we answered at the semantic endpoint; the ear's final settles it
         changed, k = self._sync_words(ws)
         f = framemod.build(self.words, self.spans, self.current, self.events, self.prev_intent, local_ok=bool(len(lanes.index())))
         if f.intent.startswith("discourse.intent."):
@@ -141,7 +143,7 @@ class Session:
             return
         qa = self.question_audio()
         if qa is not None:
-            self.spec.on_audio(qa, f.route)
+            self.spec.on_audio(qa, f.route, f.n)
 
     async def on_final(self, ws: list[dict], early: bool = False) -> dict | None:
         if self.busy:
@@ -162,6 +164,11 @@ class Session:
         self.tagger.endpoint()
         self._apply(self.tagger.poll())
         f = framemod.build(self.words, self.spans, self.current, self.events, self.prev_intent, local_ok=bool(len(lanes.index())))
+        self.emit({"t": "words", "words": [{"w": w, "t0": t[0], "t1": t[1]} for w, t in zip(self.words, self.times)],
+                   "from": 0, "final": True, "ms": self.spec.ms()})
+        self.emit({"t": "frame", **f.to_json(), "final": True, "spans": [
+            {"type": s["type"], "start": s["start"], "end": s["end"], "text": s["text"]} for s in self.spans],
+            "ms": self.spec.ms()})
         last_end = ws[-1].get("end") or 0.0
         self.last_answered_end = last_end
         self.last_answered_words = [framemod.norm(w) for w in self.words]

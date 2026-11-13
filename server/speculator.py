@@ -34,6 +34,7 @@ class Fire:
     t_done: float | None = None
     docs: list = field(default_factory=list)
     used: bool = False
+    n_words: int = 0
 
 
 @dataclass
@@ -78,7 +79,7 @@ class Speculator:
 
     def _fire(self, lane: str, query: str, f: Frame | None, coro_fn):
         fire = Fire(id=f"f{next(_ids)}", lane=lane, query=query, frame_sig=f.sig if f else (),
-                    content=f.content if f else (), t_fire=time.perf_counter())
+                    content=f.content if f else (), t_fire=time.perf_counter(), n_words=f.n if f else 0)
         self.fires.append(fire)
         self.fired_queries[(lane.replace("final-", ""), query)] = fire
         self._ev(id=fire.id, lane=lane, query=query, state="fired", ms=self.ms(fire.t_fire))
@@ -94,7 +95,7 @@ class Speculator:
                 fire.state = "done" if fire.state == "fired" else fire.state
                 self._ev(id=fire.id, lane=lane, query=query, state=fire.state, ms=self.ms(fire.t_done),
                          took=round((fire.t_done - fire.t_fire) * 1000), n=len(docs),
-                         top=[d.title for d in docs[:3]])
+                         top=[d.title for d in docs[:3]], ids=[d.id for d in docs])
             except asyncio.CancelledError:
                 fire.state = "cancelled"
                 fire.t_done = time.perf_counter()
@@ -168,10 +169,16 @@ class Speculator:
         if (now - self.sig_since) * 1000 >= config.DRAFT_STABLE_MS and not self.draft_busy:
             self._maybe_draft(f)
 
-    def on_audio(self, wav: np.ndarray, route: str = "both"):
-        """Audio lane: embed the spoken question itself (no words needed) and search the local moments index."""
-        if (self.mode != "headstart" or not config.AUDIO_LANE or not len(lanes.index()) or route == "web"
-                or self.audio_used >= 3):
+    def on_audio(self, wav: np.ndarray, route: str = "both", n_words: int = 0):
+        """Audio lane: embed the spoken question itself (no words needed) and search the local moments index.
+
+        It shares the GPU with document embedding, so it runs only where it pays: questions routed to the local
+        corpus (up to 3 times as more speech arrives), or once early, before the words have settled."""
+        if self.mode != "headstart" or not config.AUDIO_LANE or not len(lanes.index()) or route == "web":
+            return
+        if route != "local" and (self.audio_used >= 1 or n_words >= config.MIN_WORDS):
+            return
+        if self.audio_used >= 3:
             return
         dur = len(wav) / 16000
         if dur < 1.2 or dur - self.last_audio_at < 1.0:
@@ -217,9 +224,10 @@ class Speculator:
         if len(self.drafts) >= config.DRAFT_BUDGET:
             return
         q = f.query()
-        ready = [x for x in self.fires if x.state == "done" and x.query == q]
-        if not ready:
-            return
+        mine = [x for x in self.fires if x.query == q and x.lane in ("web", "local")]
+        ready = [x for x in mine if x.state == "done"]
+        if not ready or any(x.state == "fired" for x in mine):
+            return                                  # wait for every lane of this query (web is the slow one)
         self.draft_busy = True
 
         async def go():
@@ -292,21 +300,24 @@ class Speculator:
                     await asyncio.gather(*waits, return_exceptions=True)
             else:
                 m["path"] = "draft-reuse"
-        # make sure any doc embedding in progress for finished fires is in the pool
         ranked = self.rank(qvec, 5)
-        docs = [d for d, _ in ranked]
-        t_sources = time.perf_counter()
-        self.emit({"t": "sources", "ms": self.ms(t_sources),
-                   "docs": [{**d.brief(), "score": round(s, 3)} for d, s in ranked]})
         if reuse_draft is not None:
             st = reuse_draft.stream
             docs = [self.pool[i] for i in reuse_draft.doc_ids if i in self.pool]
+            dv = {i: float(self.vecs[i] @ qvec) for i in reuse_draft.doc_ids if i in self.vecs}
+            ranked = [(d, dv.get(d.id, 0.0)) for d in docs]      # the draft's own numbering = its citations
             self._ev(id=reuse_draft.id, lane="draft", query=reuse_draft.question, state="reused", ms=self.ms())
         else:
+            docs = [d for d, _ in ranked]
             st = answer.Stream(qtext, docs, tag="final")
+        t_sources = time.perf_counter()
+        m["n_sources"] = len(docs)
+        self.emit({"t": "sources", "ms": self.ms(t_sources),
+                   "docs": [{**d.brief(), "score": round(sc, 3)} for d, sc in ranked]})
         used_ids = {d.id for d in docs}
         for fire in self.fires:
             fire.used = any(d.id in used_ids for d in fire.docs)
+        self.emit({"t": "used", "fires": [x.id for x in self.fires if x.used], "ms": self.ms()})
         for d in self.drafts:
             if d is not reuse_draft:
                 d.stream.cancel()
@@ -319,6 +330,12 @@ class Speculator:
         if st.error:
             self.emit({"t": "answer_error", "error": st.error})
         spec = [x for x in self.fires if not x.lane.startswith("final")]
+        used_spec = [x for x in spec if x.used]
+        if spec:
+            m["first_fire_lead_ms"] = round((t_speech_end - min(x.t_fire for x in spec)) * 1000)
+            m["first_fire_words"] = min((x.n_words for x in spec), default=None)
+        if used_spec:
+            m["used_fire_lead_ms"] = round((t_speech_end - min(x.t_fire for x in used_spec)) * 1000)
         m.update({
             "sources_ms": round((t_sources - t_speech_end) * 1000),
             "ready_ms": round(((t_first or t_done) - t_speech_end) * 1000),
