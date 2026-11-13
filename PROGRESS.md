@@ -112,6 +112,23 @@ Docs verified 2026-11-12: docs.tavily.com/documentation/api-reference/endpoint/s
 Paired: median saved **398 ms**, mean 379 ms, faster on **37/48**; drafts reused 52 %; 0 answered twice; endpoint
 semantic 16 / ear 32 (stricter gate). runs/ab_full3.json.
 
+## Robustness (post-fix code; runs/robustness.md)
+| condition | BL p50 | HS p50 | acc BL/HS | Arc WER | HS faster (median saved) |
+|---|---|---|---|---|---|
+| clean | 1478 | 1152 | 93.8/93.8 % | 4.1 % | 37/48 (398 ms) |
+| 20 dB babble | 1546 | 1174 | 77.1/77.1 % | 15 % | 35/48 (440 ms) |
+| 10 dB babble | 1567 | 1505 | 54.2/60.4 % | 41 % | 32/48 (173 ms) |
+| speech 1.21× (20 q) | 1440 | 1106 | 85/85 % | 5.5 % | 16/20 (388 ms) |
+| speech 0.85× (20 q) | 1559 | 1148 | 95/95 % | 5.8 % | 15/20 (486 ms) |
+- 10 dB loses the semantic endpoint (energy VAD never hears silence) → fixed 19:30: ASR word-gap silence when the room
+  is noisy; chatter guard (no early answer for utterances 12 dB quieter than the last question). Not yet re-measured.
+- Demo advice: close mic (headset/phone) keeps the room ≥ 20 dB; push-to-talk avoids neighbours' chatter.
+
+## Answer quality (merged 19:20; runs/error_analysis.md)
+- 225 wrong/ungrounded rows across all runs: ASR 107, query construction 48, answer model 30, retrieval 21, scoring 19.
+- Fixes: fillers/contractions, mangled correction cues, entity phrase queries + Wikipedia entity lane, zero-hit retry,
+  no-disclaimer prompt. Offline replay: previously-wrong 9→29/48 right+grounded; regression 20/20.
+
 ## Policy simulator (merged; sim/)
 - Replays 51 recorded Arc traces into the real Session/Speculator on a virtual clock (~6 ms/question).
 - Post-fix validation vs full3: HS p50 err 45 ms (3.9 %), per-question corr 0.82, path agreement 85 %, paired
