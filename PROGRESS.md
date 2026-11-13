@@ -103,6 +103,14 @@ Docs verified 2026-11-12: docs.tavily.com/documentation/api-reference/endpoint/s
 - When a key lands: `eval/tavily_probe.py --yes` (~54 credits) → p50 per depth, include_answer overhead, response keys;
   then `eval/run_ab.py` with the Tavily lane.
 
+## Merged (18:00)
+- ear-deepgram → main (21 tests then). tavily-lane → main (42 tests). UI glitch round committed (paired-median tile,
+  label collision avoidance, settled pipeline strip). Pitch docs + demo media in docs/.
+- Deferred: tavily-lane's eval/run_ab.py credit columns (runs/deferred/run_ab.tavily.py) until the robustness agent
+  commits its run_ab.py edits.
+- In flight: review-fixes (10 confirmed bugs incl. hedge busy-spin, cancel-before-start hang, session wedge on
+  exception, overlapping soft answers, open semantic gate), policy-sim, robustness (snr20/snr10/rate).
+
 ## Open / next
 - [ ] Tavily key from user (sponsor); optional Deepgram key (Arc Mini mishears some voices)
 - [ ] Human check of the browser mic path
