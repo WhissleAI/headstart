@@ -74,7 +74,9 @@ line("INFO", f"web backend: {config.WEB_BACKEND}")
 sys.exit(1 if bad else 0)
 PYEOF
 fi
-if [ -e runs/.run_ab.lock ]; then warn "runs/.run_ab.lock exists: a benchmark is using the CPU (latency will be off)"; fi
+if [ -e runs/.run_ab.lock ] && [ "${IGNORE_LOCK:-0}" != 1 ]; then
+  fail "runs/.run_ab.lock exists: a benchmark is using the CPU (latency would be off). Wait, or IGNORE_LOCK=1"
+fi
 if [ "$bad" = 1 ]; then echo; echo "NO-GO: fix the prerequisites above"; exit 1; fi
 
 echo "Server"

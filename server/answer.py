@@ -101,7 +101,7 @@ def extractive(question: str, docs) -> str | None:
         for j, sent in enumerate(sents):
             shared = q & _words(sent)
             score = (sum(0.3 if w in title else 1.0 for w in shared) + _wh_bonus(question, sent)
-                     - 0.01 * j - 0.75 * i)
+                     - 0.01 * j - 0.75 * i - (3.0 if sent.rstrip().endswith("?") else 0.0))   # a question isn't an answer
             if best is None or score > best[0]:
                 best = (score, sent, i)
     if best is None:

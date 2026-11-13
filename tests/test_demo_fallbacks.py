@@ -157,6 +157,9 @@ def test_extractive_picks_matching_sentence_with_citation():
     out = answer.extractive("who founded the company nvidia", docs)
     assert out.startswith("It was founded in 1993 by Jensen Huang") and out.endswith("[1]")
     assert answer.extractive("anything", []) is None
+    # a moment that repeats the question: answer with the reply, not the echo
+    moment = [lanes.Doc(id="m", title="Supreme Court argument", text="Where was the gun found? The gun was in the chair.")]
+    assert answer.extractive("in the hearing, where was the gun found", moment) == "The gun was in the chair. [1]"
 
 
 class DownClient:
