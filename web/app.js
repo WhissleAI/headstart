@@ -895,6 +895,16 @@
     ["local_08.wav", "What did the commentator say about who won the debate?"],
     ["local_09.wav", "In the recording, what did Chris Christie say about debate prep with Trump?"],
     ["local_10.wav", "In the clip, when did they say team USA won bronze?"],
+    ["local_11.wav", "What did the judge say about where in the chair the gun was?"],
+    ["local_12.wav", "In the call, what discount did they offer first?"],
+    ["local_13.wav", "In the meeting, what did the teacher say about Aaron's workbook?"],
+    ["local_14.wav", "What did the announcer say about Kel'el Ware's triple?"],
+    ["local_15.wav", "In the hearing, what did the judge tell the defendant about getting an attorney?"],
+    ["local_16.wav", "In the clip, who did France beat in overtime?"],
+    ["local_17.wav", "In the commentary, what was England's score when they talked about declaring?"],
+    ["local_18.wav", "In the video, what did the commentator say was his favourite goal?"],
+    ["local_19.wav", "In the hearing, how many cues are taught in the training?"],
+    ["local_20.wav", "In the broadcast, how many points is Jarrett Allen averaging?"],
   ].map(([file, text]) => ({ file, text, kind: "local" }));
   const qsets = { web: [], local: [], conv: [] };
   let qset = store.get("hs-qset") || "web";

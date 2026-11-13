@@ -409,6 +409,14 @@ class LocalIndex:
             self._rows = {d.id: i for i, d in enumerate(self.docs)}
         return self._rows.get(doc_id)
 
+    def audio_row_of(self, row: int):
+        """Row in the audio vectors for docs.jsonl row `row`, or None."""
+        if self.av_rows is None:
+            return None
+        if not hasattr(self, "_arows"):
+            self._arows = {int(r): j for j, r in enumerate(self.av_rows)}
+        return self._arows.get(int(row))
+
     def search_vec(self, q: np.ndarray, k: int = 4, use_audio: bool = True) -> list[Doc]:
         if not len(self.docs):
             return []

@@ -14,7 +14,19 @@ The question text comes from live speech recognition and may contain sound-alike
 question the user most plausibly meant. Never mention mishearing, corrections, or what the user "likely means".
 Answer in one or two short spoken-style sentences (under 45 words), most important fact first. Cite sources inline
 as [1], [2] by their number. If the sources don't contain the answer, say so in one sentence and give the closest
-relevant fact. No preamble, no markdown."""
+relevant fact. No preamble, no markdown.
+Some sources are moments of recordings (game broadcasts, hearings, calls, podcasts): they have a timestamp, and their
+words are a noisy transcript; the moment itself is in [brackets], with the words around it for context. For those,
+say when and who, and quote the moment's key words exactly as transcribed, e.g. At 00:26 the announcer said "Hunter
+gets a good look and nails it" [1]. Don't comment on transcript quality."""
+
+ROLE_LABEL = {"play_by_play": "play-by-play announcer", "analyst": "analyst", "judge": "judge", "counsel": "counsel",
+              "device_user": "user"}
+
+
+def mmss(t: float) -> str:
+    return f"{int(t // 60):02d}:{int(t % 60):02d}"
+
 
 _client: AsyncAnthropic | None = None
 
@@ -39,15 +51,19 @@ def model_opts(model: str) -> dict:
 def build_prompt(question: str, docs, context: str = "") -> str:
     lines = []
     for i, d in enumerate(docs, 1):
-        where = f" (moment at {int(d.t // 60):02d}:{int(d.t % 60):02d})" if d.t is not None else ""
-        text = d.text
         meta = getattr(d, "meta", None) or {}
-        if meta.get("context_before") or meta.get("context_after"):
-            # local moments: neighbour words help the answer (not embedded: they hurt retrieval)
-            text = f"…{meta.get('context_before', '')} [{d.text}] {meta.get('context_after', '')}…"
-            if meta.get("role"):
-                text = f"({meta['role']}) " + text
-        lines.append(f"[{i}] {d.title}{where}: {text[:1000]}")
+        if d.t is not None:
+            # a local moment: "<recording> at mm:ss, <role>: …before [moment] after…" (neighbour words help the
+            # answer; they are not embedded: they hurt retrieval)
+            label = meta.get("source_label") or d.title.rsplit(" · ", 1)[0]
+            role = ROLE_LABEL.get(meta.get("role") or "", "")
+            head = f"{label} at {mmss(d.t)}" + (f", {role}" if role else "")
+            text = d.text
+            if meta.get("context_before") or meta.get("context_after"):
+                text = f"…{meta.get('context_before', '')} [{d.text}] {meta.get('context_after', '')}…"
+            lines.append(f"[{i}] {head}: {text[:1000]}")
+        else:
+            lines.append(f"[{i}] {d.title}: {d.text[:1000]}")
     src = "\n".join(lines) if lines else "(no results)"
     prev = f"Previous turn (for resolving 'it', 'he', 'there'):\n{context}\n\n" if context else ""
     return f"{prev}Sources:\n{src}\n\nSpoken question: {question}"
