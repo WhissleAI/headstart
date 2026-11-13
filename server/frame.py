@@ -189,6 +189,9 @@ def build(words: list[str], spans: list[dict], current: dict | None, events_seen
                         continue
                     drop_tok.add(i)
                     break
+    if drop_tok:
+        # a slot whose words were corrected away goes too ("capital of Canada, actually make that Turkey")
+        slot_spans = [s for s in slot_spans if not set(range(s["start"], s["end"])) & drop_tok]
     f.slots = tuple(sorted({(s["type"].split(".")[-1], norm(s["text"])) for s in slot_spans}))
     seen, content = set(), []
     for i, t in enumerate(toks):

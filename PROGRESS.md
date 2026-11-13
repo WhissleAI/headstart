@@ -45,7 +45,7 @@ Chart: runs/ab_latest.png. Remaining slow cases: API TTFT outliers (q26 1.3 s) �
 - Follow-up "it/its/they/there" → the previous question's thing; "he/she" → a person, usually named only in the
   previous ANSWER (tagged with a second Arc Tagger handle). Query, ranking text and answer prompt use the resolved
   question; the previous turn's docs (already embedded) seed the next speculator.
-- With memory, HS follow-ups: 4/5 scored correct and grounded (queries "nvidia founded", "albert einstein born"),
+- With memory, HS follow-ups: 3/5 scored correct (runs/conv.json; baseline 2/5; conv06 expects Tokyo, answer named Sony Interactive) and grounded (queries "nvidia founded", "albert einstein born"),
   ready 0.82–1.34 s; baseline 1.15–3.0 s. Without memory the searches are bare ("founded", "museum") and the
   model falls back to unsourced knowledge ("the sources don't say...") at 1.4–1.7 s.
 - conv03 failed in both: Arc heard turn 1 as "Coron pride and prejudice" (ASR, not memory).

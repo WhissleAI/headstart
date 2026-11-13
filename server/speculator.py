@@ -389,7 +389,7 @@ class Speculator:
             "web_calls": sum(1 for x in self.fires if x.lane in ("web", "final-web")),
             "spec_fires": len(spec),
             "spec_used": sum(1 for x in spec if x.used),
-            "stale": sum(1 for x in self.fires if x.state == "stale"),
+            "stale": sum(1 for x in self.fires if x.state in ("stale", "cancelled")),
             "drafts": len(self.drafts),
             "draft_reused": reuse_draft is not None,
             "hedged": getattr(st, "hedged", False),
