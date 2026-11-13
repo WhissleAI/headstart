@@ -62,6 +62,12 @@ async def questions(set: str = "all"):
     return JSONResponse(rows)
 
 
+@app.get("/api/conversations")
+async def conversations():
+    p = ROOT / "eval" / "conversations.jsonl"
+    return JSONResponse([json.loads(x) for x in p.read_text().splitlines() if x.strip()] if p.exists() else [])
+
+
 @app.get("/api/results")
 async def results():
     p = ROOT / "runs" / "ab_latest.json"
