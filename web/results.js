@@ -100,7 +100,7 @@
     for (const { n, d } of frag) {
       const cs = getComputedStyle(n);
       const h = n.offsetHeight + (parseFloat(cs.marginBottom) || 0);
-      if (used + h > avail + 1) { n.remove(); continue; }
+      if (!o.noFit && used + h > avail + 1) { n.remove(); continue; }
       used += h; shown.add(d.id); keep.push(n);
     }
     for (const n of keep) box.appendChild(n);

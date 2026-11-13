@@ -484,3 +484,20 @@ pre.raw { font: 11px/1.4 var(--mono); max-height: 240px; overflow: auto; backgro
 .view-results .rr-s { font-size: 12px; line-height: 1.3; }
 .view-results .answers { height: clamp(380px, calc(100vh - 250px), 760px); }
 .view-results .pane .watch-sub { font-size: 11px; }
+
+
+/* ---------------------------------------------------------------- minimal comparison view (default; D toggles) */
+.minimal .pipe, .minimal aside.side, .minimal .frame-card, .minimal .tl-card, .minimal #results,
+.minimal .pane .path, .minimal .watch-sub, .minimal .rq, .minimal .stats, .minimal .sources,
+.minimal .pane-head .sub, .minimal .tag, .minimal .history { display: none !important; }
+.minimal .layout { grid-template-columns: minmax(0, 1fr); max-width: 1400px; margin: 0 auto; }
+.minimal .row-top { grid-template-columns: minmax(0, 1fr); }
+.minimal .answers { height: auto; align-items: start; }
+.minimal .pane { overflow: visible; min-height: 0; }
+.minimal .res { overflow: visible; flex: none; }
+.minimal .pane .answer { display: block; -webkit-line-clamp: unset; overflow: visible; font-size: 15px; line-height: 1.5; }
+.minimal .rr { padding: 8px 12px 9px; margin-bottom: 8px; }
+.minimal .rr-h { white-space: normal; }
+.minimal .rr-t { white-space: normal; overflow: visible; text-overflow: clip; font-size: 15px; }
+.minimal .rr-s { white-space: normal; overflow: visible; text-overflow: clip; display: block; -webkit-line-clamp: unset;
+  font-size: 13.5px; line-height: 1.45; }

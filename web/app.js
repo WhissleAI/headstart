@@ -6,6 +6,9 @@
   const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } } };
+  // Minimal comparison view by default: question, the two answers with their times, full search results.
+  // Press D to show the details (pipeline strip, replay list, Arc read-out, timeline, stats).
+  document.body.classList.toggle("minimal", store.get("hs_details") !== "1");
   const MODE_NAME = { headstart: "Head Start", baseline: "Baseline" };
   const fmtS = (ms) => (ms == null || !isFinite(ms) ? "—" : (ms < 0 ? "−" : "") + (Math.abs(ms) / 1000).toFixed(Math.abs(ms) < 9950 ? 2 : 1) + " s");
   const stripIntent = (s) => String(s || "").replace(/^discourse\.intent\./, "").replace(/^intent\./, "").replace(/_/g, " ");
@@ -749,8 +752,12 @@
     if (rq._h !== head) { rq.innerHTML = head; rq._h = head; }
     rq.className = "rq k-" + v.kind;
     box.className = "res k-" + v.kind;
-    HSResults.flip(box, v.docs, { cls: "rr", px: res ? 12.5 : 12, numbered: v.kind === "final", dates: true, links: true,
-      snipLines: res ? 2 : 1, snipChars: 230, titleMax: 90, max: 10 });
+    const minimal = document.body.classList.contains("minimal");
+    HSResults.flip(box, v.docs, minimal
+      ? { cls: "rr", px: 14, numbered: v.kind === "final", dates: true, links: true,
+          snipLines: 3, snipChars: 420, titleMax: 220, max: 5, noFit: true }
+      : { cls: "rr", px: res ? 12.5 : 12, numbered: v.kind === "final", dates: true, links: true,
+          snipLines: res ? 2 : 1, snipChars: 230, titleMax: 90, max: 10 });
   }
 
   // cite hover / click -> source card
@@ -1304,6 +1311,11 @@
       const b = document.querySelector(`.qlist button[data-i="${i}"]`);
       if (b && questions[i]) playItem(questions[i], b);
     } else if (e.key === "r" || e.key === "R") { if (lastReplay) playItem(lastReplay.item, lastReplay.btn); }
+    else if (e.key === "d" || e.key === "D") {
+      const details = document.body.classList.toggle("minimal") === false;
+      store.set("hs_details", details ? "1" : "0");
+      document.querySelectorAll(".res").forEach((b) => { b._sig = null; });
+    }
   });
 
   addEventListener("keyup", (e) => {
