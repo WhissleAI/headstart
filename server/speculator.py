@@ -81,6 +81,7 @@ class Speculator:
         self.last_audio_at = 0.0
         self.draft_busy = False
         self.closed = False
+        self.answer_stream = None
 
     # ------------------------------------------------------------------ helpers
     def ms(self, t=None):
@@ -268,11 +269,14 @@ class Speculator:
         asyncio.create_task(go())
 
     # ------------------------------------------------------------------ endpoint
-    async def finalize(self, f: Frame, t_speech_end: float) -> dict:
-        """Called when the question is over. Streams the answer through emit; returns metrics."""
+    async def finalize(self, f: Frame, t_speech_end: float, close: bool = True) -> dict:
+        """Called when the question is over (close=True), or at a soft semantic endpoint (close=False: keep
+        speculating on later words; a later finalize supersedes this answer). Streams the answer; returns metrics."""
         t_end = time.perf_counter()
         self._mark_stale(f)                       # the final words can still revise away earlier searches
-        self.closed = True
+        if self.answer_stream is not None:
+            self.answer_stream.cancel()           # superseded soft answer
+        self.closed = close
         m = {"mode": self.mode, "question": f.text, "query": f.query(), "intent": f.intent,
              "endpoint_lag_ms": round((t_end - t_speech_end) * 1000)}
         q = f.query() or " ".join(f.words)
@@ -333,13 +337,15 @@ class Speculator:
         m["n_sources"] = len(docs)
         self.emit({"t": "sources", "ms": self.ms(t_sources),
                    "docs": [{**d.brief(), "score": round(sc, 3)} for d, sc in ranked]})
+        self.answer_stream = st
         used_ids = {d.id for d in docs}
         for fire in self.fires:
             fire.used = any(d.id in used_ids for d in fire.docs)
         self.emit({"t": "used", "fires": [x.id for x in self.fires if x.used], "ms": self.ms()})
-        for d in self.drafts:
-            if d is not reuse_draft:
-                d.stream.cancel()
+        if close:
+            for d in self.drafts:
+                if d is not reuse_draft:
+                    d.stream.cancel()
         t_first = None
         async for tok in st.follow():
             if t_first is None:

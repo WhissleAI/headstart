@@ -33,10 +33,10 @@ INDEX_DIR = Path(os.environ.get("INDEX_DIR", ROOT / "index/data"))
 
 # Speculation policy (see speculator.py)
 MIN_WORDS = int(os.environ.get("SPEC_MIN_WORDS", "3"))
-STABLE_UPDATES = int(os.environ.get("SPEC_STABLE_UPDATES", "2"))
-WEB_BUDGET = int(os.environ.get("SPEC_WEB_BUDGET", "4"))
+STABLE_UPDATES = int(os.environ.get("SPEC_STABLE_UPDATES", "1"))
+WEB_BUDGET = int(os.environ.get("SPEC_WEB_BUDGET", "6"))
 LOCAL_BUDGET = int(os.environ.get("SPEC_LOCAL_BUDGET", "8"))
-DRAFT_BUDGET = int(os.environ.get("SPEC_DRAFT_BUDGET", "4"))
+DRAFT_BUDGET = int(os.environ.get("SPEC_DRAFT_BUDGET", "6"))
 DRAFT_STABLE_MS = int(os.environ.get("SPEC_DRAFT_STABLE_MS", "0"))
 AUDIO_LANE = os.environ.get("SPEC_AUDIO_LANE", "1") == "1"
 COMMIT_TAU = float(os.environ.get("SPEC_COMMIT_TAU", "0.55"))

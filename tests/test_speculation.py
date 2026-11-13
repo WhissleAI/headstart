@@ -232,15 +232,51 @@ def test_semantic_endpoint_answers_before_ear(monkeypatch):
             if heard:
                 s.on_partial(heard)
             t += 0.1
-        # the ear's own endpoint arrives late; it must be ignored (same words)
+        # the ear's own endpoint arrives late with the same words: it confirms the soft answer
         r = await s.on_final([dict(text=w, start=a, end=b) for w, (a, b) in zip(words, times)])
         if s.final_task:
             await s.final_task
         s.close()
         return s, r, ev
     s, r, ev = asyncio.run(go())
-    assert r is None
+    assert r is not None and r["endpoint_by"] == "semantic"
     assert len(s.history) == 1 and s.history[0]["endpoint_by"] == "semantic"
+    assert sum(1 for e in ev if e["t"] == "endpoint") == 1
+
+
+def test_soft_endpoint_extended_reuses_warm_speculator(monkeypatch):
+    """Pause after "...Paris", semantic endpoint answers; speaker adds "tomorrow"; the ear final answers the longer
+    question from the SAME speculator (its search for the longer question already fired while they spoke)."""
+    monkeypatch.setattr(config, "SEMANTIC_ENDPOINT", True)
+    monkeypatch.setattr(config, "SEM_STABLE_MS", 200)
+
+    async def go():
+        ev = []
+        t0 = time.perf_counter()
+        s = Session(ev.append, mode="headstart", t0=t0)
+        words = "what's the weather in Paris tomorrow".split()
+        times = [(0.2 + i * 0.25, 0.2 + i * 0.25 + 0.22) for i in range(5)] + [(2.6, 2.85)]   # pause before "tomorrow"
+        t = 0.0
+        while t < 3.6:
+            while time.perf_counter() < t0 + t:
+                await asyncio.sleep(0.002)
+            loud = any(a <= t <= b + 0.05 for a, b in times)
+            s.on_audio(np.ones(1600, np.float32) * (0.1 if loud else 0.0001), t + 0.1)
+            heard = [dict(text=w, start=a, end=b) for w, (a, b) in zip(words, times) if b <= t - 0.1]
+            if heard:
+                s.on_partial(heard)
+            t += 0.1
+        r = await s.on_final([dict(text=w, start=a, end=b) for w, (a, b) in zip(words, times)])
+        s.close()
+        return s, r, ev
+    s, r, ev = asyncio.run(go())
+    eps = [e for e in ev if e["t"] == "endpoint"]
+    assert eps[0]["by"] == "semantic" and len(eps) >= 2, [e["by"] for e in eps]
+    assert any(e["t"] == "extended" for e in ev)
+    # either a second soft endpoint answered the longer question (confirmed by the ear) or the ear answered it
+    assert len(s.history) == 1 and "tomorrow" in r["query"]
+    assert r["path"] != "speculative-miss", r["path"]      # the warm speculator had already searched it
+
 
 
 def test_late_revision_in_final_marks_stale():

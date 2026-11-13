@@ -41,6 +41,7 @@ class Session:
         self.last_answered_words: list[str] = []
         self.pending_final = None
         self.final_task: asyncio.Task | None = None
+        self.soft: dict | None = None        # a semantic-endpoint answer awaiting the ear's confirmation
         self._new_question()
 
     def _new_question(self):
@@ -56,6 +57,7 @@ class Session:
         self.q_audio_start: float | None = None      # audio time (s) of the first word of this question
         self.spec = Speculator(self.emit, self.mode, self.t0)
         self.busy = False
+        self.soft = None
         self.words_changed_at = time.perf_counter()
 
     # ------------------------------------------------------------------ ear events
@@ -122,8 +124,6 @@ class Session:
     def on_partial(self, ws: list[dict], now: float | None = None):
         if self.busy:
             return
-        if ws and (ws[0].get("start") or 0.0) <= self.last_answered_end + 0.05:
-            return      # still the utterance we answered at the semantic endpoint; the ear's final settles it
         changed, k = self._sync_words(ws)
         f = framemod.build(self.words, self.spans, self.current, self.events, self.prev_intent, local_ok=bool(len(lanes.index())))
         if f.intent.startswith("discourse.intent."):
@@ -142,31 +142,40 @@ class Session:
         # the words are trustworthy if they held through one ASR refresh, or if they last changed in a refresh made
         # after the speaker went quiet (that refresh already saw the whole question)
         settled = stable_ms >= config.SEM_STABLE_MS or self.words_changed_at >= speech_stop + config.SEM_COVER_S
+        nw = [framemod.norm(w) for w in self.words]
         if (self.semantic and not self.busy and ws and f.n >= 2 and self.silence_ms >= config.SEM_SILENCE_MS
-                and settled and (f.command_complete or f.act_question) and f.has_content()):
-            # semantic endpoint: the tagger says the request is complete and the speaker paused briefly
-            self.final_task = asyncio.create_task(self.on_final(ws, early=True))
+                and settled and (f.command_complete or f.act_question) and f.has_content()
+                and (self.soft is None or self.soft["words"] != nw)):
+            # semantic endpoint: the tagger says the request is complete and the speaker paused briefly. Answer now
+            # (soft), but keep listening and keep the speculator warm: the ear's final confirms or extends it.
+            self.final_task = asyncio.create_task(self._soft_answer(ws, f, nw))
             return
         qa = self.question_audio()
         if qa is not None:
             self.spec.on_audio(qa, f.route, f.n)
 
+    async def _soft_answer(self, ws: list[dict], f, nw: list[str]):
+        last_end = ws[-1].get("end") or 0.0
+        prev = self.soft
+        self.soft = {"words": nw, "metric": None, "end": last_end}
+        if prev is not None:
+            self.emit({"t": "extended", "ms": self.spec.ms(), "words": nw})
+        self.emit({"t": "endpoint", "ms": self.spec.ms(), "speech_end_ms": round(last_end * 1000),
+                   "frame": f.to_json(), "by": "semantic", "soft": True})
+        m = await self.spec.finalize(f, self.t0 + last_end, close=False)
+        m["endpoint_by"] = "semantic"
+        if self.soft is not None and self.soft["words"] == nw:
+            self.soft["metric"] = m
+        return m
+
     async def on_final(self, ws: list[dict], early: bool = False) -> dict | None:
         if self.busy:
-            if not early and ws:
+            if ws:
                 self.pending_final = ws      # a new utterance closed while we were answering: answer it next
             return None
-        if not early and ws and (ws[0].get("start") or 0.0) <= self.last_answered_end + 0.05:
-            # the ear's own endpoint for an utterance we already answered at the semantic endpoint: ignore it if it
-            # says the same thing; if the speaker kept going ("... in Paris | tomorrow"), answer the longer question
-            fin = [framemod.norm(clean(w["text"])) for w in ws]
-            if fin[: len(self.last_answered_words)] == self.last_answered_words and \
-                    len(fin) <= len(self.last_answered_words):
-                return None
-            self.emit({"t": "extended", "ms": self.spec.ms(), "words": fin})
         self.busy = True
         if not ws:
-            self._new_question()
+            self.busy = False
             return None
         self._sync_words(ws)
         self.tagger.endpoint()
@@ -177,15 +186,29 @@ class Session:
         self.emit({"t": "frame", **f.to_json(), "final": True, "spans": [
             {"type": s["type"], "start": s["start"], "end": s["end"], "text": s["text"]} for s in self.spans],
             "ms": self.spec.ms()})
+        nw = [framemod.norm(w) for w in self.words]
         last_end = ws[-1].get("end") or 0.0
         self.last_answered_end = last_end
-        self.last_answered_words = [framemod.norm(w) for w in self.words]
-        t_speech_end = self.t0 + last_end
-        self.emit({"t": "endpoint", "ms": self.spec.ms(), "speech_end_ms": round(last_end * 1000),
-                   "frame": f.to_json(), "by": "semantic" if early else "ear"})
+        self.last_answered_words = nw
+        m = None
         try:
-            m = await self.spec.finalize(f, t_speech_end)
-            m["endpoint_by"] = "semantic" if early else "ear"
+            if self.soft is not None and self.soft["words"] == nw:
+                # the ear confirms what we already answered at the semantic endpoint
+                if self.final_task is not None and not self.final_task.done():
+                    await self.final_task
+                m = self.soft["metric"]
+            if m is None:
+                if self.soft is not None:
+                    # the speaker kept going after the semantic endpoint: answer the longer question from the same,
+                    # still-warm speculator (its searches/drafts kept running on the later words)
+                    self.emit({"t": "extended", "ms": self.spec.ms(), "words": nw})
+                    if self.final_task is not None and not self.final_task.done():
+                        self.final_task.cancel()
+                self.emit({"t": "endpoint", "ms": self.spec.ms(), "speech_end_ms": round(last_end * 1000),
+                           "frame": f.to_json(), "by": "ear"})
+                m = await self.spec.finalize(f, self.t0 + last_end)
+                m["endpoint_by"] = "ear"
+                m["superseded_soft"] = self.soft is not None
         finally:
             self.spec.close()
         self.history.append(m)
@@ -196,5 +219,8 @@ class Session:
         return m
 
     def close(self):
+        if self.soft is not None and self.soft.get("metric") is not None and not self.busy:
+            self.history.append(self.soft["metric"])      # the ear never confirmed (stream ended): keep the answer
+            self.soft = None
         self.spec.close()
         self.tagger.close()
