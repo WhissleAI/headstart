@@ -59,7 +59,11 @@ MIN_WORDS = int(os.environ.get("SPEC_MIN_WORDS", "3"))
 STABLE_UPDATES = int(os.environ.get("SPEC_STABLE_UPDATES", "1"))
 WEB_BUDGET = int(os.environ.get("SPEC_WEB_BUDGET", "6"))
 LOCAL_BUDGET = int(os.environ.get("SPEC_LOCAL_BUDGET", "8"))
-DRAFT_BUDGET = int(os.environ.get("SPEC_DRAFT_BUDGET", "6"))
+# Per-backend defaults from the policy simulator (sim/, validated ±4% vs the real A/B). Env vars always win.
+# Wikipedia (~230 ms lane): current settings are within 10 ms of the best found. Tavily (~0.9 s lane): "T2" is
+# 20 ms faster at p50, cuts ungrounded answers 4.0% -> 3.3% and answer-model calls by 17% (runs: sim_*; PROGRESS.md).
+_TAVILY = WEB_BACKEND == "tavily"
+DRAFT_BUDGET = int(os.environ.get("SPEC_DRAFT_BUDGET", "2" if _TAVILY else "6"))
 DRAFT_STABLE_MS = int(os.environ.get("SPEC_DRAFT_STABLE_MS", "0"))
 AUDIO_LANE = os.environ.get("SPEC_AUDIO_LANE", "1") == "1"
 COMMIT_TAU = float(os.environ.get("SPEC_COMMIT_TAU", "0.55"))
@@ -67,11 +71,11 @@ COMMIT_TAU = float(os.environ.get("SPEC_COMMIT_TAU", "0.55"))
 # Semantic endpointing (Head Start only): answer when the tagger says the command is complete and the speaker has been
 # silent this long, instead of waiting for the ear's own pause endpoint (~450 ms on Arc).
 SEMANTIC_ENDPOINT = os.environ.get("SEMANTIC_ENDPOINT", "1") == "1"
-SEM_SILENCE_MS = int(os.environ.get("SEM_SILENCE_MS", "250"))
-SEM_STABLE_MS = int(os.environ.get("SEM_STABLE_MS", "420"))   # one Arc partial refresh (~0.4 s) must confirm the words
-SEM_COVER_S = float(os.environ.get("SEM_COVER_S", "0.3"))     # an ASR refresh this long after silence began covers the speech
+SEM_SILENCE_MS = int(os.environ.get("SEM_SILENCE_MS", "200" if _TAVILY else "250"))
+SEM_STABLE_MS = int(os.environ.get("SEM_STABLE_MS", "550" if _TAVILY else "420"))   # one Arc partial refresh (~0.4 s) must confirm the words
+SEM_COVER_S = float(os.environ.get("SEM_COVER_S", "0.4" if _TAVILY else "0.3"))     # an ASR refresh this long after silence began covers the speech
 PENDING_CAP_S = float(os.environ.get("PENDING_CAP_S", "1.0"))   # max wait at the endpoint for an in-flight speculative search
-HEDGE_MS = int(os.environ.get("HEDGE_MS", "800"))   # duplicate the answer request if no token by then (both modes)
+HEDGE_MS = int(os.environ.get("HEDGE_MS", "1000" if _TAVILY else "800"))   # duplicate the answer request if no token by then (both modes)
 
 # Ear (ASR words for the sessions): EAR=arc (Arc v1 Mini built-in transcript, local) | deepgram (Deepgram live websocket;
 # needs DEEPGRAM_API_KEY, falls back to Arc without it or when the connection drops). See server/ear.py.

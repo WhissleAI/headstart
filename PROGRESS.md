@@ -103,6 +103,23 @@ Docs verified 2026-11-12: docs.tavily.com/documentation/api-reference/endpoint/s
 - When a key lands: `eval/tavily_probe.py --yes` (~54 credits) → p50 per depth, include_answer overhead, response keys;
   then `eval/run_ab.py` with the Tavily lane.
 
+## Post-fix real A/B (full3, 18:55, all merges + review fixes, Wikipedia lane, 48 spoken questions)
+| | baseline | Head Start |
+|---|---|---|
+| p50 / mean / p90 ready | 1478 / 1523 / 1830 ms | **1152 / 1144 / 1662 ms** |
+| sources p50 | 880 ms | **644 ms** |
+| accuracy | 91.7 % | 91.7 % |
+Paired: median saved **398 ms**, mean 379 ms, faster on **37/48**; drafts reused 52 %; 0 answered twice; endpoint
+semantic 16 / ear 32 (stricter gate). runs/ab_full3.json.
+
+## Policy simulator (merged; sim/)
+- Replays 51 recorded Arc traces into the real Session/Speculator on a virtual clock (~6 ms/question).
+- Post-fix validation vs full3: HS p50 err 45 ms (3.9 %), per-question corr 0.82, path agreement 85 %, paired
+  saved sim 412 vs real 398 ms.
+- Sweep → Wikipedia: current config is within 10 ms of best. Tavily: T2 (DRAFT 2, SEM_SILENCE 200, SEM_STABLE 550,
+  SEM_COVER 0.4, HEDGE 1000) → −20 ms p50, ungrounded 4.0→3.3 %, −17 % answer-model calls; now the default when
+  WEB_BACKEND=tavily. Aggressive W1-on-Tavily would be −100 ms but 17 % ungrounded → rejected.
+
 ## Merged (18:00)
 - ear-deepgram → main (21 tests then). tavily-lane → main (42 tests). UI glitch round committed (paired-median tile,
   label collision avoidance, settled pipeline strip). Pitch docs + demo media in docs/.
