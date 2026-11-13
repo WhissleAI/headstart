@@ -120,7 +120,8 @@ class Speculator:
                 fire.state = "done" if fire.state == "fired" else fire.state     # with vector-less docs)
                 self._ev(id=fire.id, lane=lane, query=query, state=fire.state, ms=self.ms(fire.t_done),
                          took=round((fire.t_done - fire.t_fire) * 1000), n=len(docs),
-                         top=[d.title for d in docs[:3]], ids=[d.id for d in docs], **self._meter_ev(fire))
+                         top=[d.title for d in docs[:3]], ids=[d.id for d in docs],
+                         docs=[d.brief(160) for d in docs[:5]], **self._meter_ev(fire))
             except asyncio.CancelledError:
                 fire.t_done = time.perf_counter()
                 if fire.state == "fired":               # a stale fire stays "stale" (revivable; counted as stale)
@@ -362,10 +363,13 @@ class Speculator:
             if fire.content and not set(fire.content) <= cur:
                 was = fire.state
                 fire.state = "stale"
-                if was == "fired" and fire.task and not fire.task.done():
+                cancel = config.STALE_CANCEL and was == "fired" and fire.task and not fire.task.done()
+                if cancel:
                     fire.task.cancel()
+                # default: let it finish. The search is already paid for, its results show (struck) in the live
+                # results list, it can be revived if the ASR flips back, and ranking ignores stale results anyway.
                 self._ev(id=fire.id, lane=fire.lane, query=fire.query, state="stale", ms=self.ms(),
-                         cancelled=was == "fired")
+                         cancelled=bool(cancel))
 
     def _maybe_draft(self, f: Frame):
         """Draft an answer for the current meaning as soon as its search results are in.

@@ -17,7 +17,7 @@ import soundfile as sf
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from server import answer, config, embed, frame, lanes  # noqa: E402
+from server import config, answer, config, embed, frame, lanes  # noqa: E402
 
 RealStream = answer.Stream            # captured before the autouse fixture swaps in FakeStream
 
@@ -643,7 +643,8 @@ def test_url_less_web_results_get_distinct_stable_ids():
     assert lanes._doc_id("tavily", "https://x.org/a", "T", "t") == "https://x.org/a"
 
 
-def test_flip_back_to_cancelled_query_fires_again():
+def test_flip_back_to_cancelled_query_fires_again(monkeypatch):
+    monkeypatch.setattr(config, "STALE_CANCEL", True)      # the opt-in cancel-on-stale behaviour
     """A stale fire cancelled before its results landed brings nothing: coming back to that query searches again (the
     Tavily lane's cache holds the finished, paid-for request, so that is free), and a final query that matches only
     such a fire is not a 'speculative hit' with no results."""

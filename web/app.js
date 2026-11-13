@@ -496,6 +496,7 @@
     badges.innerHTML = "";
     if (!f) {
       $("#fIntent").textContent = "—"; $("#fSlots").textContent = "—"; $("#fRoute").textContent = "—"; $("#fQuery").textContent = "—";
+      renderReadout(null);
       return;
     }
     // remember the last non-empty intent/slots of this utterance: a final frame can come back empty, and showing the
@@ -526,6 +527,27 @@
     if (f.corrected) badges.appendChild(el("span", "badge corr", "corrected"));
     if (f.command_complete && !f.carried) badges.appendChild(el("span", "badge cc", "complete"));
     if (final) badges.appendChild(el("span", "badge cc", "final"));
+    renderReadout(f);
+  }
+
+  // ------------------------------------------------------------------ Arc read-out row (tagger-depth)
+  // The rest of what Arc Tagger reports at every word, beyond intent + slots: dialogue act, device-directed, the
+  // freshness the search will use and why, personal data kept out of the web query, a prompt-injection flag.
+  function renderReadout(f) {
+    const box = $("#fReadout");
+    if (!box) return;
+    const r = (f && f.readout) || null;
+    if (!r) { box.innerHTML = `<span class="muted">—</span>`; return; }
+    const tag = (cls, label, title) => `<span class="ro ${cls}" title="${esc(title || label)}">${esc(label)}</span>`;
+    const out = [];
+    if (r.acts && r.acts.length) out.push(tag("act", "act · " + r.acts.map((a) => a.replace(/_/g, " ")).join(", "), "dialogue act"));
+    if (r.directed != null) out.push(r.directed >= 0.9 ? tag("dir", "to assistant", `device-directed p ${r.directed}`)
+                                                        : tag("warn", "not device-directed", `device-directed p ${r.directed}`));
+    if (r.fresh) out.push(tag("fresh", r.fresh + (r.when_text ? ` (“${r.when_text}”)` : ""), "Tavily topic / freshness chosen from the read-out"));
+    if (r.num_types && r.num_types.length) out.push(tag("num", r.num_types.join(" · "), "typed numbers"));
+    if (r.redacted && r.redacted.length) out.push(tag("priv", "private data redacted · " + r.redacted.join(", "), "kept out of the web query"));
+    if (r.jailbreak) out.push(tag("warn", "prompt-injection flagged", "safety.jailbreak.attempt: no speculative search"));
+    box.innerHTML = out.length ? out.join("") : `<span class="muted">—</span>`;
   }
 
   // ------------------------------------------------------------------ answer panes

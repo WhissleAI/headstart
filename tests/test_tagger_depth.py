@@ -80,3 +80,23 @@ def test_hints_off_switch(monkeypatch):
     monkeypatch.setattr(config, "TAGGER_HINTS", False)
     p = plan(fr("who won the formula one grand prix this past weekend"))
     assert p["topic"] == "general"
+
+
+from test_speculation import fakes as _fakes_for_stale_test  # noqa: E402,F401  (autouse fake lanes/answer model)
+
+
+def test_stale_search_finishes_and_reports_docs_by_default(monkeypatch):
+    """Default: a search the speaker revised away is NOT cancelled; it lands as 'stale' with its docs (the live
+    results list shows them struck through) and ranking ignores them."""
+    import asyncio, time
+    import test_speculation as T
+    from server import config as C
+    assert C.STALE_CANCEL is False
+    monkeypatch.setattr(T, "WEB_DELAY", 0.15)      # other tests slow the fake lane down; pin it
+    m, ev = asyncio.run(T.speak("who founded the company Nvidia", "headstart", revisions={4: (1.75, "Acronis")}))
+    # the misheard search reports its results whether it lands before or after the revision marks it stale
+    landed = [e for e in ev if e["t"] == "spec" and "acronis" in (e.get("query") or "") and e.get("docs")]
+    marked = [e for e in ev if e["t"] == "spec" and "acronis" in (e.get("query") or "") and e.get("state") == "stale"]
+    assert landed and marked, [(e.get("query"), e.get("state"), len(e.get("docs") or [])) for e in ev if e["t"] == "spec"]
+    assert not any(e.get("state") == "cancelled" for e in ev if e["t"] == "spec")
+    assert all("Acronis" not in s for s in m["sources"][:3])
