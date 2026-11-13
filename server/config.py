@@ -83,7 +83,7 @@ SEM_COVER_S = float(os.environ.get("SEM_COVER_S", "0.4" if _TAVILY else "0.3")) 
 PENDING_CAP_S = float(os.environ.get("PENDING_CAP_S", "1.0"))   # max wait at the endpoint for an in-flight speculative search
 HEDGE_MS = int(os.environ.get("HEDGE_MS", "1000" if _TAVILY else "800"))   # duplicate the answer request if no token by then (both modes)
 
-# Ear (ASR words for the sessions): EAR=arc (Arc v1 Mini built-in transcript, local) | deepgram (Deepgram live websocket;
+# Ear (ASR words for the sessions): EAR=arc (Arc v1 Mini built-in transcript, local) | flux (Deepgram Flux) | deepgram (Deepgram live websocket;
 # needs DEEPGRAM_API_KEY, falls back to Arc without it or when the connection drops). See server/ear.py.
 EAR = os.environ.get("EAR", "arc").strip().lower()
 DEEPGRAM_API_KEY = os.environ.get("DEEPGRAM_API_KEY", "")
@@ -98,6 +98,22 @@ DG_CONNECT_TIMEOUT_S = float(os.environ.get("DG_CONNECT_TIMEOUT_S", "4"))
 DG_FLUSH_TIMEOUT_S = float(os.environ.get("DG_FLUSH_TIMEOUT_S", "1.5"))  # wait for Finalize's result at the end of a run
 DG_FALLBACK_REPLAY_S = float(os.environ.get("DG_FALLBACK_REPLAY_S", "10"))   # audio of the open utterance re-fed to Arc
 DG_ARC_EVENTS = os.environ.get("DG_ARC_EVENTS", "0") == "1"  # also run Arc on Deepgram's words for its own events (CPU)
+# Deepgram Flux (EAR=flux): conversational STT on /v2/listen with model-based turn detection
+# (developers.deepgram.com/reference/speech-to-text/listen-flux, /docs/flux/configuration). Lowest-latency defaults:
+# eager_eot_threshold 0.3 = the docs' minimum (EagerEndOfTurn as early as Flux allows; it drives our soft answer and a
+# TurnResumed just means the longer question is answered again, which the session already handles); eot_threshold 0.7
+# = docs' default (a premature EndOfTurn would SPLIT a question in two, which costs more than ~100 ms); eot_timeout_ms
+# 1000 (docs range 500-60000, default 5000): a voice-search question is over after 1 s of silence.
+FLUX_URL = os.environ.get("FLUX_URL", "wss://api.deepgram.com/v2/listen")
+FLUX_MODEL = os.environ.get("FLUX_MODEL", "flux-general-en")
+FLUX_EAGER_EOT = os.environ.get("FLUX_EAGER_EOT", "0.3")          # 0.3-0.9; "" or "off" disables eager events
+FLUX_EOT = float(os.environ.get("FLUX_EOT", "0.7"))               # 0.5-1.0 (must be >= eager)
+FLUX_EOT_TIMEOUT_MS = int(os.environ.get("FLUX_EOT_TIMEOUT_MS", "1000"))   # 500-60000
+FLUX_KEYTERMS = [t.strip() for t in os.environ.get("FLUX_KEYTERMS", "").split(",") if t.strip()]
+# What an EagerEndOfTurn does in the Head Start session: "eager" = soft answer now (no silence / settle wait: Flux's
+# turn model already judged the pause); "eager+gate" = only if our tagger gate (session.gate_open) also agrees;
+# "off" = ignore eager events (the tagger+silence semantic endpoint still runs on Flux's words either way).
+FLUX_SOFT = os.environ.get("FLUX_SOFT", "eager").strip().lower()
 SEM_WORDGAP_MS = int(os.environ.get("SEM_WORDGAP_MS", "600"))   # noisy rooms: ASR word gap that counts as a pause
 CHATTER_RATIO = float(os.environ.get("CHATTER_RATIO", "0.25"))   # -12 dB vs the last answered question = chatter
 
