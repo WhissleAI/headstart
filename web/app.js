@@ -49,6 +49,33 @@
   });
   paintSeg();
 
+  // ------------------------------------------------------------------ view: Answer | Results
+  // Answer: the spoken answer races (stopwatch = first answer token). Results: general web search, the results list is
+  // the hero and the stopwatch measures when results for the FINAL meaning are first on screen.
+  let viewSel = store.get("hs-view") === "results" ? "results" : "answer";
+  function paintView() {
+    for (const b of $("#viewSeg").querySelectorAll("button")) {
+      const on = b.dataset.view === viewSel;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-checked", on ? "true" : "false");
+    }
+    document.body.classList.toggle("view-results", viewSel === "results");
+    document.body.classList.toggle("view-answer", viewSel !== "results");
+  }
+  $("#viewSeg").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-view]");
+    if (!b) return;
+    viewSel = b.dataset.view;
+    store.set("hs-view", viewSel);
+    paintView();
+    if (run) {
+      deltaSig = null;
+      for (const m of ["headstart", "baseline"]) { renderAnswer(m); renderResults(m); }
+      loop();
+    }
+  });
+  paintView();
+
   // ------------------------------------------------------------------ run / question state
   let run = null;       // {modes, kind, running, clientT0, base, q}
   function newQuestion(axStart = 0) {
@@ -56,7 +83,7 @@
       axStart, axEnd: 3000,
       words: [], spans: [], frame: null, frameMode: null,
       fires: new Map(), order: [],
-      speechEnd: null, se: {}, epBy: {}, old: [], superseded: {}, endpointMs: {}, sourcesMs: {}, sources: {}, answer: {}, firstMs: {}, metric: {}, error: {},
+      speechEnd: null, se: {}, epBy: {}, epQuery: {}, old: [], superseded: {}, endpointMs: {}, sourcesMs: {}, sources: {}, answer: {}, firstMs: {}, metric: {}, error: {},
       wordsDirty: true, finalWords: 0,
     };
   }
@@ -207,8 +234,9 @@
         q.endpointMs[mode] = e.ms;
         if (e.speech_end_ms != null) { q.se[mode] = e.speech_end_ms; q.speechEnd = Math.max(q.speechEnd ?? 0, e.speech_end_ms); }
         q.epBy[mode] = e.by || null;
-        if (e.frame) renderFrame(e.frame, true);     // the latest endpoint's frame wins
+        if (e.frame) { renderFrame(e.frame, true); q.epQuery[mode] = e.frame.query || ""; }   // the latest endpoint's frame wins
         paneState(mode);
+        renderResults(mode);
         break;
       case "spec": {
         const key = mode + ":" + e.id;
@@ -219,11 +247,13 @@
           q.order.push(key);
         }
         if (e.ids) f.ids = e.ids;
+        if ((e.state === "done" || e.state === "stale" || e.revived) && e.took != null) { const d = HSResults.specDocs(e); if (d) f.docs = d; }
         pipeSpec(q, e);
-        if (e.state === "fired") { f.t0 = e.ms; break; }
+        if (e.state === "fired") { f.t0 = e.ms; renderResults(mode); break; }
         if (e.state === "stale") {
-          if (f.state === "fired") f.t1 = e.ms;     // in flight: cancelled by the stale mark
-          f.staleAt = e.ms;
+          // stale searches now finish and report (took/docs); an older server cancels them (cancelled: true)
+          if (f.state === "fired" && (e.took != null || e.cancelled)) f.t1 = e.ms;
+          if (f.staleAt == null) f.staleAt = e.ms;
           f.state = "stale";
         } else if (e.state === "reused") {
           f.state = "reused"; f.t1 = e.ms;
@@ -235,12 +265,14 @@
         if (e.n != null) f.n = e.n;
         if (e.top) f.top = e.top;
         if (e.error) f.error = e.error;
+        renderResults(mode);
         break;
       }
       case "sources":
         q.sourcesMs[mode] = e.ms;
         q.sources[mode] = e.docs || [];
         renderSources(mode);
+        renderResults(mode);
         break;
       case "used": {
         const ids = new Set(e.fires || []);
@@ -252,6 +284,7 @@
         q.answer[mode] = (q.answer[mode] || "") + (e.delta || "");
         q.lastAnsMs = e.ms;
         renderAnswer(mode);
+        if (q.firstMs[mode] === e.ms) renderResults(mode);
         if (Object.keys(q.metric).length) settlePipe(q); else pipe("answer", `${MODE_NAME[mode]} streaming…`);
         break;
       case "answer_error":
@@ -264,7 +297,9 @@
           t1: q.metric[mode] && q.se[mode] != null ? q.se[mode] + q.metric[mode].done_ms : e.ms, first: q.firstMs[mode],
           answer: q.answer[mode] || "", ready: q.metric[mode]?.ready_ms, path: q.metric[mode]?.path });
         q.superseded[mode] = q.old.at(-1);
-        for (const k of ["endpointMs", "sourcesMs", "sources", "answer", "firstMs", "metric", "error", "se", "epBy"]) delete q[k][mode];
+        for (const k of ["endpointMs", "sourcesMs", "sources", "answer", "firstMs", "metric", "error", "se", "epBy", "epQuery"]) delete q[k][mode];
+        deltaSig = null;
+        pk(mode, "res")._sig = null;
         q.speechEnd = Math.max(0, ...Object.values(q.se));
         if (!Object.keys(q.se).length) q.speechEnd = null;
         q.lastAnsMs = null;
@@ -282,6 +317,7 @@
         }
         renderAnswer(mode);
         renderMetric(mode);
+        renderResults(mode);
         recordTurn(q, mode);
         settlePipe(q);
         if (mode === "headstart" || !run.modes.includes("headstart")) pipe("answer", `ready ${fmtS(readyAdj(q, mode))} after you stopped`);
@@ -428,12 +464,15 @@
       p.classList.remove("winner");
       for (const k of ["answer", "stats", "sources", "path", "delta"]) { const n = p.querySelector(`[data-k="${k}"]`); n.innerHTML = ""; n.className = n.className.replace(/ ?(p-\S+|slow|err)/g, ""); }
       p.querySelector('[data-k="delta"]').className = "delta";
+      for (const k of ["rq", "res"]) { const n = p.querySelector(`[data-k="${k}"]`); n.innerHTML = ""; n._sig = null; n._h = null; }
       p.querySelector('[data-k="big"]').textContent = "—";
       p.querySelector('[data-k="big"]').className = "big";
       p.querySelector('[data-k="sub"]').textContent = run && !run.modes.includes(m) ? "not in this run" : "after you stopped talking";
     }
     $("#tlBody").innerHTML = "";
     tlNodes.clear();
+    deltaSig = null;
+    if (run) for (const m of ["headstart", "baseline"]) renderResults(m);
   }
 
   function renderWords(q) {
@@ -560,6 +599,7 @@
     const txt = q.answer[mode] || "";
     if (q.error[mode] && !txt) { box.className = "answer err"; box.textContent = "Answer failed: " + q.error[mode]; return; }
     box.className = "answer";
+    box.title = viewSel === "results" ? txt.replace(/\s*\[\d+(?:\s*[,–-]\s*\d+)*\]/g, "") : "";
     const fb = q.metric[mode] && q.metric[mode].answer_fallback;
     const n = (q.sources[mode] || []).length;
     let html = esc(txt).replace(/\[(\d+(?:\s*[,–-]\s*\d+)*)\]/g, (_, grp) =>
@@ -601,10 +641,6 @@
 
   function renderMetric(mode) {
     const q = run.q, m = q.metric[mode];
-    const big = pk(mode, "big");
-    big.textContent = fmtS(readyAdj(q, mode));
-    big.className = "big final";
-    if (readyAdj(q, mode) < 0) pk(mode, "sub").textContent = "before you stopped talking";
     const path = pk(mode, "path");
     path.textContent = m.path || "";
     path.className = "path" + (m.path ? " p-" + m.path : "");
@@ -621,25 +657,6 @@
     box.innerHTML = st.map((s) => `<span>${s}</span>`).join("");
     box.title = `spec fires ${m.spec_fires ?? 0} · fed the answer ${m.spec_used ?? 0} · stale/cancelled ${m.stale ?? 0} · drafts ${m.drafts ?? 0}${m.draft_reused ? " (one reused)" : ""} · web calls ${m.web_calls ?? 0} · sources ${fmtS(m.sources_ms)} · done ${fmtS(m.done_ms)} · endpoint lag ${m.endpoint_lag_ms ?? "—"} ms (all after you stopped talking)`;
     if (m.error && !q.answer[mode]) { q.error[mode] = m.error; renderAnswer(mode); }
-    // delta when both modes have finished
-    const hs = q.metric.headstart, bl = q.metric.baseline;
-    if (hs && bl) {
-      for (const o of ["headstart", "baseline"]) { if (o !== mode) { pk(o, "big").textContent = fmtS(readyAdj(q, o)); } }
-      const d = readyAdj(q, "baseline") - readyAdj(q, "headstart");
-      const dh = pk("headstart", "delta"), db = pk("baseline", "delta");
-      const [win, lose] = d >= 0 ? [dh, db] : [db, dh];
-      const ad = Math.abs(d), ratio = Math.max(readyAdj(q, "baseline"), readyAdj(q, "headstart")) / Math.max(1, Math.min(readyAdj(q, "baseline"), readyAdj(q, "headstart")));
-      if (ad < 100) {
-        dh.innerHTML = db.innerHTML = `<span class="dl">dead heat (${Math.round(ad)} ms)</span>`;
-        dh.className = db.className = "delta slow";
-        return;
-      }
-      win.innerHTML = `<span class="dv">${fmtS(ad)}</span><span class="dl">faster${isFinite(ratio) && ratio >= 1.15 && Math.min(readyAdj(q, "baseline"), readyAdj(q, "headstart")) > 100 ? ` · ${ratio.toFixed(1)}× sooner` : ""}</span>`;
-      win.className = "delta hero";
-      lose.innerHTML = `<span class="dl">${fmtS(ad)} behind</span>`;
-      lose.className = "delta slow";
-      pane(d >= 0 ? "headstart" : "baseline").classList.add("winner");
-    }
   }
 
   // ready time measured from when the speaker really stopped (the latest last-word end any mode saw). Each session's
@@ -651,18 +668,89 @@
     return se + met.ready_ms - (q.speechEnd ?? se);
   }
 
-  // live stopwatch tick: counts from "you stopped talking" until the first answer token
+  // results view: when were results for the FINAL meaning first on screen? The earliest landed search (not stale) whose
+  // query is the endpoint frame's query, or the final ranked list. For Head Start this is often before the endpoint.
+  function resultsAt(q, m) {
+    const fq = q.epQuery[m];
+    if (fq == null) return null;
+    let best = q.sourcesMs[m] ?? Infinity;
+    for (const f of q.fires.values()) {
+      if (f.mode !== m || f.lane === "draft" || f.t1 == null || !(f.docs && f.docs.length)) continue;
+      if (f.state === "stale" || f.state === "cancelled" || f.state === "error") continue;
+      if (f.query === fq) best = Math.min(best, f.t1);
+    }
+    return isFinite(best) ? best : null;
+  }
+  // the stopwatch's final value for the current view (null while still running)
+  function finalVal(q, m) {
+    if (viewSel === "results") { const at = resultsAt(q, m); return at == null || q.speechEnd == null ? null : at - q.speechEnd; }
+    return q.metric[m] ? readyAdj(q, m) : null;
+  }
+
+  // every frame: stopwatches (running from "you stopped talking", frozen at the view's finish line) and the delta
+  let deltaSig = null;
   function tickWatches() {
     if (!run) return;
-    const q = run.q;
+    const q = run.q, res = viewSel === "results";
     for (const m of run.modes) {
-      if (q.metric[m]) continue;
-      const big = pk(m, "big");
-      if (q.se[m] == null || q.speechEnd == null) continue;
-      const end = q.firstMs[m] != null ? q.firstMs[m] : serverNow();
-      big.textContent = fmtS(end - q.speechEnd);
-      big.className = "big running";
+      const big = pk(m, "big"), sub = pk(m, "sub");
+      const v = finalVal(q, m);
+      let txt, cls, st;
+      if (v != null) {
+        txt = fmtS(v); cls = "big final";
+        st = v < 0 ? (res ? "results ready before you finished" : "before you stopped talking") : (res ? "first results after you stopped" : "after you stopped talking");
+      } else if (q.se[m] != null && q.speechEnd != null) {
+        const end = !res && q.firstMs[m] != null ? q.firstMs[m] : serverNow();
+        txt = run.running || (!res && q.firstMs[m] != null) ? fmtS(end - q.speechEnd) : "—";
+        cls = "big running";
+        st = res ? "first results after you stopped" : "after you stopped talking";
+      } else { txt = run.running ? "…" : "—"; cls = "big"; st = res ? "first results after you stopped" : "after you stopped talking"; }
+      if (big.textContent !== txt) big.textContent = txt;
+      if (big.className !== cls) big.className = cls;
+      if (sub.textContent !== st && !sub.textContent.startsWith("not in")) sub.textContent = st;
     }
+    renderDelta(q);
+  }
+  function renderDelta(q) {
+    const a = run.modes.includes("headstart") ? finalVal(q, "headstart") : null, b = run.modes.includes("baseline") ? finalVal(q, "baseline") : null;
+    const sig = `${viewSel}|${a}|${b}`;
+    if (sig === deltaSig) return;
+    deltaSig = sig;
+    // the delta changes the panes' layout: let the results lists re-fit after this frame
+    requestAnimationFrame(() => { for (const m of ["headstart", "baseline"]) renderResults(m); });
+    const dh = pk("headstart", "delta"), db = pk("baseline", "delta");
+    pane("headstart").classList.remove("winner"); pane("baseline").classList.remove("winner");
+    if (a == null || b == null) { dh.innerHTML = db.innerHTML = ""; dh.className = db.className = "delta"; return; }
+    const d = b - a, ad = Math.abs(d);
+    if (ad < 100) {
+      dh.innerHTML = db.innerHTML = `<span class="dl">dead heat (${Math.round(ad)} ms)</span>`;
+      dh.className = db.className = "delta slow";
+      return;
+    }
+    const [win, lose] = d >= 0 ? [dh, db] : [db, dh];
+    const lo = Math.min(a, b), hi = Math.max(a, b), ratio = hi / Math.max(1, lo);
+    const what = viewSel === "results" ? "results sooner" : "faster";
+    win.innerHTML = `<span class="dv">${fmtS(ad)}</span><span class="dl">${what}${lo > 100 && isFinite(ratio) && ratio >= 1.15 ? ` · ${ratio.toFixed(1)}×` : ""}</span>`;
+    win.className = "delta hero";
+    lose.innerHTML = `<span class="dl">${fmtS(ad)} behind</span>`;
+    lose.className = "delta slow";
+    pane(d >= 0 ? "headstart" : "baseline").classList.add("winner");
+  }
+
+  // live results list per pane (shared logic with film mode: web/results.js)
+  function renderResults(mode) {
+    if (!run) return;
+    const q = run.q, res = viewSel === "results";
+    const rq = pk(mode, "rq"), box = pk(mode, "res");
+    if (!run.modes.includes(mode)) { rq.innerHTML = ""; box.innerHTML = ""; return; }
+    const v = HSResults.view({ fires: Array.from(q.fires.values()).filter((f) => f.mode === mode), sourcesMs: q.sourcesMs[mode],
+      sources: q.sources[mode], query: q.epQuery[mode] || (q.frame && q.frame.query) || "" });
+    const head = HSResults.head(v, { mode, answered: !!q.answer[mode] && !res, endpointed: q.endpointMs[mode] != null });
+    if (rq._h !== head) { rq.innerHTML = head; rq._h = head; }
+    rq.className = "rq k-" + v.kind;
+    box.className = "res k-" + v.kind;
+    HSResults.flip(box, v.docs, { cls: "rr", px: res ? 12.5 : 12, numbered: v.kind === "final", dates: true, links: true,
+      snipLines: res ? 2 : 1, snipChars: 230, titleMax: 90, max: 10 });
   }
 
   // cite hover / click -> source card
@@ -670,14 +758,14 @@
     const c = e.target.closest(".cite");
     const p = e.target.closest(".pane");
     if (!p) return;
-    p.querySelectorAll(".src.hl").forEach((n) => n.classList.remove("hl"));
-    if (c) p.querySelector(`.src[data-n="${c.dataset.n}"]`)?.classList.add("hl");
+    p.querySelectorAll(".src.hl, .rr.hl").forEach((n) => n.classList.remove("hl"));
+    if (c) p.querySelector(`.res.k-final .rr[data-n="${c.dataset.n}"]`)?.classList.add("hl");
   });
   $("#answers").addEventListener("click", (e) => {
     const c = e.target.closest(".cite");
     if (!c) return;
-    const src = c.closest(".pane").querySelector(`.src[data-n="${c.dataset.n}"]`);
-    if (src && src.href) window.open(src.href, "_blank", "noopener");
+    const a = c.closest(".pane").querySelector(`.res.k-final .rr[data-n="${c.dataset.n}"] a`);
+    if (a && a.href) window.open(a.href, "_blank", "noopener");
   });
 
   // ------------------------------------------------------------------ timeline
@@ -950,7 +1038,7 @@
     };
     requestAnimationFrame(step);
   }
-  addEventListener("resize", () => { if (run) loop(); });
+  addEventListener("resize", () => { if (run) { loop(); for (const m of ["headstart", "baseline"]) renderResults(m); } });
 
   // ------------------------------------------------------------------ replay
   let questions = [], lastReplay = null;

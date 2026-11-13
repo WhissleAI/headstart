@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=10">
-<link rel="stylesheet" href="film.css?v=3">
+<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="film.css?v=4">
 </head>
 <body>
 <header class="top">
@@ -34,6 +34,10 @@
       <button data-mode="race" class="on" role="radio" aria-checked="true">Race</button>
       <button data-mode="headstart" role="radio" aria-checked="false">Head Start</button>
       <button data-mode="baseline" role="radio" aria-checked="false">Baseline</button>
+    </div>
+    <div class="seg view-seg" id="viewSeg" role="radiogroup" aria-label="View" title="Answer: the spoken answer races. Results: the search results race (general web search).">
+      <button data-view="answer" class="on" role="radio" aria-checked="true">Answer</button>
+      <button data-view="results" role="radio" aria-checked="false">Results</button>
     </div>
     <button id="micBtn" class="mic" title="Ask out loud (Space)">
       <span class="mic-ring" id="micRing"></span>
@@ -92,6 +96,39 @@
       </div>
     </section>
 
+    <section class="answers" id="answers">
+      <div class="card pane" id="pane-headstart" data-mode="headstart">
+        <div class="pane-head">
+          <h2><i class="dot hs"></i>Head Start</h2>
+          <span class="path" data-k="path"></span>
+        </div>
+        <div class="watch">
+          <div class="clock"><div class="big" data-k="big">—</div><div class="watch-sub" data-k="sub">after you stopped talking</div></div>
+          <div class="delta" data-k="delta"></div>
+        </div>
+        <div class="answer" data-k="answer"></div>
+        <div class="rq" data-k="rq"></div>
+        <div class="res" data-k="res"></div>
+        <div class="stats" data-k="stats"></div>
+        <div class="sources" data-k="sources"></div>
+      </div>
+      <div class="card pane" id="pane-baseline" data-mode="baseline">
+        <div class="pane-head">
+          <h2><i class="dot bl"></i>Baseline <span class="sub">wait, then search</span></h2>
+          <span class="path" data-k="path"></span>
+        </div>
+        <div class="watch">
+          <div class="clock"><div class="big" data-k="big">—</div><div class="watch-sub" data-k="sub">after you stopped talking</div></div>
+          <div class="delta" data-k="delta"></div>
+        </div>
+        <div class="answer" data-k="answer"></div>
+        <div class="rq" data-k="rq"></div>
+        <div class="res" data-k="res"></div>
+        <div class="stats" data-k="stats"></div>
+        <div class="sources" data-k="sources"></div>
+      </div>
+    </section>
+
     <section class="card tl-card">
       <div class="card-head">
         <h2>Speculation timeline <span class="sub">ms since audio start</span></h2>
@@ -107,34 +144,6 @@
       </div>
     </section>
 
-    <section class="answers" id="answers">
-      <div class="card pane" id="pane-headstart" data-mode="headstart">
-        <div class="pane-head">
-          <h2><i class="dot hs"></i>Head Start</h2>
-          <span class="path" data-k="path"></span>
-        </div>
-        <div class="watch">
-          <div class="clock"><div class="big" data-k="big">—</div><div class="watch-sub" data-k="sub">after you stopped talking</div></div>
-          <div class="delta" data-k="delta"></div>
-        </div>
-        <div class="answer" data-k="answer"></div>
-        <div class="stats" data-k="stats"></div>
-        <div class="sources" data-k="sources"></div>
-      </div>
-      <div class="card pane" id="pane-baseline" data-mode="baseline">
-        <div class="pane-head">
-          <h2><i class="dot bl"></i>Baseline <span class="sub">wait, then search</span></h2>
-          <span class="path" data-k="path"></span>
-        </div>
-        <div class="watch">
-          <div class="clock"><div class="big" data-k="big">—</div><div class="watch-sub" data-k="sub">after you stopped talking</div></div>
-          <div class="delta" data-k="delta"></div>
-        </div>
-        <div class="answer" data-k="answer"></div>
-        <div class="stats" data-k="stats"></div>
-        <div class="sources" data-k="sources"></div>
-      </div>
-    </section>
 
     <section class="card results" id="results">
       <div class="card-head">
@@ -146,7 +155,8 @@
   </main>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="film.js?v=3"></script>
-<script src="app.js?v=10"></script>
+<script src="results.js?v=11"></script>
+<script src="film.js?v=4"></script>
+<script src="app.js?v=14"></script>
 </body>
 </html>
