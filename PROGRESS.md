@@ -41,6 +41,15 @@ Chart: runs/ab_latest.png. Remaining slow cases: API TTFT outliers (q26 1.3 s) �
 - Filler words in queries ("wondering") → stopwords extended. Final arriving while busy → queued.
 - Audio lane hogged the GPU queue → only for local-routed questions, ≥1.8 s of speech.
 
+## Conversation memory (17:45) — eval/run_conv.py, 6 two-turn spoken conversations, follow-up uses a pronoun
+- Follow-up "it/its/they/there" → the previous question's thing; "he/she" → a person, usually named only in the
+  previous ANSWER (tagged with a second Arc Tagger handle). Query, ranking text and answer prompt use the resolved
+  question; the previous turn's docs (already embedded) seed the next speculator.
+- With memory, HS follow-ups: 4/5 scored correct and grounded (queries "nvidia founded", "albert einstein born"),
+  ready 0.82–1.34 s; baseline 1.15–3.0 s. Without memory the searches are bare ("founded", "museum") and the
+  model falls back to unsourced knowledge ("the sources don't say...") at 1.4–1.7 s.
+- conv03 failed in both: Arc heard turn 1 as "Coron pride and prejudice" (ASR, not memory).
+
 ## Verified end to end (17:40)
 - Live server, Race mode, WS replay: q01 HS 1139 vs BL 1755 ms; q27 (correction) 1110 vs 1409.
 - Mic path (server side; Float32 frames over /ws, 3 questions in one session): 1021/457/626 vs 1361/1114/1259 ms.
