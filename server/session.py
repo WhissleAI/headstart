@@ -76,6 +76,7 @@ class Session:
         self.ledger = lanes.Ledger()         # Tavily credits + response cache, across this session's questions
         self.closed = False
         self._audio_end = 0.0
+        self.arc: dict | None = None           # latest Arc audio metadata (ARC_META, cloud ears): for-me, cc, role, ...
         self._new_question()
 
     def set_t0(self, t0: float):
@@ -103,6 +104,7 @@ class Session:
         self.spec.context = self.context
         self.soft = None
         self.final_task = None
+        self.eager_wait: dict | None = None          # FLUX_SOFT=eager+arc: an eager end-of-turn waiting for Arc's cc
         self.words_changed_at = time.perf_counter()
 
     @property
@@ -215,7 +217,7 @@ class Session:
                        "from": k, "ms": self.spec.ms()})
             self.emit({"t": "frame", **f.to_json(), "spans": [
                 {"type": s["type"], "start": s["start"], "end": s["end"], "text": s["text"]} for s in self.spans],
-                "ms": self.spec.ms()})
+                "arc": self.arc, "ms": self.spec.ms()})
         self.frame = f
         self.spec.on_frame(f, now)
         wall = time.perf_counter()
@@ -260,11 +262,40 @@ class Session:
         self.final_task = asyncio.create_task(self._soft_answer(self.spec, self.soft, f, extended=prev is not None))
         return True
 
+    def on_meta(self, m: dict):
+        """Arc audio metadata from the ear (server/arcmeta.py). Shown in the read-out; never raises. With
+        FLUX_SOFT=eager+arc it can also release an eager end-of-turn that was waiting for Arc's command_complete."""
+        if self.closed:
+            return
+        self.arc = m
+        self.emit({"t": "arc", **m, "ms": self.spec.ms()})
+        w = self.eager_wait
+        if w is not None and self.words == w["words"] and self._arc_cc_since(w["end"]):
+            self.eager_wait = None
+            try:
+                f = self.frame or self._build()
+                if self._soft(w["ws"], f, by="eager+arc"):
+                    return
+            except Exception as e:
+                self.emit({"t": "error", "where": "on_meta", "error": f"{type(e).__name__}: {e}"[:300]})
+
+    def _arc_cc_since(self, word_end: float) -> bool:
+        """Arc's command_complete event fired near the newest word (eval/flux_gate_eval.py: within 0.6 s)."""
+        ev = (self.arc or {}).get("cc_events") or []
+        return any(e.get("t") is not None and e["t"] >= word_end - config.ARC_CC_WINDOW_S for e in ev)
+
     def on_eager(self, ws: list[dict], now: float | None = None):
         """The ear's own early end-of-turn (Flux EagerEndOfTurn: Flux's turn model is moderately confident the
         speaker is done; the EndOfTurn that follows carries the same words unless a TurnResumed comes first).
-        config.FLUX_SOFT: eager = soft answer now; eager+gate = only if our tagger gate agrees; off = ignore."""
-        if self.closed or not self.semantic or config.FLUX_SOFT == "off":
+        config.FLUX_SOFT (measured by eval/flux_gate_eval.py on real Flux traces):
+          eager       soft answer now (lowest latency; ~26 premature soft answers / 100 questions, mostly
+                      self-corrections "X, sorry, I mean Y" and trailing qualifiers)
+          eager+arc   now if Arc's command_complete already fired near the last word, else as soon as it does while
+                      the words hold (+18 ms p50, premature halved)
+          eager+gate  only if our tagger gate agrees (+140 ms p50, premature / 3)
+          off         ignore eager events"""
+        mode = config.FLUX_SOFT
+        if self.closed or not self.semantic or mode == "off":
             return
         try:
             ws = self._fresh(ws)
@@ -274,10 +305,18 @@ class Session:
             f = self.frame or self._build()
             if self.soft is not None and self.soft["sig"] == meaning(f):
                 return                                 # the tagger gate already answered exactly this
-            if f.n < 1 or self._quiet() or (config.FLUX_SOFT == "eager+gate" and not gate_open(f, self.cc_at, self.spans)):
+            end = ws[-1].get("end") or 0.0
+            ok = f.n >= 1 and not self._quiet()
+            if ok and mode == "eager+gate":
+                ok = gate_open(f, self.cc_at, self.spans)
+            elif ok and mode == "eager+arc" and not self._arc_cc_since(end):
+                self.eager_wait = {"words": list(self.words), "ws": ws, "end": end}
+                self.emit({"t": "eager_skip", "ms": self.spec.ms(), "words": list(self.words), "waiting": "arc"})
+                return
+            if not ok:
                 self.emit({"t": "eager_skip", "ms": self.spec.ms(), "words": list(self.words)})
                 return
-            self._soft(ws, f, by="eager")
+            self._soft(ws, f, by="eager+arc" if mode == "eager+arc" else "eager")
         except Exception as e:
             self.emit({"t": "error", "where": "on_eager", "error": f"{type(e).__name__}: {e}"[:300]})
 

@@ -104,6 +104,7 @@ def flux_env(monkeypatch):
     monkeypatch.setattr(config, "DG_FLUSH_TIMEOUT_S", 0.5)
     monkeypatch.setattr(config, "FLUX_SOFT", "eager")
     monkeypatch.setattr(config, "SEMANTIC_ENDPOINT", True)
+    monkeypatch.setattr(config, "ARC_META", "off")             # no torch in these tests (test_arc_meta_* fake it)
     yield
 
 
@@ -325,3 +326,119 @@ def test_factory_and_health_flux(monkeypatch):
     assert isinstance(e1, FakeArcEar) and "DEEPGRAM_API_KEY" in ev[0]["text"] and h1["ear"] == "arc"
     assert isinstance(e2, ear.FluxEar) and h2["ear"] == "flux" and h2["deepgram_model"] == "flux-general-en"
     assert h2["flux"]["eot_threshold"] == config.FLUX_EOT
+
+
+class FakeArcStream:
+    """Arc external-mode stream stand-in: records words/audio; reports a live utterance once words arrived."""
+    def __init__(self, **kw):
+        self.kw, self.words, self.samples = kw, [], 0
+
+    def add_words(self, ev):
+        self.words.append(ev)
+
+    def feed(self, pcm):
+        self.samples += len(pcm)
+        if not self.words:
+            return {"live": {"t": self.samples / SR - 0.3, "utt": None}}
+        out = {"live": {"t": round(self.samples / SR - 0.3, 1), "utt": {
+            "device_directed": 0.97, "command_complete": 0.6 if self.words[-1][-1]["is_final"] else 0.1,
+            "act": [{"label": "discourse.act.question", "p": 0.9}], "intent": []},
+            "speaker": {"id": "S1", "role": [{"label": "speaker.role.device_user", "p": 1.0}]}}}
+        if self.samples == 25 * 1600:
+            out["events"] = [{"tag": "discourse.assistant.command_complete", "t": 1.9, "p": 0.4}]
+        return out
+
+    def flush(self):
+        return {"live": {"t": self.samples / SR, "utt": None}}
+
+
+class FakeArc:
+    def __init__(self):
+        self.streams = []
+
+    def stream(self, **kw):
+        self.streams.append(FakeArcStream(**kw))
+        return self.streams[-1]
+
+
+def test_arc_meta_rides_along_and_reaches_the_readout(monkeypatch):
+    fa = FakeArc()
+    e_off = []
+    monkeypatch.setattr(config, "ARC_META", "mini")
+    monkeypatch.setattr(ear, "arc", lambda: fa)
+    no_tagger_gate(monkeypatch)
+
+    async def go():
+        async with FakeFlux(NVIDIA) as srv:
+            ev_hs, ear_ev = [], []
+            hs = Session(ev_hs.append, mode="headstart")
+            e = flux_for(srv, [hs], ear_ev)
+            await feed_audio(e, 3.2, pace=0.01)
+            e_off.append(e.meta.offset)
+            await e.flush()
+            e.close()
+            await asyncio.sleep(0.2)
+            hs.close()
+            return ev_hs
+
+    ev_hs = asyncio.run(go())
+    (st,) = fa.streams
+    # external mode, words only from Flux, and never Arc's own decoder fallback
+    assert st.kw["transcript"] == "external" and st.kw["fallback"] is None and st.kw["partials"] is False
+    assert st.samples + round(e_off[0] * SR) == int(3.2 * SR)        # joined at its offset, then every chunk
+    w = st.words[-1][-1]                                               # Arc's own clock starts at its offset
+    assert w["text"] == "Nvidia?" and w["is_final"] and w["start"] == pytest.approx(1.45 - e_off[0])
+    arc_ev = [x for x in ev_hs if x["t"] == "arc"]
+    assert arc_ev and arc_ev[-1]["for_me"] == 0.97 and arc_ev[-1]["role"] == "speaker.role.device_user"
+    assert any(x["cc_events"] for x in arc_ev) and any(x["cc_p"] == 0.6 for x in arc_ev)
+    assert any(x["t"] == "frame" and (x.get("arc") or {}).get("for_me") == 0.97 for x in ev_hs)
+    assert len([x for x in ev_hs if x["t"] == "endpoint"]) == 1      # metadata never changes the answer path
+
+
+def test_arc_meta_failure_never_touches_words(monkeypatch):
+    class Boom(FakeArc):
+        def stream(self, **kw):
+            s = super().stream(**kw)
+            s.feed = lambda pcm: 1 / 0
+            return s
+    monkeypatch.setattr(config, "ARC_META", "mini")
+    monkeypatch.setattr(ear, "arc", lambda: Boom())
+
+    async def go():
+        async with FakeFlux(NVIDIA) as srv:
+            rec, ev = EagerRecorder(), []
+            e = flux_for(srv, [rec], ev)
+            await feed_audio(e, 3.0)
+            await e.flush()
+            e.close()
+            return rec
+    rec = asyncio.run(go())
+    assert [w["text"] for w in rec.finals[0]][-1] == "nvidia"
+
+
+def test_eager_waits_for_arc_command_complete(monkeypatch):
+    """FLUX_SOFT=eager+arc: the eager at 2.1 s waits; Arc's command_complete (t=1.9, said at 2.5 s) releases it."""
+    fa = FakeArc()
+    monkeypatch.setattr(config, "ARC_META", "mini")
+    monkeypatch.setattr(config, "FLUX_SOFT", "eager+arc")
+    monkeypatch.setattr(ear, "arc", lambda: fa)
+    no_tagger_gate(monkeypatch)
+
+    async def go():
+        async with FakeFlux(NVIDIA[:-2]) as srv:          # no EndOfTurn: only the eager + Arc can answer early
+            ev = []
+            hs = Session(ev.append, mode="headstart")
+            e = flux_for(srv, [hs], [])
+            await feed_audio(e, 2.4, pace=0.01)
+            await asyncio.sleep(0.1)
+            before = [x for x in ev if x["t"] == "endpoint"]
+            await feed_audio(e, 0.4, pace=0.01)
+            await asyncio.sleep(0.2)
+            e.close()
+            hs.close()
+            return before, ev
+
+    before, ev = asyncio.run(go())
+    assert not before and any(x["t"] == "eager_skip" and x.get("waiting") == "arc" for x in ev)
+    eps = [x for x in ev if x["t"] == "endpoint"]
+    assert len(eps) == 1 and eps[0]["trigger"] == "eager+arc"
