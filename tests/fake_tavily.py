@@ -69,6 +69,12 @@ class FakeTavily:
             return "max_age_hours must be -1..720"
         if body.get("include_answer") not in (None, False, True, "basic", "advanced"):
             return "invalid include_answer"
+        if "include_domains_mode" in body and not body.get("include_domains"):
+            return "include_domains_mode requires include_domains"
+        if body.get("include_domains_mode") not in (None, "prefer", "restrict"):
+            return "invalid include_domains_mode"
+        if len(body.get("include_domains") or []) > 300:
+            return "include_domains: max 300"
         return None
 
     def delay_s(self, body: dict) -> float:

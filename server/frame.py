@@ -50,6 +50,10 @@ LOCAL_CUES = ["in the game", "the announcer", "the commentator", "in the clip", 
               "the panel", "the teacher", "in the commentary", "on the podcast", "in the broadcast", "the lawyer",
               "the attorney", "the witness", "in the debate", "the commentators", "the host"]
 NEWS_INTENTS = {"discourse.intent.news_query"}
+# words after "actually" that continue the question instead of replacing a word ("what does the word ubiquitous
+# actually mean exactly": "ubiquitous" was corrected away and the web query became "word mean exactly")
+NOT_REPLACEMENT = {"mean", "means", "meant", "exactly", "work", "works", "is", "do", "does", "worth", "cost", "costs",
+                   "happen", "happened", "happening", "go", "goes", "say", "says"}
 
 PRONOUNS = {"it", "its", "it's", "he", "she", "his", "her", "him", "they", "them", "their", "there", "that", "this",
             "those", "these"}
@@ -367,7 +371,7 @@ def build(words: list[str], spans: list[dict], current: dict | None, events_seen
             # the marker as replacing the content word right before it.
             after = [i for i in range(cut, len(toks)) if toks[i] and toks[i] not in STOP]
             before = [i for i in range(0, cut) if toks[i] and toks[i] not in STOP and i not in drop_tok]
-            if after and before:
+            if after and before and not all(toks[i] in NOT_REPLACEMENT for i in after):
                 # drop the before-token(s) that the after-phrase repeats around (e.g. "game")
                 rep = {toks[i] for i in after}
                 for i in reversed(before):

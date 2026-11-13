@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from . import answer, config, embed, lanes, rerank
+from . import answer, config, embed, lanes, narrow, rerank
 from .frame import NEWS_INTENTS, Frame
 
 _ids = itertools.count(1)
@@ -144,14 +144,21 @@ class Speculator:
         if not m:
             return {}
         return {k: m[k] for k in ("backend", "depth", "topic", "time_range", "credits", "cached", "fallback", "replayed",
-                                  "cache_match", "cache_miss") if k in m}
+                                  "cache_match", "cache_miss", "narrow") if k in m}
 
     def _web(self, q: str, f: Frame, final: bool):
         """(coroutine factory, meter) for one web-lane call of this question."""
         meter: dict = {}
-        hints = f.web_hints()
+        hints = dict(f.web_hints())
         topic = "news" if f.intent in NEWS_INTENTS else "general"
         ent = f.entity_query() if q == f.query() else ""
+        if config.WEB_BACKEND == "tavily":
+            # Arc read-out narrowing (server/narrow.py): query shaped from the slots, sources for the question's family
+            q = narrow.shape_query(f, q)
+            doms, mode = narrow.domains(f)
+            if doms:
+                hints["include_domains"], hints["domains_mode"] = doms, mode
+                meter["narrow"] = narrow.family(f)
         return (lambda: lanes.web(q, topic=topic, intent=f.intent, text=f.resolved_text, final=final,
                                   ledger=self.ledger, meter=meter, entity=ent, hints=hints)), meter
 
@@ -308,7 +315,7 @@ class Speculator:
         if not q:
             return
         if (f.route in ("web", "both") and ("web", q) not in self.fired_queries and self.web_used < config.WEB_BUDGET
-                and self._web_affordable()):
+                and narrow.specific(f) and self._web_affordable()):
             self.web_used += 1
             self._fire("web", q, f, *self._web(q, f, final=False))
         if (f.route in ("local", "both") and len(lanes.index()) and ("local", q) not in self.fired_queries
