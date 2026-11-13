@@ -4,6 +4,7 @@
   .venv/bin/python eval/run_ab.py --limit 4
   .venv/bin/python eval/run_ab.py --ids q01,q26 --modes headstart
   .venv/bin/python eval/run_ab.py --kinds correction,filler --out runs/ab_corrections.json
+  .venv/bin/python eval/run_ab.py --questions eval/showcase/questions.jsonl --no-latest --out runs/ab_showcase.json
   .venv/bin/python eval/run_ab.py --plot-only            # re-render runs/ab_latest.png from runs/ab_latest.json
   .venv/bin/python eval/run_ab.py --plot-only --from runs/ab_full2.json   # ... from another run (copies it to latest)
   .venv/bin/python eval/run_ab.py --audio-dir eval/audio_noisy/snr20 --out runs/ab_snr20.json   # robustness variant
@@ -51,9 +52,12 @@ PAUSE_BETWEEN_S = 0.8      # let cancelled drafts / fires settle between runs
 
 
 # ---------------------------------------------------------------------------------------------------- questions
-def load_questions(include_local: bool = True) -> list[dict]:
+def load_questions(include_local: bool = True, path: Path | None = None) -> list[dict]:
+    """Default set: eval/questions.jsonl (+ index/questions_local.jsonl). With `path`: only that file."""
     rows = []
-    for p in [ROOT / "eval" / "questions.jsonl"] + ([ROOT / "index" / "questions_local.jsonl"] if include_local else []):
+    files = [path] if path else [ROOT / "eval" / "questions.jsonl"] + (
+        [ROOT / "index" / "questions_local.jsonl"] if include_local else [])
+    for p in files:
         if not p.exists():
             continue
         for line in p.read_text().splitlines():
@@ -462,7 +466,7 @@ def print_row(r):
 async def main_async(a) -> int:
     from server import answer, config, ear, embed, lanes
 
-    qs = load_questions(include_local=not a.no_local)
+    qs = load_questions(include_local=not a.no_local, path=a.questions)
     if a.ids:
         want = a.ids.split(",")
         qs = [q for q in qs if q["id"] in want]
@@ -548,6 +552,8 @@ def main():
     ap.add_argument("--modes", default="baseline,headstart")
     ap.add_argument("--out", default="")
     ap.add_argument("--no-local", action="store_true", help="ignore index/questions_local.jsonl")
+    ap.add_argument("--questions", default="", help="question set jsonl to run instead of the default set "
+                    "(e.g. eval/showcase/questions.jsonl); audio is still read from --audio-dir / eval/audio")
     ap.add_argument("--no-warm-run", action="store_true", help="skip the throwaway warm-up replay")
     ap.add_argument("--no-semantic", action="store_true",
                     help="SEMANTIC_ENDPOINT=0: Head Start endpoints on Arc's pause like baseline")
@@ -560,6 +566,9 @@ def main():
     ap.add_argument("--wait-lock", type=float, default=0, help="seconds to wait for another holder of the lock")
     ap.add_argument("--owner", default=os.environ.get("RUN_AB_OWNER", ""), help="name written into the lock file")
     a = ap.parse_args()
+    a.questions = Path(a.questions).resolve() if a.questions else None
+    if a.questions and not a.questions.exists():
+        raise SystemExit(f"no such questions file: {a.questions}")
     if a.plot_only:
         src = Path(a.from_) if a.from_ else RUNS / "ab_latest.json"
         res = json.loads(src.read_text())
