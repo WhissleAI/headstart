@@ -380,13 +380,23 @@ class Session:
             arc_cc_p=a.get("cc_p"), arc_cc_recent=self._arc_cc_since(end), arc_for_me=a.get("for_me"),
             is_eager=self.turn_ev == "EagerEndOfTurn", last_conf=confs[-1] if confs else None)
 
-    def on_turn_tick(self, ev: str):
+    def on_turn_tick(self, ev: str, ws: list[dict] | None = None):
         """After each Flux TurnInfo (its words already synced): age the revision history and, with FLUX_SOFT=fused,
         answer (soft) when the fused end-of-turn score clears the fitted threshold (eval/fit_confidence.py: one
         threshold on EagerEndOfTurn, a higher one on plain updates). Never raises."""
         if self.closed or ev == "EndOfTurn" or not self.words:
             return
         try:
+            if ws:
+                # Flux re-sends the whole turn every update: same text, but fresher word timings and confidences
+                # (the ear only forwards a partial when the TEXT changed). The end-of-turn features need both: the
+                # pause since the last word and the last word's confidence (measured: stale values delayed the fused
+                # endpoint by ~80 ms p50 in the Flux-trace replay)
+                ws = self._fresh(ws)
+                if ws and [clean(w["text"]) for w in ws if clean(w["text"])] == self.words:
+                    self.last_ws = ws
+                    self.times = [(w.get("start"), w.get("end")) for w in ws if clean(w["text"])]
+                    self.confs = [w.get("conf") for w in ws if clean(w["text"])]
             if not self._tick_synced:
                 self.track.update(self.words)
                 self._confs()

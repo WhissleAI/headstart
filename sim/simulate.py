@@ -344,7 +344,7 @@ def main():
     if a.prefetch:
         if a.flux:
             from sim import flux_traces
-            extra = [dict(FLUX_SOFT=fs, SPEC_CONF=sc) for fs in ("eager", "fused", "off") for sc in ("0", "1")]
+            extra = [dict(FLUX_SOFT=fs, SPEC_CONF=sc) for fs in ("eager", "fused", "off") for sc in (False, True)]
             prefetch(sim, seeds=range(a.seeds), traces=flux_traces.load(), extra_cfgs=extra)
         else:
             prefetch(sim, seeds=range(a.seeds))

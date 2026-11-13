@@ -101,7 +101,7 @@ class FluxEmu:
             if key != self.key:
                 self.key = key
                 s.on_partial(list(self.interim), now)
-        s.on_turn_tick(e["ev"])
+        s.on_turn_tick(e["ev"], list(self.interim))
         if e["ev"] == "EagerEndOfTurn" and self.interim:
             s.on_eager(list(self.interim), now)
 

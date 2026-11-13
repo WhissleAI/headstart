@@ -89,7 +89,7 @@ class ArcReplay:
         """Arc Mini metadata state at each message's arrival: [(cc_p, cc_event_t or None, for_me)] by message index."""
         import soundfile as sf
         q = tr["file"]
-        x, _ = sf.read(str(ROOT / "eval" / "audio" / q), dtype="float32")
+        x, _ = sf.read(str(Path(getattr(self, "audio_dir", ROOT / "eval" / "audio")) / q), dtype="float32")
         if x.ndim > 1:
             x = x.mean(1)
         x = np.concatenate([x, np.zeros(int(1.6 * 16000), np.float32)])

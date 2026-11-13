@@ -631,7 +631,7 @@ class FluxEar(DeepgramEar):
             for s in self.sinks:                   # after the words: FLUX_SOFT=fused scores every Flux update
                 f = getattr(s, "on_turn_tick", None)
                 if f is not None:
-                    f(ev)
+                    f(ev, list(self.interim))
             if ev == "EagerEndOfTurn" and self.interim:
                 self.eager_at = self.at_s
                 now = time.perf_counter()
