@@ -140,6 +140,10 @@ Paired: median saved **381 ms**, mean 390 ms, faster on **38/48**. 83 tests pass
 | speech 0.85× (20 q) | 1559 | 1148 | 95/95 % | 5.8 % | 15/20 (486 ms) |
 - 10 dB loses the semantic endpoint (energy VAD never hears silence) → fixed 19:30: ASR word-gap silence when the room
   is noisy; chatter guard (no early answer for utterances 12 dB quieter than the last question). Not yet re-measured.
+- 10 dB re-run after the fix (runs/ab_snr10_fix.json): HS 1437 vs BL 1618 ms p50, saved 212 ms (was 173), faster
+  32/48; accuracy 72.9 / 77.1 %. Semantic endpoint still 2/48: the noise is BABBLE (other voices), Arc transcribes
+  stray words from it, so the last-word time keeps advancing and no pause is seen. Speech-vs-speech separation at
+  10 dB is out of scope; the demo uses a close mic.
 - Demo advice: close mic (headset/phone) keeps the room ≥ 20 dB; push-to-talk avoids neighbours' chatter.
 
 ## Answer quality (merged 19:20; runs/error_analysis.md)
