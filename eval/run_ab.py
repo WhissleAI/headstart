@@ -194,6 +194,8 @@ async def run_one(q: dict, mode: str) -> dict:
         or (None if ms else "no answer (no metric in session.history)"),
         "endpoint_by": m.get("endpoint_by"), "answers": len(ms),
         "web_calls": m.get("web_calls"), "spec_fires": m.get("spec_fires"), "spec_used": m.get("spec_used"),
+        "credits": m.get("credits"), "credits_spec": m.get("credits_spec"), "credits_final": m.get("credits_final"),
+        "web_cached": m.get("web_cached"), "web_backend": m.get("web_backend"), "answer_by": m.get("answer_by"),
         "stale": m.get("stale"), "drafts": m.get("drafts"), "draft_reused": m.get("draft_reused"),
         "draft_match": m.get("draft_match"), "query": m.get("query"), "intent": m.get("intent"),
         "spec_queries": spec_q, "sources": m.get("sources"),
@@ -234,6 +236,12 @@ def summarize(rows: list[dict]) -> dict:
             "accuracy": round(sum(1 for r in scored if r["correct"]) / len(scored), 3) if scored else None,
             "n_scored": len(scored),
             "mean_web_calls": round(statistics.mean([r["web_calls"] or 0 for r in rs]), 2) if rs else None,
+            # Tavily credits per question (0 on the Wikipedia lane); total = speculative + final
+            "mean_credits": round(statistics.mean([r.get("credits") or 0 for r in rs]), 2) if rs else None,
+            "mean_credits_spec": round(statistics.mean([r.get("credits_spec") or 0 for r in rs]), 2) if rs else None,
+            "mean_credits_final": round(statistics.mean([r.get("credits_final") or 0 for r in rs]), 2) if rs else None,
+            "total_credits": sum(r.get("credits") or 0 for r in rs),
+            "web_backend": dict(Counter(str(r.get("web_backend")) for r in rs)),
             "draft_reuse_rate": round(sum(1 for r in rs if r["draft_reused"]) / len(rs), 3) if rs else None,
             "errors": sum(1 for r in rs if r["error"] or r["ready_ms"] is None),
             "split_questions": sum(1 for r in rs if (r["n_finals"] or 0) > 1),
@@ -271,6 +279,10 @@ def run_config(local_docs: int) -> dict:
     except Exception:
         commit, dirty = "", None
     return {"answer_model": config.ANSWER_MODEL, "web_backend": config.WEB_BACKEND, "embed_model": config.EMBED_MODEL,
+            "tavily": ({"spec_depth": config.TAVILY_SPEC_DEPTH, "final_depth": config.TAVILY_FINAL_DEPTH,
+                        "max_results": config.TAVILY_MAX_RESULTS, "chunks": config.TAVILY_CHUNKS,
+                        "cache_scope": config.TAVILY_CACHE_SCOPE, "answer_race": config.TAVILY_ANSWER,
+                        "base_url": config.TAVILY_BASE_URL} if config.WEB_BACKEND == "tavily" else None),
             "embed_device": config.EMBED_DEVICE, "arc_dir": str(config.ARC_DIR), "arc_threads": config.ARC_THREADS,
             "local_docs": local_docs, "spec": {"min_words": config.MIN_WORDS, "stable_updates": config.STABLE_UPDATES,
                                                "web_budget": config.WEB_BUDGET, "draft_budget": config.DRAFT_BUDGET,
@@ -362,7 +374,7 @@ def plot(res: dict, path: Path) -> bool:
 def print_row(r):
     ok = {True: "ok ", False: "BAD", None: " - "}[r["correct"]]
     print(f"  {r['id']} {r['mode']:9s} ready={r['ready_ms']!s:>5}ms vad={r['ready_vad_ms']!s:>5} "
-          f"src={r['sources_ms']!s:>5} lag={r['endpoint_lag_ms']!s:>4} ep={r.get('endpoint_by') or '-':8s} n_ans={r.get('answers')} {r['path'] or '-':22s} web={r['web_calls']} "
+          f"src={r['sources_ms']!s:>5} lag={r['endpoint_lag_ms']!s:>4} ep={r.get('endpoint_by') or '-':8s} n_ans={r.get('answers')} {r['path'] or '-':22s} web={r['web_calls']} cr={r.get('credits') or 0:g} "
           f"fires={r['spec_fires']} drafts={r['drafts']} reuse={r['draft_reused']} {ok} "
           f"heard={r['arc_heard']!r} | {(r['answer'] or r['error'] or '')[:80]!r}", flush=True)
 

@@ -530,7 +530,7 @@
       st.push(`spec fires <b>${m.spec_fires ?? 0}</b>`, `fed answer <b>${m.spec_used ?? 0}</b>`, `stale <b>${m.stale ?? 0}</b>`,
         `drafts <b>${m.drafts ?? 0}</b>${m.draft_reused ? " (reused)" : ""}`);
     }
-    st.push(`web calls <b>${m.web_calls ?? 0}</b>`, `sources <b>${fmtS(m.sources_ms)}</b>`, `done <b>${fmtS(m.done_ms)}</b>`);
+    st.push(`web calls <b>${m.web_calls ?? 0}</b>` + (m.credits ? ` · <b>${m.credits}</b> cr` : ""), `sources <b>${fmtS(m.sources_ms)}</b>`, `done <b>${fmtS(m.done_ms)}</b>`);
     if (m.endpoint_lag_ms != null) st.push(`endpoint lag <b>${m.endpoint_lag_ms} ms</b>`);
     pk(mode, "stats").innerHTML = st.map((s) => `<span>${s}</span>`).join("");
     if (m.error && !q.answer[mode]) { q.error[mode] = m.error; renderAnswer(mode); }

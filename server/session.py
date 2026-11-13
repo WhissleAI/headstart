@@ -46,6 +46,7 @@ class Session:
         self.context = ""                    # last question + answer text, for the answer model
         self.ans_tagger = Tagger(domain="talk")
         self.carry_pool: dict = {}           # its documents + vectors, seeded into the next speculator
+        self.ledger = lanes.Ledger()         # Tavily credits + response cache, across this session's questions
         self._new_question()
 
     def _new_question(self):
@@ -59,7 +60,7 @@ class Session:
         self.frame = None
         self.audio: list[np.ndarray] = []
         self.q_audio_start: float | None = None      # audio time (s) of the first word of this question
-        self.spec = Speculator(self.emit, self.mode, self.t0)
+        self.spec = Speculator(self.emit, self.mode, self.t0, ledger=self.ledger)
         if getattr(self, "carry_pool", None):
             self.spec.seed(self.carry_pool)
         self.spec.context = getattr(self, "context", "")

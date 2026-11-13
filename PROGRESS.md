@@ -10,7 +10,7 @@ when the speaker stops. Built for SearchHack (Sunnyvale, Telem AI × Tavily). Ar
 | `web/` | browser UI: mic + replay, live transcript, frame card, speculation timeline, A/B race panes, results |
 | `eval/` | 42 spoken questions (`questions.jsonl`, `audio/q*.wav`, Kokoro + macOS voices), `run_ab.py` harness |
 | `index/` | local moments corpus (35 min real audio, 222 moments, text+audio vectors), local questions, retrieval eval |
-| `tests/` | 11 deterministic speculation tests (fake lanes + LLM) |
+| `tests/` | deterministic speculation tests (fake lanes + LLM) + Tavily lane tests against `fake_tavily.py` |
 
 Run: `.venv/bin/python -m uvicorn server.app:app --port 8770` → http://localhost:8770.
 Keys in `.env` (git-ignored): `ANTHROPIC_API_KEY` (set), `TAVILY_API_KEY` (missing → Wikipedia web lane).
@@ -54,6 +54,39 @@ Chart: runs/ab_latest.png. Remaining slow cases: API TTFT outliers (q26 1.3 s) �
 - Live server, Race mode, WS replay: q01 HS 1139 vs BL 1755 ms; q27 (correction) 1110 vs 1409.
 - Mic path (server side; Float32 frames over /ws, 3 questions in one session): 1021/457/626 vs 1361/1114/1259 ms.
 - Browser mic capture itself (AudioWorklet) NOT yet exercised: needs a human to grant mic permission.
+
+## Tavily web lane (tavily-lane branch) — built against the docs + a local fake, no key yet
+Docs verified 2026-11-12: docs.tavily.com/documentation/api-reference/endpoint/search, /rate-limits, /api-credits,
+/best-practices/best-practices-search.
+- Request: `search_depth` speculative `fast` (1 credit, reranked ~500-char chunks, `chunks_per_source` 2), final `fast`
+  too (on the critical path; baseline uses the same final depth, same lanes). `advanced` = 2 credits + highest latency:
+  never by default. `auto_parameters` false (it can silently raise depth to advanced), `include_usage` true (billed
+  credits come back in `usage.credits` and reconcile our estimate), `max_results` 5, query cut to 400 chars.
+- Topic by intent: news_query → `news` (+ `time_range` day for today/tonight/breaking, week for latest/yesterday/this
+  week); qa_stock/qa_currency → `finance` + `max_age_hours` 1; weather → `general` + `max_age_hours` 6 (docs: time_range
+  drops weather/price pages because they keep old dates). 434 (flex capacity, only with max_age_hours) → retried once
+  without it.
+- Credits: per fire (meter), per question in the metric (`credits`, `credits_spec`, `credits_final`, `web_cached`,
+  `web_backend`, `session_credits`), per mode in run_ab summaries (`mean_credits*`, `total_credits`). Session budget
+  120 (speculation stops 2 credits early so the final query always has credit), process cap 800 (free plan = 1000/mo).
+  Out of budget / breaker → final query falls back to Wikipedia, speculative fire skipped.
+- Errors: 429 (Retry-After) / 432 / 433 / 401 trip a process breaker → Wikipedia until it clears; 5xx/400/timeout → that
+  fire is a lane error, a failed final falls back to Wikipedia. Failed calls are refunded in the ledger.
+- Cache: TTL (900 s; 120 s for news/finance/weather), key = sorted content words + params, per session by default
+  (A/B-honest: baseline never sees Head Start's results; TAVILY_CACHE_SCOPE=global for a demo booth). In-flight
+  requests are shared; a stale fire's request (already paid) is not aborted, it lands in the cache.
+- HTTP/2 (h2 installed) + 120 s keep-alive on the shared httpx client; hard total deadline TAVILY_TIMEOUT_S=4.
+- Fake: tests/fake_tavily.py (MockTransport in-process, or `uvicorn --app-dir tests fake_tavily:app` +
+  TAVILY_BASE_URL); lognormal latency per depth (placeholder medians: ultra-fast 320, fast 480, basic 800,
+  advanced 1600 ms), paired per query so A/B modes see the same latency.
+- Slow-lane sim (fake Tavily 600-1500 ms, 6 questions x 3 seeds, FakeStream TTFT 300 ms): Head Start faster 18/18,
+  ~300-340 ms saved (vs ~435 ms real with Wikipedia): the final query needs the last word, so a slow lane can't be
+  hidden fully; HS wins by firing it when the word is visible instead of at the endpoint. 2.8 credits/q vs 1.
+- include_answer race (TAVILY_ANSWER=1, off): on the after-endpoint path (miss + baseline, both modes for fairness) a
+  parallel `include_answer: basic` call races Haiku; first text wins. Wins only if Tavily's answer overhead < our
+  embed + Haiku TTFT (~620 ms) — unmeasured; costs +1 credit per miss. Answer has no [n] citations.
+- When a key lands: `eval/tavily_probe.py --yes` (~54 credits) → p50 per depth, include_answer overhead, response keys;
+  then `eval/run_ab.py` with the Tavily lane.
 
 ## Open / next
 - [ ] Tavily key from user (sponsor); optional Deepgram key (Arc Mini mishears some voices)
