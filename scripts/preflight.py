@@ -138,7 +138,7 @@ def main():
             h_ms, b_ms = hs["metric"].get("ready_ms"), bl["metric"].get("ready_ms")
             sane = h_ms is not None and -1500 < h_ms < a.max_hs_ms
             st = OK if (sane and b_ms is not None and h_ms < b_ms) else (WARN if sane else FAIL)
-            check(st, f"  latency (ready after last word)", f"Head Start {h_ms} ms vs baseline {b_ms} ms"
+            check(st, "  latency (ready after last word)", f"Head Start {h_ms} ms vs baseline {b_ms} ms"
                   + ("" if sane else f"  (> {a.max_hs_ms} ms: close CPU hogs, check network)")
                   + ("" if (b_ms is None or h_ms is None or h_ms < b_ms) else "  (Head Start not ahead)"))
 
