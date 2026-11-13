@@ -113,6 +113,8 @@ class Frame:
     directed: float | None = None    # discourse.assistant.device_directed probability
     redacted: tuple = ()             # kinds of personal data kept out of the web query: ("phone", "email")
     redact_tok: frozenset = frozenset()
+    cue: frozenset = frozenset()      # token indices of the self-correction cue ("actually make that")
+    content_idx: tuple = ()          # token index of each content word (what goes into the search query)
     jailbreak: bool = False          # safety.jailbreak.attempt on the spoken question
     when: str = ""                   # "day" | "week" | "" : relative time the question is about
     when_text: str = ""              # the words that said it ("last night", "right now")
@@ -232,7 +234,10 @@ class Frame:
         return {"intent": self.intent, "p": round(self.intent_p, 2), "coarse": self.coarse,
                 "slots": [list(s) for s in self.slots], "content": list(self.content), "route": self.route,
                 "corrected": self.corrected, "carried": self.carried, "query": self.query(), "n": self.n,
-                "command_complete": self.command_complete, "readout": self.readout()}
+                "command_complete": self.command_complete, "readout": self.readout(),
+                # per-token read-out for the annotated transcript (indices into words)
+                "content_idx": list(self.content_idx), "dropped": sorted(self.dropped), "cue": sorted(self.cue),
+                "redact": sorted(self.redact_tok)}
 
 
 def _correction_at(toks: list[str]) -> int:
@@ -337,6 +342,7 @@ def build(words: list[str], spans: list[dict], current: dict | None, events_seen
     cut = _correction_at(toks)
     drop_tok = set()
     cue_tok = _cue_tokens(toks, cut)
+    f.cue = frozenset(cue_tok)
     if cue_tok:
         # the tagger sometimes tags the cue itself as an entity ("Sari," → place, "Scratch" → organization); such a
         # span would be "corrected away" instead of the real one (q31: Paris survived, "Sari" was dropped)
@@ -406,7 +412,7 @@ def build(words: list[str], spans: list[dict], current: dict | None, events_seen
     f.phrases = tuple(_phrases(f.words, toks, slot_spans, cut, drop_tok | redact_tok))
     money_tok = {i for s in slot_spans if s["type"] in ("entity.number.money", "entity.number.percent")
                  for i in range(s["start"], s["end"])}
-    seen, content = set(), []
+    seen, content, content_idx = set(), [], []
     for i, t in enumerate(toks):
         if i in money_tok and t and i not in drop_tok and i not in redact_tok:
             # keep a typed amount as said: "$100", "15%" (norm() would strip the unit symbol: "100")
@@ -416,6 +422,8 @@ def build(words: list[str], spans: list[dict], current: dict | None, events_seen
             continue
         seen.add(t)
         content.append(t)
+        content_idx.append(i)
+    f.content_idx = tuple(content_idx)
     # conversation memory: "who founded Nvidia?" → "when was it founded?" — a pronoun and no entity of its own
     # inherits the previous question's entity (carry = that frame's mention slots)
     has_mention = any(t not in NUMBER_TYPES for t, _ in f.slots)

@@ -388,7 +388,7 @@ class DeepgramEar:
             start, end = float(w["start"]), float(w["end"])
             if not text or end <= self.boundary_s + 1e-3:     # already handed to on_final
                 continue
-            out.append({"text": text, "start": start, "end": end})
+            out.append({"text": text, "start": start, "end": end, "conf": _num(w.get("confidence"))})
         return out
 
     def _on_message(self, m: str):
@@ -589,7 +589,7 @@ class FluxEar(DeepgramEar):
             start, end = float(w["start"]), float(w["end"])
             if not text or end <= self.boundary_s + 1e-3:
                 continue
-            out.append({"text": text, "start": start, "end": end})
+            out.append({"text": text, "start": start, "end": end, "conf": _num(w.get("confidence"))})
         return out
 
     def _on_message(self, m: str):

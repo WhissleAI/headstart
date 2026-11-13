@@ -167,6 +167,7 @@ class Session:
             changed = True
         self.words = new
         self.times = [(w.get("start"), w.get("end")) for w in ws if clean(w["text"])]
+        self.confs = [w.get("conf") for w in ws if clean(w["text"])]
         if changed:
             self.words_changed_at = time.perf_counter()
             if self.cc_at is not None and self.cc_at >= k:
@@ -188,6 +189,17 @@ class Session:
             if e["type"] == CC:
                 w = e.get("word")
                 self.cc_at = w if w is not None else len(self.words) - 1
+
+    def _words_json(self) -> list[dict]:
+        confs = getattr(self, "confs", None) or []
+        out = []
+        for i, (w, t) in enumerate(zip(self.words, self.times)):
+            d = {"w": w, "t0": t[0], "t1": t[1]}
+            c = confs[i] if i < len(confs) else None
+            if c is not None:
+                d["conf"] = round(float(c), 3)          # ear word confidence (Deepgram Flux / nova)
+            out.append(d)
+        return out
 
     def _build(self, carry=None):
         return framemod.build(self.words, self.spans, self.current, self.events, self.prev_intent,
@@ -213,11 +225,11 @@ class Session:
         if f.intent.startswith("discourse.intent."):
             self.prev_intent = (f.intent, f.intent_p)
         if changed:
-            self.emit({"t": "words", "words": [{"w": w, "t0": t[0], "t1": t[1]} for w, t in zip(self.words, self.times)],
+            self.emit({"t": "words", "words": self._words_json(),
                        "from": k, "ms": self.spec.ms()})
             self.emit({"t": "frame", **f.to_json(), "spans": [
                 {"type": s["type"], "start": s["start"], "end": s["end"], "text": s["text"]} for s in self.spans],
-                "arc": self.arc, "ms": self.spec.ms()})
+                "arc": self.arc, "cc_word": self.cc_at, "ms": self.spec.ms()})
         self.frame = f
         self.spec.on_frame(f, now)
         wall = time.perf_counter()
@@ -353,11 +365,11 @@ class Session:
             f = self._build()
             job.update(words=list(self.words), spans=list(self.spans), current=self.current, events=self.events,
                        prev_intent=self.prev_intent)
-            self.emit({"t": "words", "words": [{"w": w, "t0": t[0], "t1": t[1]} for w, t in zip(self.words, self.times)],
+            self.emit({"t": "words", "words": self._words_json(),
                        "from": 0, "final": True, "ms": self.spec.ms()})
             self.emit({"t": "frame", **f.to_json(), "final": True, "spans": [
                 {"type": s["type"], "start": s["start"], "end": s["end"], "text": s["text"]} for s in self.spans],
-                "ms": self.spec.ms()})
+                "cc_word": self.cc_at, "ms": self.spec.ms()})
         except Exception as e:
             job["error"] = e
         self.last_answered_end = max(self.last_answered_end, ws[-1].get("end") or 0.0)

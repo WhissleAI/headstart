@@ -97,6 +97,7 @@
     pipeReset();
     loop();
     if (window.HSFilm) window.HSFilm.start(kind, modes);
+    if (window.HSHears) window.HSHears.start();
   }
   const primary = () => (run ? run.modes[0] : "headstart");
   function serverNow() {
@@ -175,6 +176,7 @@
   // ------------------------------------------------------------------ events
   function onEvent(e) {
     if (window.HSFilm) { try { window.HSFilm.event(e); } catch (err) { console.error("film", err); } }
+    if (window.HSHears && run) { try { window.HSHears.event(e); } catch (err) { console.error("hears", err); } }
     if (e.mode === "sys") {
       if (e.t === "ready") {
         if (e.warm !== undefined) warm = !!e.warm;
@@ -479,6 +481,7 @@
   }
 
   function renderWords(q) {
+    if (window.HSHears) return;            // the annotated transcript (web/hears.js) renders the words
     const tr = $("#transcript");
     if (tr.dataset.empty) { tr.innerHTML = ""; delete tr.dataset.empty; }
     const nodes = tr.children;
@@ -511,6 +514,7 @@
   function wordNodes(tr) { return Array.from(tr.querySelectorAll(":scope > .w")); }
 
   function renderSpans(q) {
+    if (window.HSHears) return;
     const nodes = wordNodes($("#transcript"));
     nodes.forEach((n) => { n.classList.remove("slot-entity", "slot-number"); n.querySelector(".lab")?.remove(); });
     for (const s of q.spans || []) {

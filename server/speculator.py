@@ -107,7 +107,7 @@ class Speculator:
                     meter=meter if meter is not None else {})
         self.fires.append(fire)
         self.fired_queries[(lane.replace("final-", ""), query)] = fire
-        self._ev(id=fire.id, lane=lane, query=query, state="fired", ms=self.ms(fire.t_fire))
+        self._ev(id=fire.id, lane=lane, query=query, state="fired", ms=self.ms(fire.t_fire), word=fire.n_words)
 
         async def run():
             try:

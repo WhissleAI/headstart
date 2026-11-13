@@ -161,7 +161,9 @@ def test_flux_ear_eager_soft_answer_confirmed_by_end_of_turn(monkeypatch):
     # words: lowercase, punctuation stripped, Flux's times
     assert rec.eagers == [["who", "founded", "the", "company", "nvidia"]]
     assert len(rec.finals) == 1 and [w["text"] for w in rec.finals[0]] == rec.eagers[0]
-    assert rec.finals[0][-1] == {"text": "nvidia", "start": 1.45, "end": 1.90}
+    w = rec.finals[0][-1]
+    assert {k: w[k] for k in ("text", "start", "end")} == {"text": "nvidia", "start": 1.45, "end": 1.90}
+    assert w.get("conf") == pytest.approx(0.99)                  # Flux word confidence rides along (UI underline)
     assert [x["reason"] for x in ear_ev if x.get("kind") == "final"] == ["eot_model"]
     kinds = [x["kind"] for x in ear_ev]
     assert kinds.index("StartOfTurn") < kinds.index("EagerEndOfTurn") < kinds.index("EndOfTurn")
