@@ -140,7 +140,7 @@ def test_slow_live_web_times_out_into_cache(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "WEB_BACKEND", "wikipedia")
     monkeypatch.setattr(config, "WEB_LIVE_TIMEOUT_S", 0.1)
 
-    async def slow(q, k=4):
+    async def slow(q, k=4, **_kw):
         await asyncio.sleep(5)
     monkeypatch.setattr(lanes, "wikipedia", slow)
     meter = {}
