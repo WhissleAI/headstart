@@ -112,7 +112,20 @@ Docs verified 2026-11-12: docs.tavily.com/documentation/api-reference/endpoint/s
 Paired: median saved **398 ms**, mean 379 ms, faster on **37/48**; drafts reused 52 %; 0 answered twice; endpoint
 semantic 16 / ear 32 (stricter gate). runs/ab_full3.json.
 
-## FINAL HEADLINE: full5 (20:00; all 8 agent branches merged; 108 tests; 58 spoken questions = 38 web (22 factoid, 8 filler, 8 correction) + 20 local) — runs/ab_latest.*
+## HEADLINE ON TAVILY (21:55; real key; 70 spoken questions = 58 scored + 12 current events) — runs/ab_tavily.json = runs/ab_latest.*
+| | baseline | Head Start |
+|---|---|---|
+| p50 / mean / p90 ready | 1726 / 1780 / 2399 ms | **1320 / 1357 / 2036 ms** |
+| sources p50 | 926 ms | **703 ms** |
+| accuracy (58 scored) | 93.1 % | 93.1 % |
+| Tavily credits / question | 0.69 | 2.43 |
+Paired: median saved 288 ms, faster on 51/70. By kind (paired median saved, faster): current events 744 ms 10/12
+(HS 1074 vs BL 2178 p50), filler 618 ms 7/8, correction 556 ms 5/8, factoid 372 ms 20/22, local −110 ms 9/20 (local
+regressed with the Tavily-tuned knobs — DRAFT_BUDGET 2 / SEM_STABLE 550 — not yet investigated).
+Probe (eval/tavily_probe.py): fast p50 210 ms / p90 514, 1 credit; include_answer +760 ms → kept off. Tavily caches
+repeat queries server-side (~0.1 s): the harness alternates mode order, which balances it on average.
+
+## FINAL HEADLINE (Wikipedia lane): full5 (20:00; all 8 agent branches merged; 108 tests; 58 spoken questions = 38 web (22 factoid, 8 filler, 8 correction) + 20 local) — runs/ab_latest.*
 | | baseline | Head Start |
 |---|---|---|
 | p50 / mean / p90 ready | 1538 / 1622 / 2126 ms | **1160 / 1247 / 1763 ms** |
