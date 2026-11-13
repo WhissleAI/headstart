@@ -146,8 +146,9 @@ class Speculator:
         """(coroutine factory, meter) for one web-lane call of this question."""
         meter: dict = {}
         topic = "news" if f.intent in NEWS_INTENTS else "general"
+        ent = f.entity_query() if q == f.query() else ""
         return (lambda: lanes.web(q, topic=topic, intent=f.intent, text=f.resolved_text, final=final,
-                                  ledger=self.ledger, meter=meter)), meter
+                                  ledger=self.ledger, meter=meter, entity=ent)), meter
 
     def _web_affordable(self) -> bool:
         """Speculation stops (quietly) when the session's Tavily credits are down to the final-query reserve."""

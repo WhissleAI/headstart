@@ -14,12 +14,17 @@ shall may might must i me my you your we our us it its it's this that these thos
 search look up hey ok okay so um uh like just and or but if then than also really very some any get got let let's
 lets know want need yeah yes no oh well right now wondering wonder curious quick question asked ask
 always ever forget forgot remember mind sure guess think kind sort actually basically literally anyone somebody
-someone thing things they them their he she his her him it's say said says tell told""".split())
+someone thing things they them their he she his her him it's say said says tell told
+mm mmm hmm hm mhm mm-hmm uh-huh er erm ah huh i've i'd i'm i'll you've you'd you're we've didn't don't doesn't
+isn't wasn't can't couldn't won't wouldn't haven't hasn't wanted wanting many much have has had
+ive im didnt dont doesnt isnt wasnt cant couldnt wont wouldnt""".split())
+# ^ last three lines: spoken fillers and contractions that leaked into real queries ("i've wanted many bones adult human
+# body", "mm invented telephone", "didn't sky blue"); Wikipedia ANDs every word, so one leaked filler sinks the search
 # hey/ok wake fillers are already in STOP; these mark a spoken self-correction
 CORRECTION = [("i", "mean"), ("sorry",), ("no", "wait"), ("actually",), ("rather",), ("scratch", "that"),
               ("not", "that"), ("make", "that"), ("i", "meant"),
               # how live ASR actually hears them (eval set): "Sari, I mean", "no weight", "I met"
-              ("sari",), ("no", "weight"), ("i", "met"), ("i", "mean", "it")]
+              ("sari",), ("no", "weight"), ("i", "met"), ("i", "mean", "it"), ("no", "way")]
 INTENT_HINT = {
     "discourse.intent.weather_query": "weather forecast",
     "discourse.intent.news_query": "news",
@@ -74,6 +79,8 @@ class Frame:
     act_question: bool = False
     command_complete: bool = False
     spans: list = field(default_factory=list)
+    dropped: frozenset = frozenset()  # token indices removed by a self-correction (cue words + corrected-away entity)
+    phrases: tuple = ()              # entity phrases as spoken (internal stopwords kept): "pride and prejudice"
 
     @property
     def n(self):
@@ -93,9 +100,27 @@ class Frame:
         return (self.intent, self.slots, tuple(sorted(set(self.content))))
 
     @property
+    def clean_text(self) -> str:
+        """The question as the speaker meant it: correction cue and the corrected-away entity removed ("who founded
+        Microsoft, sorry, I meant Amazon" → "who founded Amazon"), so the answer model doesn't comment on Microsoft."""
+        if not self.dropped:
+            return self.text
+        return " ".join(w for i, w in enumerate(self.words) if i not in self.dropped)
+
+    @property
     def resolved_text(self) -> str:
         """The question with its carried referent spelled out, for ranking and for the answer model."""
-        return f"{self.text} ({self.carried})" if self.carried else self.text
+        t = self.clean_text
+        return f"{t} ({self.carried})" if self.carried else t
+
+    def entity_query(self) -> str:
+        """A second, entity-only web query ("turkey", "ludwig beethoven" → the entity's own article, whose intro
+        usually holds the capital / birthplace / founder / HQ that the content query's articles only mention in
+        passing). The phrase said after a correction wins, then the last entity. Empty when it adds nothing."""
+        if not self.phrases:
+            return ""
+        e = self.phrases[-1]
+        return "" if e == self.query() or not e.strip() else e
 
     def query(self) -> str:
         """Search query: content words in spoken order + an intent hint word when it adds information."""
@@ -123,6 +148,55 @@ def _correction_at(toks: list[str]) -> int:
             if tuple(toks[i:i + len(pat)]) == pat:
                 last = max(last, i + len(pat))
     return last
+
+
+def _cue_tokens(toks: list[str], cut: int) -> set:
+    """Token indices of every correction cue that ends at or before `cut`."""
+    out = set()
+    if cut <= 0:
+        return out
+    for i in range(len(toks)):
+        for pat in CORRECTION:
+            if tuple(toks[i:i + len(pat)]) == pat and i + len(pat) <= cut:
+                out.update(range(i, i + len(pat)))
+    return out
+
+
+def _cap(w: str) -> bool:
+    return bool(w) and (w[0].isupper() or w[0].isdigit())
+
+
+def _phrases(words: list[str], toks: list[str], slot_spans: list[dict], cut: int, drop_tok: set) -> list[str]:
+    """Entity phrases for the entity-only query, in spoken order. Mention spans keep their inner stopwords ("united
+    states", "pride and prejudice") and grow over the proper-noun run around them (the tagger's span is sometimes
+    just "Mount" of "Mount Kilimanjaro", "Apollo" of "Apollo 11"); after a correction with no tagged entity, the words
+    after the cue are the replacement ("sorry, I mean pride and prejudice"), trimmed of edge stopwords."""
+    out = []
+    for s in slot_spans:
+        if _cls(s) != "mention":
+            continue
+        a, b = s["start"], s["end"]
+        while b < len(words) and b not in drop_tok and _cap(words[b]) and toks[b] and toks[b] not in STOP:
+            b += 1
+        while a - 1 > 0 and a - 1 not in drop_tok and _cap(words[a - 1]) and toks[a - 1] and toks[a - 1] not in STOP:
+            a -= 1
+        ws = [t for t in toks[a:b] if t]
+        while ws and ws[0] in STOP:
+            ws = ws[1:]
+        while ws and ws[-1] in STOP:
+            ws = ws[:-1]
+        if ws:
+            out.append((s["start"], " ".join(ws)))
+    if cut > 0 and not any(st >= cut for st, _ in out):
+        ws = [toks[i] for i in range(cut, len(toks)) if toks[i] and i not in drop_tok]
+        while ws and ws[0] in STOP:
+            ws = ws[1:]
+        while ws and ws[-1] in STOP:
+            ws = ws[:-1]
+        if ws and len(ws) <= 5:
+            out.append((cut, " ".join(ws)))
+    out.sort()
+    return [p for _, p in out]
 
 
 def _cls(s: dict) -> str:
@@ -155,6 +229,11 @@ def build(words: list[str], spans: list[dict], current: dict | None, events_seen
                   and s["end"] <= len(toks)]
     cut = _correction_at(toks)
     drop_tok = set()
+    cue_tok = _cue_tokens(toks, cut)
+    if cue_tok:
+        # the tagger sometimes tags the cue itself as an entity ("Sari," → place, "Scratch" → organization); such a
+        # span would be "corrected away" instead of the real one (q31: Paris survived, "Sari" was dropped)
+        slot_spans = [s for s in slot_spans if not set(range(s["start"], s["end"])) & cue_tok]
     if cut > 0:
         f.corrected = True
         after_types = {_cls(s) for s in slot_spans if s["start"] >= cut}
@@ -176,7 +255,14 @@ def build(words: list[str], spans: list[dict], current: dict | None, events_seen
             for pat in CORRECTION:
                 if tuple(toks[i:i + len(pat)]) == pat and i + len(pat) <= cut:
                     drop_tok.update(range(i, i + len(pat)))
-        if not after_types:
+        before_mentions = [s for s in slot_spans if s["start"] < cut and _cls(s) == "mention"]
+        if not after_types and before_mentions and any(toks[i] and toks[i] not in STOP for i in range(cut, len(toks))):
+            # "where was Mozart born, actually make that Beethoven" with the replacement untagged: the corrected thing
+            # is the entity said before the cue, not the last content word ("born" was dropped, Mozart kept)
+            s0 = before_mentions[-1]
+            drop_tok.update(range(s0["start"], s0["end"]))
+            slot_spans = [s for s in slot_spans if s is not s0]
+        elif not after_types:
             # "the Lakers game, sorry, Warriors game": no typed span after the marker. Treat the word right after
             # the marker as replacing the content word right before it.
             after = [i for i in range(cut, len(toks)) if toks[i] and toks[i] not in STOP]
@@ -193,6 +279,8 @@ def build(words: list[str], spans: list[dict], current: dict | None, events_seen
         # a slot whose words were corrected away goes too ("capital of Canada, actually make that Turkey")
         slot_spans = [s for s in slot_spans if not set(range(s["start"], s["end"])) & drop_tok]
     f.slots = tuple(sorted({(s["type"].split(".")[-1], norm(s["text"])) for s in slot_spans}))
+    f.dropped = frozenset(drop_tok)
+    f.phrases = tuple(_phrases(f.words, toks, slot_spans, cut, drop_tok))
     seen, content = set(), []
     for i, t in enumerate(toks):
         if not t or t in STOP or i in drop_tok or t in seen:
@@ -216,6 +304,7 @@ def build(words: list[str], spans: list[dict], current: dict | None, events_seen
                 break
     if ent:
         f.carried = ent[1]
+        f.phrases = (ent[1],)
         f.slots = tuple(sorted(set(f.slots) | {ent}))
         for w in reversed(ent[1].split()):
             if w not in content:

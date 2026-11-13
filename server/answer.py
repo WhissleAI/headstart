@@ -13,8 +13,12 @@ The question text comes from live speech recognition and may contain sound-alike
 11", "iPhone tower" = "Eiffel Tower") and spoken self-corrections ("Canada, actually make that Turkey"): answer the
 question the user most plausibly meant. Never mention mishearing, corrections, or what the user "likely means".
 Answer in one or two short spoken-style sentences (under 45 words), most important fact first. Cite sources inline
-as [1], [2] by their number. If the sources don't contain the answer, say so in one sentence and give the closest
-relevant fact. No preamble, no markdown."""
+as [1], [2] by their number.
+Grounding: if a source states the answer, or it follows directly from a source ("X is the second-largest, after Y"
+means Y is the largest), state it plainly with that citation and no disclaimer. Answer only the question meant:
+never remark on what the sources don't cover about other parts of it (a corrected-away name, a misheard word). Only
+if no source supports the answer, say in a few words that the sources don't cover it, then give the answer you are
+confident of without a citation; don't pad with unrelated facts from the sources. No preamble, no markdown."""
 
 _client: AsyncAnthropic | None = None
 
