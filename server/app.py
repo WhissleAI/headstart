@@ -7,7 +7,9 @@ Client -> server
   {"t":"replay","file":"q01.wav","modes":[...]}   server streams eval/audio/<file> through the ear in real time
 Server -> client: JSON events, each with "mode" ("headstart" | "baseline" | "ear" | "sys"):
   sys    {"t":"ready"}, {"t":"error","error"}, {"t":"run_done"}
-  ear    {"t":"ear","kind":"partial|final|arc_command_complete","text",...}
+  ear    {"t":"ear","kind":"partial|final|arc_command_complete|connected|fallback|warning|error","ear":"arc|deepgram",...}
+         (ready and /api/health carry "ear": the ear new runs use, "ear_requested": env EAR; a run that falls back
+         from Deepgram to Arc says so with a "fallback" ear event)
   per mode: words, frame, spec, endpoint, sources, answer, answer_error, metric   (see server/speculator.py, session.py)
 """
 from __future__ import annotations
@@ -47,7 +49,7 @@ async def startup():
 
 @app.get("/api/health")
 async def health():
-    return {"ok": True, **STATE, "web_backend": config.WEB_BACKEND, "answer_model": config.ANSWER_MODEL,
+    return {"ok": True, **STATE, **ear.describe(), "web_backend": config.WEB_BACKEND, "answer_model": config.ANSWER_MODEL,
             "local_docs": len(lanes.index())}
 
 
@@ -88,7 +90,7 @@ class Run:
         self.q: asyncio.Queue = asyncio.Queue()
         t0 = time.perf_counter()
         self.sessions = [Session(self._emitter(m), mode=m, domain=domain, t0=t0) for m in modes]
-        self.ear = ear.ArcEar(self.sessions, domain=domain, on_event=self._emitter("ear"))
+        self.ear = ear.make_ear(self.sessions, domain=domain, on_event=self._emitter("ear"))
         self.sender = asyncio.create_task(self._send())
 
     def _emitter(self, mode):
@@ -143,7 +145,8 @@ async def ws_endpoint(ws: WebSocket):
     await ws.accept()
     run: Run | None = None
     task = None
-    await ws.send_text(json.dumps({"t": "ready", "mode": "sys", **STATE, "web_backend": config.WEB_BACKEND}))
+    await ws.send_text(json.dumps({"t": "ready", "mode": "sys", **STATE, **ear.describe(),
+                                   "web_backend": config.WEB_BACKEND}))
     try:
         while True:
             msg = await ws.receive()

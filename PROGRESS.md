@@ -55,6 +55,13 @@ Chart: runs/ab_latest.png. Remaining slow cases: API TTFT outliers (q26 1.3 s) â
 - Mic path (server side; Float32 frames over /ws, 3 questions in one session): 1021/457/626 vs 1361/1114/1259 ms.
 - Browser mic capture itself (AudioWorklet) NOT yet exercised: needs a human to grant mic permission.
 
+## Pluggable ear (ear-deepgram branch)
+- `server/ear.py`: `make_ear()` picks `EAR=arc|deepgram`. DeepgramEar = raw websocket to `/v1/listen` (nova-3,
+  interim_results, endpointing 300 ms, utterance_end_ms 1000, smart_format, punctuate), KeepAlive every 3 s, Finalize on
+  flush, CloseStream on close; fallback to Arc on no key / connect failure / drop (re-feeds audio since the last final).
+- `tests/test_ear_deepgram.py`: fake Deepgram websocket server (documented message shapes) -> DeepgramEar -> two race
+  Sessions; revisions, finals, timestamps, identical words, keepalive, Finalize, fallback. Not yet run against real Deepgram.
+
 ## Open / next
 - [ ] Tavily key from user (sponsor); optional Deepgram key (Arc Mini mishears some voices)
 - [ ] Human check of the browser mic path

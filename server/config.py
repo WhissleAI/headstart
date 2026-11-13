@@ -49,3 +49,19 @@ SEM_STABLE_MS = int(os.environ.get("SEM_STABLE_MS", "420"))   # one Arc partial 
 SEM_COVER_S = float(os.environ.get("SEM_COVER_S", "0.3"))     # an ASR refresh this long after silence began covers the speech
 PENDING_CAP_S = float(os.environ.get("PENDING_CAP_S", "1.0"))   # max wait at the endpoint for an in-flight speculative search
 HEDGE_MS = int(os.environ.get("HEDGE_MS", "800"))   # duplicate the answer request if no token by then (both modes)
+
+# Ear (ASR words for the sessions): EAR=arc (Arc v1 Mini built-in transcript, local) | deepgram (Deepgram live websocket;
+# needs DEEPGRAM_API_KEY, falls back to Arc without it or when the connection drops). See server/ear.py.
+EAR = os.environ.get("EAR", "arc").strip().lower()
+DEEPGRAM_API_KEY = os.environ.get("DEEPGRAM_API_KEY", "")
+DG_URL = os.environ.get("DG_URL", "wss://api.deepgram.com/v1/listen")
+DG_MODEL = os.environ.get("DG_MODEL", "nova-3")
+DG_LANGUAGE = os.environ.get("DG_LANGUAGE", "en")
+DG_ENDPOINTING_MS = int(os.environ.get("DG_ENDPOINTING_MS", "300"))      # pause that closes an utterance (speech_final)
+DG_UTTERANCE_END_MS = int(os.environ.get("DG_UTTERANCE_END_MS", "1000"))  # word-gap backstop (UtteranceEnd); min 1000; 0 = off
+DG_WORD_FIELD = os.environ.get("DG_WORD_FIELD", "word")   # "word" (lowercase, like Arc's words) | "punctuated_word"
+DG_KEEPALIVE_S = float(os.environ.get("DG_KEEPALIVE_S", "3"))            # Deepgram closes after 10 s without audio/KeepAlive
+DG_CONNECT_TIMEOUT_S = float(os.environ.get("DG_CONNECT_TIMEOUT_S", "4"))
+DG_FLUSH_TIMEOUT_S = float(os.environ.get("DG_FLUSH_TIMEOUT_S", "1.5"))  # wait for Finalize's result at the end of a run
+DG_FALLBACK_REPLAY_S = float(os.environ.get("DG_FALLBACK_REPLAY_S", "10"))   # audio of the open utterance re-fed to Arc
+DG_ARC_EVENTS = os.environ.get("DG_ARC_EVENTS", "0") == "1"  # also run Arc on Deepgram's words for its own events (CPU)

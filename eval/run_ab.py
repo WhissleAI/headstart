@@ -120,7 +120,7 @@ def score(answer: str, expect: list[str]) -> bool | None:
 
 # ---------------------------------------------------------------------------------------------------- one run
 async def run_one(q: dict, mode: str) -> dict:
-    from server.ear import ArcEar
+    from server.ear import make_ear
     from server.session import Session
 
     wav = load_wav(AUDIO / q["file"])
@@ -137,7 +137,7 @@ async def run_one(q: dict, mode: str) -> dict:
         ear_events.append(e)
 
     sess = Session(emit, mode=mode)
-    ear = ArcEar([sess], on_event=on_ear)
+    ear = make_ear([sess], on_event=on_ear)
     t0 = time.perf_counter()
     sess.t0 = t0
     sess.spec.t0 = t0

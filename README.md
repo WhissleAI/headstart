@@ -39,10 +39,13 @@ mic ─▶ Arc (streaming ASR + events) ─▶ Arc Tagger (10M, 0.7 ms/word) ─
 ## Run
 ```sh
 .venv/bin/python -m uvicorn server.app:app --port 8770     # warm-up ~30-60 s; open http://localhost:8770
-.venv/bin/python -m pytest -q tests                         # 11 deterministic tests (fake lanes + LLM)
+.venv/bin/python -m pytest -q tests                         # 21 deterministic tests (fake lanes + LLM + fake Deepgram)
 .venv/bin/python eval/run_ab.py                             # real-audio A/B → runs/ab_latest.{json,png}
 ```
 Keys in `.env` (git-ignored): `ANTHROPIC_API_KEY`; `TAVILY_API_KEY` switches the web lane from Wikipedia to Tavily.
+Ear: `EAR=deepgram` + `DEEPGRAM_API_KEY` streams the same audio to Deepgram nova-3 (interim results, 300 ms endpointing)
+for the words; without a key, or if the socket fails/drops, the run falls back to Arc (the open utterance is re-fed).
+`/api/health` and the `ready` event report `ear` (active) and `ear_requested`. Tuning: `DG_*` in `server/config.py`.
 Rebuild the native tagger: see `vendor/arctag` (`cc -O3 -shared ... -framework Accelerate`, details in PROGRESS.md).
 
 ## Honest notes

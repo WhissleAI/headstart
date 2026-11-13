@@ -19,7 +19,7 @@ async def run(conv, mode):
     s = Session(ev.append, mode=mode, t0=t0)
     if args.no_memory:
         s.carry_pool = {}
-    e = ear.ArcEar([s])
+    e = ear.make_ear([s])
     parts = []
     for f in conv["files"]:
         w, _ = sf.read(ROOT / "eval" / "audio" / f, dtype="float32")
