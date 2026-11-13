@@ -2,7 +2,9 @@
 
 The first stage is cosine similarity in EmbeddingGemma's space. On this corpus its scores are compressed (rank 1 and
 rank 2 often differ by < 0.02, index/README.md), and the moments' words are noisy ASR ("Ponto ball" for Lonzo Ball), so
-a cheap second stage fixes most rank-1 misses. Three signals, fused by reciprocal rank (RRF, k=RRF_K):
+a cheap second stage fixes most rank-1 misses. Three signals, added on the cosine scale:
+
+  score = text + W_LEX * min(lexical, LEX_CAP) + W_AUDIO * audio
 
   text   : cosine of the question's text vector with each moment's text vector (what rank() always did)
   audio  : cosine of the spoken question's AUDIO vector (the audio lane) with max(moment text, moment audio) vectors
@@ -12,6 +14,10 @@ a cheap second stage fixes most rank-1 misses. Three signals, fused by reciproca
 
 The routing cue itself ("in the hearing", "the announcer") is stripped from the lexical query: it names the recording,
 not the moment, and every moment of that recording would match it.
+
+The weights are small on purpose: they break the near-ties of the compressed cosine, they don't overrule a clear text
+match. Chosen on index/eval_local.py (20 questions x {clean text, Arc's ASR text}); reciprocal-rank fusion was tried
+first and lost: it let a full lexical match outvote a confident text rank 1 (local11, local15).
 
 Everything is numpy over <= a few hundred moments: well under 1 ms per question.
 """
@@ -25,10 +31,10 @@ import numpy as np
 
 from .frame import LOCAL_CUES, STOP, norm
 
-RRF_K = 10.0
-W_TEXT, W_AUDIO, W_LEX = 1.0, 0.6, 1.0     # RRF weights (index/eval_local.py: fused_* columns)
-LEX_MIN = 0.34                              # lexical list only holds moments covering >= this share of query IDF
-ROLE_BONUS = 0.15                           # added to the lexical score (in [0, 1]) for a role / event match
+W_LEX = 0.05          # lexical (share of the query's IDF found in the moment's words + tags, 0..1, + bonuses)
+LEX_CAP = 1.3
+W_AUDIO = 0.2         # the audio lane's spoken-question cosine (Head Start only: baseline has no audio vector)
+ROLE_BONUS = 0.15     # added to the lexical score for a role / event match
 
 _NUM = {"zero": "0", "one": "1", "two": "2", "three": "3", "four": "4", "five": "5", "six": "6", "seven": "7",
         "eight": "8", "nine": "9", "ten": "10", "eleven": "11", "twelve": "12", "thirteen": "13", "fourteen": "14",
@@ -159,45 +165,29 @@ def lexicon(index) -> Lexicon:
     return lx
 
 
-def _ranks(ids: list[str], scores) -> dict[str, int]:
-    order = np.argsort(-np.asarray(scores, dtype=np.float64), kind="stable")
-    return {ids[j]: r for r, j in enumerate(order)}
-
-
 def fuse(ids: list[str], text_s, question: str, lex: Lexicon, audio_s=None,
-         w_text: float | None = None, w_audio: float | None = None, w_lex: float | None = None,
-         k: float | None = None) -> list[tuple]:
+         w_audio: float | None = None, w_lex: float | None = None) -> list[tuple]:
     """[(id, fused score, parts)] best first. text_s / audio_s are cosines aligned with ids (audio_s may be None)."""
     if not ids:
         return []
-    w_text = W_TEXT if w_text is None else w_text
     w_audio = W_AUDIO if w_audio is None else w_audio
     w_lex = W_LEX if w_lex is None else w_lex
-    k = RRF_K if k is None else k
+    text_s = np.asarray(text_s, dtype=np.float64)
     terms = query_terms(question)
     roles, events = cues(question)
-    lx = np.array([lex.score(i, terms, roles, events) for i in ids])
-    rt = _ranks(ids, text_s)
-    fused = {i: w_text / (k + rt[i] + 1) for i in ids}
-    ra = None
+    lx = np.array([lex.score(i, terms, roles, events) for i in ids]) if w_lex > 0 else np.zeros(len(ids))
+    s = text_s + w_lex * np.minimum(lx, LEX_CAP)
     if audio_s is not None and w_audio > 0:
-        ra = _ranks(ids, audio_s)
-        for i in ids:
-            fused[i] += w_audio / (k + ra[i] + 1)
-    if w_lex > 0:
-        keep = [j for j, v in enumerate(lx) if v >= LEX_MIN]
-        if keep:
-            rl = _ranks([ids[j] for j in keep], lx[keep])
-            for i, r in rl.items():
-                fused[i] += w_lex / (k + r + 1)
+        s = s + w_audio * np.asarray(audio_s, dtype=np.float64)
+    order = np.argsort(-s, kind="stable")
+    rt = {int(j): r + 1 for r, j in enumerate(np.argsort(-text_s, kind="stable"))}
     out = []
-    for j, i in enumerate(ids):
-        parts = {"text": float(text_s[j]), "lex": round(float(lx[j]), 3), "text_rank": rt[i] + 1}
-        if ra is not None:
+    for j in order:
+        j = int(j)
+        parts = {"text": float(text_s[j]), "lex": round(float(lx[j]), 3), "text_rank": rt[j]}
+        if audio_s is not None:
             parts["audio"] = float(audio_s[j])
-            parts["audio_rank"] = ra[i] + 1
-        out.append((i, fused[i], parts))
-    out.sort(key=lambda x: (-x[1], -x[2]["text"]))
+        out.append((ids[j], float(s[j]), parts))
     return out
 
 

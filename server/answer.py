@@ -15,10 +15,11 @@ question the user most plausibly meant. Never mention mishearing, corrections, o
 Answer in one or two short spoken-style sentences (under 45 words), most important fact first. Cite sources inline
 as [1], [2] by their number. If the sources don't contain the answer, say so in one sentence and give the closest
 relevant fact. No preamble, no markdown.
-Some sources are moments of recordings (game broadcasts, hearings, calls, podcasts): they have a timestamp, and their
-words are a noisy transcript; the moment itself is in [brackets], with the words around it for context. For those,
-say when and who, and quote the moment's key words exactly as transcribed, e.g. At 00:26 the announcer said "Hunter
-gets a good look and nails it" [1]. Don't comment on transcript quality."""
+Some sources are moments of recordings (game broadcasts, hearings, calls, podcasts): they have a timestamp and a noisy
+transcript; the moment itself is in [brackets], with the words just before and after it (also from the recording).
+Answer from every moment that helps. Say when and who, and quote the key words as transcribed, e.g. At 00:26 the
+announcer said "Hunter gets a good look and nails it" [1]. The question can mishear words too ("who one the toss" = "who won
+the toss"). Don't comment on transcript quality."""
 
 ROLE_LABEL = {"play_by_play": "play-by-play announcer", "analyst": "analyst", "judge": "judge", "counsel": "counsel",
               "device_user": "user"}

@@ -94,15 +94,18 @@ def test_lexicon_role_and_event_bonus():
 def test_fuse_lexical_and_audio_lift_the_gold():
     ids = [d.id for d in DOCS]
     q = "What did the commentator say about Lonzo Ball in the game?"
-    text_s = np.array([0.80, 0.70, 0.60, 0.10, 0.10])          # cosine prefers m-0 (the compressed-score failure)
+    text_s = np.array([0.80, 0.79, 0.78, 0.10, 0.10])          # cosine prefers m-0 (the compressed-score failure)
     assert rerank.fuse(ids, text_s, q, rerank.Lexicon(DOCS), w_lex=0.0)[0][0] == "m-0"
     assert rerank.fuse(ids, text_s, q, rerank.Lexicon(DOCS))[0][0] == "m-2"
     # audio alone (no lexical) can also break a near-tie
     q2 = "what did they say"
     audio_s = np.array([0.3, 0.9, 0.4, 0.1, 0.1])
     tied = np.array([0.80, 0.79, 0.5, 0.1, 0.1])
-    assert rerank.fuse(ids, tied, q2, rerank.Lexicon(DOCS), audio_s=audio_s, w_audio=1.0)[0][0] == "m-1"
+    assert rerank.fuse(ids, tied, q2, rerank.Lexicon(DOCS), audio_s=audio_s)[0][0] == "m-1"
     assert rerank.fuse(ids, tied, q2, rerank.Lexicon(DOCS))[0][0] == "m-0"
+    # ...but a clear text winner is not overruled by a full lexical match elsewhere
+    clear = np.array([0.90, 0.70, 0.75, 0.10, 0.10])
+    assert rerank.fuse(ids, clear, q, rerank.Lexicon(DOCS))[0][0] == "m-0"
 
 
 def test_fuse_is_fast_on_a_realistic_index():
@@ -207,7 +210,7 @@ def test_build_prompt_moment_lines_cite_time_and_role():
     assert "[1] NBA broadcast at 00:26, play-by-play announcer: …before words [Hunter gets a good look and nails it]" \
         " after words…" in p
     assert "[2] Court hearing at 00:09, judge:" in p
-    assert "quote the moment's key words" in answer.SYSTEM
+    assert "quote the key words as transcribed" in answer.SYSTEM
 
 
 def test_build_prompt_web_docs_unchanged():

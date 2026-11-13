@@ -128,6 +128,27 @@ semantic 16 / ear 32 (stricter gate). runs/ab_full3.json.
 - In flight: review-fixes (10 confirmed bugs incl. hedge busy-spin, cancel-before-start hang, session wedge on
   exception, overlapping soft answers, open semantic gate), policy-sim, robustness (snr20/snr10/rate).
 
+## Local moments: second-stage ranker + moment citations (branch local-moments)
+Diagnosis of the local rows in ab_full2/ab_full3 (0.6–0.7 accuracy): mostly **scoring**, then retrieval, then ASR.
+- Scoring (6 of the misses): right answer, strict `expect` — "nailed" vs `nails`, "fifteen" vs `15`, "clearly the
+  winner" vs `won`, "prepping" vs `prep`. Gold amended with alternatives (`nails|nailed`, `15|fifteen`, `winner|won`,
+  `prep|prepping|preparation`); numbers below give both.
+- Ranking: gold at cosine rank 3–5 (local01 Hunter: four adjacent Hunter moments; local04 Lonzo Ball: the ASR wrote
+  "Ponto ball"; local02 objection: rank 3). ASR: local06 "office's wedding" (baseline missed scotus-002 entirely),
+  local09 "Debate with Trump" (Arc dropped "prep": gold not retrievable from the words), "Samuel one".
+- Answer: right moment, model said "the transcript is garbled"/"sources don't say".
+Changes: `server/rerank.py` (text cosine + 0.05·lexical/tags/role/event + 0.2·audio-lane cosine over the whole index,
+0.2 ms), used for the final ranking and drafts of local-routed questions in both modes (`RERANK_LOCAL`, `RERANK_AUDIO`);
+the audio lane keeps its spoken-question vector for it. Answer prompt: moment lines read
+`[1] NBA broadcast at 00:26, play-by-play announcer: …before [moment] after…`, and the system prompt asks for when +
+who + a verbatim quote (drafts use the same prompt, so draft reuse keeps it). 10 more questions (local11–20), traces.
+Retrieval (index/eval_local.py, 20 q, Arc ASR text): r@1 0.65 → 0.80, r@4 0.90 → 1.00, MRR 0.78 → 0.88 (Head Start);
+clean text r@1 0.80 → 0.90 (baseline ranker). E2E replay (index/replay_local.py: real traces + real audio lane in the
+simulator, real Haiku, one sample each, 100 calls): gold moment at source #1 HS 13 → 16 / 20, BL 11 → 15 / 20, gold
+in sources BL 18 → 20; answers citing a mm:ss HS 4 → 13, BL 3 → 14 / 20 (q11–20 measured with the first prompt wording); accuracy (amended expect) HS 20 → 19, BL 17 → 19 of 20;
+strict expect q01–10 HS 8 → 9, BL 7 → 9. Single-sample LLM noise is ±1–2 here: accuracy is at ceiling on the
+amended gold; the ranker's win shows in which moment is cited first. Remaining: local09 (ASR drops "prep").
+
 ## Open / next
 - [ ] Tavily key from user (sponsor); optional Deepgram key (Arc Mini mishears some voices)
 - [ ] Human check of the browser mic path

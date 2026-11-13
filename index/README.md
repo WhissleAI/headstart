@@ -110,3 +110,29 @@ What this says:
   moments. They do raise recall@4.
 - **Scores are compressed.** Top hits score 0.73–0.84, and the gap between rank 1 and rank 2 is often under 0.02, so an
   absolute threshold cannot separate a hit from a miss.
+
+## Second-stage ranking (`server/rerank.py`, 20 questions)
+
+`local11`–`local20` were added (same `say` voices) before the ranker's weights were chosen, as a check on overfitting;
+their Arc ear traces are in `sim/data/ear_traces/`. `index/eval_local.py` now scores every mode on the clean question
+text and on the text Arc actually heard (`@asr`, from the traces: "office's wedding fifteen seconds", "Samuel one",
+"Chandler gunboys"). Whole index, 222 moments; r@1 / r@4 / MRR@10:
+
+| ranking | clean text | Arc ASR text | q01–10 ASR r@1 | q11–20 ASR r@1 |
+|---|---|---|---|---|
+| text cosine (before) | 0.80 / 0.95 / 0.86 | 0.65 / 0.90 / 0.78 | 0.50 | 0.80 |
+| cue-stripped text cosine | 0.80 / 0.95 / 0.88 | 0.70 / 0.80 / 0.77 | | |
+| whole-question audio → max(text, audio) | 0.65 / 1.00 / 0.80 | (same) | | |
+| text + lexical/tags (baseline mode) | **0.90** / 1.00 / **0.94** | 0.75 / 1.00 / 0.85 | 0.70 | 0.80 |
+| text + lexical/tags + audio (Head Start) | 0.85 / 1.00 / 0.92 | **0.80 / 1.00 / 0.88** | **0.80** | 0.80 |
+
+`score = text cosine + 0.05·min(lexical, 1.3) + 0.2·audio cosine` (0.2 ms per question). Lexical = share of the
+question's IDF found in the moment's words **and tags** (the tag "Lonzo Ball" survives the ASR's "Ponto ball"; number
+words fold to digits: "fifteen" = "15"), with the routing cue removed ("in the hearing" names the recording, not the
+moment), plus a 0.15 bonus when a cue word names the moment's role ("the judge" → judge) or event ("objection" →
+`legal.objection.*`). Small weights on purpose: they break the cosine's near-ties without overruling a clear text
+match. Reciprocal-rank fusion was tried first and lost (r@1 0.75 clean): it let a full lexical match outvote a confident
+text rank 1 (local11, local15). Cue-stripping the *embedded* query did not help on ASR text, so the server embeds the
+question as spoken. The audio vector helps exactly where the ASR is wrong (q01–10 ASR r@1 0.70 → 0.80) and costs one
+clean-text question (local01 stays at rank 3–4: four adjacent Hunter moments). The server uses the audio lane's latest
+vector (up to ~3.5 s of speech), not the whole question; `index/replay_local.py` measures that path.

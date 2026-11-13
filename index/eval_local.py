@@ -11,9 +11,9 @@ Per question (index/questions_local.jsonl, audio in eval/audio/local_*.wav), rec
 Second stage (server/rerank.py), over the whole index:
   strip_text  : cue-stripped question text ("in the hearing" removed) -> text vectors
   lex_only    : lexical + tag/role score alone
-  fused_tl    : RRF(text, lexical)                    (what baseline / text-only Head Start gets)
-  fused_ta    : RRF(text, audio)
-  fused_tal   : RRF(text, audio, lexical)             (Head Start with the audio lane: server default)
+  fused_tl    : text + lexical                        (what baseline gets: no audio lane)
+  fused_ta    : text + audio
+  fused_tal   : text + audio + lexical                (Head Start with the audio lane: server default)
 Every mode is also run on the ASR text Arc actually heard (sim/data/ear_traces/<id>.json final words, when recorded):
 columns with the suffix "@asr". Query vectors are cached in runs/local_eval_vecs.pkl (git-ignored).
 """
@@ -183,8 +183,8 @@ def main():
     out = {"n_questions": len(qs), "n_docs": len(ids), "n_audio_vectors": 0 if idx.av is None else len(idx.av),
            "summary": summary, "summary_q01_10": sub(lambda i: int(i[5:]) <= 10),
            "summary_q11_plus": sub(lambda i: int(i[5:]) > 10),
-           "rerank": {"rrf_k": rerank.RRF_K, "w_text": rerank.W_TEXT, "w_audio": rerank.W_AUDIO,
-                      "w_lex": rerank.W_LEX, "lex_min": rerank.LEX_MIN, "role_bonus": rerank.ROLE_BONUS},
+           "rerank": {"w_audio": rerank.W_AUDIO, "w_lex": rerank.W_LEX, "lex_cap": rerank.LEX_CAP,
+                      "role_bonus": rerank.ROLE_BONUS},
            "fuse_ms_222_docs": round(float(np.mean(fuse_ms)), 2),
            "embed_load_s": round(V.load_s, 1), "audio_query_ms": round(audio_ms, 1),
            "per_question": per_q, "date": time.strftime("%Y-%m-%d %H:%M")}
