@@ -55,6 +55,14 @@ Chart: runs/ab_latest.png. Remaining slow cases: API TTFT outliers (q26 1.3 s) â
 - Mic path (server side; Float32 frames over /ws, 3 questions in one session): 1021/457/626 vs 1361/1114/1259 ms.
 - Browser mic capture itself (AudioWorklet) NOT yet exercised: needs a human to grant mic permission.
 
+## Agent wave 2 (launched 17:40)
+- policy-sim (branch policy-sim): Arc trace recorder + virtual-time simulator + parameter sweep (wikipedia/tavily profiles)
+- ear-deepgram (branch ear-deepgram): pluggable ear, Deepgram live ear ready for a key, fake-server tests
+- tavily-lane (branch tavily-lane): API verification, intentâ†’topic routing, credits, cache, fake server
+- robustness (main, eval/ + runs/): noise 20/10 dB, speaking rate, current-events set; owns CPU via runs/.run_ab.lock
+- reviewer (read-only): independent correctness review of server/
+- pitch (docs/): PITCH.md, JUDGE_QA.md, demo GIF + screenshots
+
 ## Open / next
 - [ ] Tavily key from user (sponsor); optional Deepgram key (Arc Mini mishears some voices)
 - [ ] Human check of the browser mic path
