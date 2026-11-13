@@ -53,7 +53,7 @@ def main(seeds=range(200, 220)):
             print(f"{pname:9s} {k:22s} p50 {s['p50_ready_ms']} (Δ {s['d_p50_vs_current'][0]:+.0f} ±{s['d_p50_vs_current'][1]:.0f})"
                   f"  p90 {s['p90_ready_ms']} (Δ {s['d_p90_vs_current'][0]:+.0f} ±{s['d_p90_vs_current'][1]:.0f})"
                   f"  vad50 {s['p50_ready_vad_ms']}  risky {s['risky_rate']:.3f} pool {s['pool_commit_rate']:.3f} "
-                  f"top1=BL? n/a  web/q {s['web_calls_per_q']} llm/q {s['llm_requests_per_q']} "
+                  f"web/q {s['web_calls_per_q']} llm/q {s['llm_requests_per_q']} "
                   f"waste/q {s['wasted_drafts_per_q']} reuse {s['draft_reuse_rate']} paths {s['paths']}", flush=True)
     (ROOT / "runs" / "sim_compare.json").write_text(json.dumps(out, indent=1, default=float))
 
