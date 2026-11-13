@@ -46,6 +46,8 @@ TAVILY_SESSION_CREDITS = float(os.environ.get("TAVILY_SESSION_CREDITS", "120")) 
 TAVILY_FINAL_RESERVE = float(os.environ.get("TAVILY_FINAL_RESERVE", "2"))        # speculation can't touch these
 TAVILY_PROCESS_CREDITS = float(os.environ.get("TAVILY_PROCESS_CREDITS", "800"))   # whole server; 0 = unlimited
 TAVILY_CACHE_TTL_S = float(os.environ.get("TAVILY_CACHE_TTL_S", "900"))
+TAVILY_FINANCE_DEPTH = os.environ.get("TAVILY_FINANCE_DEPTH", "basic")   # topic=finance is refused on fast / ultra-fast
+TAGGER_HINTS = os.environ.get("TAGGER_HINTS", "1") == "1"   # Tavily topic / freshness from the full Arc read-out
 TAVILY_FRESH_TTL_S = float(os.environ.get("TAVILY_FRESH_TTL_S", "120"))         # news / finance / weather
 # session: each Session has its own cache (A/B-honest: baseline never reads Head Start's results). global: one cache
 # for the server (saves credits on a demo booth replaying the same questions; do NOT use for A/B timing).

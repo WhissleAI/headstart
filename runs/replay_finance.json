@@ -1,0 +1,92 @@
+[
+ {
+  "id": "q36",
+  "variant": "general-fast",
+  "ms": 759,
+  "n": 5,
+  "grounded": true,
+  "answer": "Apple's stock is trading at about $350.69 as of November 9, 2026, roughly 1.3% below its 52-week high of $355.38 [1].",
+  "err": null
+ },
+ {
+  "id": "q36",
+  "variant": "finance-basic",
+  "ms": 2188,
+  "n": 5,
+  "grounded": true,
+  "answer": "Apple's stock was trading around 355 dollars, with the latest close at 354.88 dollars [1]. Apple's most recent quoted price on Yahoo Finance was 355.63 dollars [3].",
+  "err": null
+ },
+ {
+  "id": "q46",
+  "variant": "general-fast",
+  "ms": 526,
+  "n": 5,
+  "grounded": true,
+  "answer": "The most recent source, dated November 12, 2026, reports Nvidia stock plunging about 8.6% after hours toward $160 amid reports of CEO Jensen Huang's potential ouster [1]. Nvidia's price was last noted near $160 on that date, but I can't confirm an exact closing figure from these sources.",
+  "err": null
+ },
+ {
+  "id": "q46",
+  "variant": "finance-basic",
+  "ms": 1804,
+  "n": 5,
+  "grounded": true,
+  "answer": "NVIDIA's stock was trading at 166.19 dollars as of November 12, 2026, down 4.34 percent for the day [3]. That is the latest close shown in the sources, so check a live quote for real-time pricing.",
+  "err": null
+ },
+ {
+  "id": "q45",
+  "variant": "general-fast",
+  "ms": 100,
+  "n": 5,
+  "grounded": false,
+  "answer": "The sources don't give today's exact S&P 500 level. The most recent headline says the US bull market is nearing a four-year milestone as AI-driven profits and growth fuel gains [1]. Check a live market quote for today's precise movement.",
+  "err": null
+ },
+ {
+  "id": "q45",
+  "variant": "finance-basic",
+  "ms": 1688,
+  "n": 5,
+  "grounded": true,
+  "answer": "The S&P 500 closed down about 0.35% at 7,619.38 as of November 12 [1]. Its most recent quoted price was 7,592.40, down 26.98 points on the day [2].",
+  "err": null
+ },
+ {
+  "id": "sc06",
+  "variant": "general-fast",
+  "ms": 225,
+  "n": 5,
+  "grounded": true,
+  "answer": "One Bitcoin is currently worth about $87,851.60 US dollars [2]. That figure is from OKX's live converter and may have moved since it was last updated.",
+  "err": null
+ },
+ {
+  "id": "sc06",
+  "variant": "finance-basic",
+  "ms": 1383,
+  "n": 5,
+  "grounded": true,
+  "answer": "One Bitcoin is worth about 68,519 U.S. dollars right now, down 6.68% for the day [1]. That's below its 52-week low of 57,748 [1]... no, above it: the 52-week low is 57,748 [1], so it remains above that floor.",
+  "err": null
+ },
+ {
+  "id": "sc08",
+  "variant": "general-fast",
+  "ms": 539,
+  "n": 5,
+  "grounded": true,
+  "answer": "Today, $100 is worth about \u20ac89.62 at the mid-market rate, as of 05:00 UTC on the most recent update [4]. Rates shift throughout the day, so check a live rate before exchanging.",
+  "err": null
+ },
+ {
+  "id": "sc08",
+  "variant": "finance-basic",
+  "ms": 2271,
+  "n": 5,
+  "grounded": true,
+  "answer": "At the latest rate, $100 is about 90 euros, since 1 US dollar equals roughly 0.905 euros [1]. Rates shift throughout the day, so check a live converter before exchanging money.",
+  "err": null
+ }
+]

@@ -163,8 +163,10 @@ class WebResult(list):
     request_id: str | None = None
 
 
-def web_plan(intent: str = "", text: str = "", final: bool = False, answer: str | bool = False) -> dict:
-    """Tavily parameters for one question: depth by speculative/final, topic + freshness by intent."""
+def web_plan(intent: str = "", text: str = "", final: bool = False, answer: str | bool = False,
+             hints: dict | None = None) -> dict:
+    """Tavily parameters for one question: depth by speculative/final, topic + freshness by intent, then by the rest of
+    Arc Tagger's read-out (`hints` = Frame.web_hints(): typed time / money spans, result words) when given."""
     depth = config.TAVILY_FINAL_DEPTH if final else config.TAVILY_SPEC_DEPTH
     p = {"search_depth": depth, "topic": "general", "max_results": config.TAVILY_MAX_RESULTS}
     low = (text or "").lower()
@@ -180,6 +182,25 @@ def web_plan(intent: str = "", text: str = "", final: bool = False, answer: str 
             p["max_age_hours"] = config.TAVILY_FINANCE_MAX_AGE_H
     elif intent in WEATHER and config.TAVILY_WEATHER_MAX_AGE_H > 0:
         p["max_age_hours"] = config.TAVILY_WEATHER_MAX_AGE_H
+    if hints and config.TAGGER_HINTS:
+        topic = hints.get("topic")
+        if hints.get("weather_off"):
+            p.pop("max_age_hours", None)
+        if topic == "finance" and p["topic"] != "finance":
+            p = {k: v for k, v in p.items() if k != "time_range"}
+            p["topic"] = "finance"
+            if config.TAVILY_FINANCE_MAX_AGE_H > 0:
+                p["max_age_hours"] = config.TAVILY_FINANCE_MAX_AGE_H
+        elif topic == "news":
+            p["topic"] = "news"
+            p.pop("max_age_hours", None)
+            if hints.get("time_range"):
+                p["time_range"] = hints["time_range"]
+    if p["topic"] == "finance" and p["search_depth"] in ("fast", "ultra-fast"):
+        # Tavily answers 400 "Finance topic is not supported for fast or ultra-fast search_depth": every qa_stock /
+        # qa_currency question used to fail over to Wikipedia. basic costs the same 1 credit (runs/replay_finance.json:
+        # grounded 4/5 -> 5/5, ~+1.3 s per call, which speculation hides on the Arc side)
+        p["search_depth"] = config.TAVILY_FINANCE_DEPTH
     if answer:
         p["include_answer"] = answer
     return p
@@ -510,11 +531,13 @@ def _from_cache(query: str, meter: dict, why: str | None) -> "WebResult":
 
 
 async def _live(query: str, topic: str, intent: str, text: str, final: bool, ledger, meter: dict,
-                entity: str = "") -> list[Doc]:
+                entity: str = "", hints: dict | None = None) -> list[Doc]:
     """The live lane: Tavily when configured (topic/freshness from the intent), else Wikipedia. A final query whose
     Tavily call can't go out or fails falls back to Wikipedia (the user is waiting); a speculative one just errors."""
     if config.WEB_BACKEND == "tavily":
-        plan = web_plan(intent or ("discourse.intent.news_query" if topic == "news" else ""), text, final)
+        plan = web_plan(intent or ("discourse.intent.news_query" if topic == "news" else ""), text, final, hints=hints)
+        if plan.get("time_range"):
+            meter["time_range"] = plan["time_range"]
         try:
             return await tavily(query, plan, ledger, meter, final=final)
         except (WebUnavailable, TavilyError, httpx.HTTPError) as e:
@@ -540,7 +563,8 @@ def _network_failure(e: Exception) -> bool:
 
 
 async def web(query: str, topic: str = "general", *, intent: str = "", text: str = "", final: bool = False,
-              ledger: Ledger | None = None, meter: dict | None = None, entity: str = "") -> list[Doc]:
+              ledger: Ledger | None = None, meter: dict | None = None, entity: str = "",
+              hints: dict | None = None) -> list[Doc]:
     """The web lane. WEB_BACKEND=cache: recorded responses only. Otherwise the live lane (see _live); if it fails (or
     failed in the last WEB_BREAKER_S seconds), the recorded cache answers instead, flagged as such. Both modes go
     through here, so Head Start and the baseline always see the same fallbacks."""
@@ -550,7 +574,7 @@ async def web(query: str, topic: str = "general", *, intent: str = "", text: str
     if config.WEB_CACHE_FALLBACK and web_down() and len(web_cache()):
         return _from_cache(query, meter, f"live web down: {WEB_STATUS['last_error']}")
     try:
-        res = await _live(query, topic, intent, text, final, ledger, meter, entity=entity)
+        res = await _live(query, topic, intent, text, final, ledger, meter, entity=entity, hints=hints)
     except asyncio.CancelledError:
         raise
     except Exception as e:

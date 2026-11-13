@@ -31,7 +31,34 @@ def rules(f, cc_at, n, spans):
         "cc at last word": cc_last,
         "cc at last word OR (question AND slot ends at last word)": cc_last or (f.act_question and slot_end),
         "shipped (session.gate_open)": gate_open(f, cc_at, spans),
+        "cand A: shipped OR (q-act>=.8 AND fine intent AND last word content)": gate_open(f, cc_at, spans) or (
+            _actp(f) >= 0.8 and f.intent.startswith("discourse.intent.") and _last_content(f)),
+        "cand B: shipped OR (q-act>=.9 AND last word content)": gate_open(f, cc_at, spans) or (
+            _actp(f) >= 0.9 and _last_content(f)),
+        "cand C: shipped OR (q-act>=.95 AND request_info>=.95 AND last content)": gate_open(f, cc_at, spans) or (
+            _actp(f) >= 0.95 and _ri(f) >= 0.95 and _last_content(f)),
+        "cand D: shipped OR (time-word span ends at last word)": gate_open(f, cc_at, spans) or _date_end(spans, n),
+        "cand E: shipped AND last word content": gate_open(f, cc_at, spans) and _last_content(f),
+        "cand F: shipped AND q-act>=.5": gate_open(f, cc_at, spans) and _actp(f) >= 0.5,
     }
+
+
+def _actp(f):
+    return max((x["p"] for x in (f.current or {}).get("act") or [] if x["tag"] == "discourse.act.question"), default=0.0)
+
+
+def _ri(f):
+    return max((x["p"] for x in (f.current or {}).get("intent") or [] if x["tag"] == "intent.request_information"),
+               default=0.0)
+
+
+def _last_content(f):
+    t = frame.norm(f.words[-1]) if f.words else ""
+    return bool(t) and t not in frame.STOP
+
+
+def _date_end(spans, n):
+    return any(s["type"] in ("entity.number.date", "entity.number.time_of_day") and s["end"] == n for s in spans)
 
 
 def main(path):
@@ -53,6 +80,7 @@ def main(path):
                     cc_at = e.get("word", i)
             n = i + 1
             f = frame.build(ws[:n], spans, r.get("current"), {CC} if cc_at is not None else set(), local_ok=False)
+            f.current = r.get("current")
             if n < 2 or not f.has_content():
                 continue
             res = rules(f, cc_at, n, spans)
