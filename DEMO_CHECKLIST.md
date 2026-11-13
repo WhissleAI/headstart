@@ -52,6 +52,15 @@ Replays stream the recorded question through the same ear in real time; the race
 Local-moments questions (Local tab, local_01…local_10) need no web at all: retrieval is on the laptop. Only the
 answer model is remote, and it falls back to an extractive answer if that is down.
 
+### One replay is a sample, not the result
+In the final capture (20:30) 8 single Race replays went 4 wins, 2 dead heats, 2 losses; the 58-question A/B is
+44/58 faster. A single answer-model first token can take +0.9–1.6 s and decide one race. So:
+- Warm up: at T-10 min replay q01, q27, conv01 and local_05 once each (both modes share every cache, so this is
+  fair; it removes cold-connection outliers).
+- Open with **local_05** (most reliable: 0.70 vs 1.42 s in capture) or q01.
+- If a race ties or loses on stage, say so and press R once: "one sample; the 58-question run is the evidence",
+  then point at the results panel (median saving 0.35 s, faster on 44/58).
+
 ## Degraded modes (what the audience sees, and what to say)
 | failure | what the server does | UI | say |
 |---|---|---|---|
