@@ -7,6 +7,7 @@ local : EmbeddingGemma 2 index over a local corpus (text, and audio moments), qu
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import re
 import time
@@ -264,13 +265,21 @@ def _parse(data: dict) -> WebResult:
         pub = x.get("published_date")
         if pub:
             title = f"{title} ({str(pub)[:16]})"       # recency visible to the answer model (news)
-        out.append(Doc(id=x.get("url", ""), title=title, text=(x.get("content") or "").strip(),
+        text = (x.get("content") or "").strip()
+        out.append(Doc(id=_doc_id("tavily", x.get("url") or "", x.get("title") or "", text), title=title, text=text,
                        url=x.get("url", ""), source="tavily", score=float(x.get("score") or 0),
                        meta={"published_date": pub} if pub else {}))
     out.answer = data.get("answer") or None
     out.response_time = data.get("response_time")
     out.request_id = data.get("request_id")
     return out
+
+
+def _doc_id(source: str, url: str, title: str, text: str) -> str:
+    """The URL, or (no URL) a stable hash of the content: url-less results must not all collapse onto id ""."""
+    if url:
+        return url
+    return f"{source}:" + hashlib.sha1(f"{title}\n{text}".encode()).hexdigest()[:16]
 
 
 def _copy(res: WebResult, cached: bool) -> WebResult:

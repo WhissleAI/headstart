@@ -9,6 +9,7 @@ Each partial (about every 100 ms) also counts as a tick for the speculator's sta
 from __future__ import annotations
 
 import asyncio
+import collections
 import re
 import time
 
@@ -20,6 +21,29 @@ from .speculator import Speculator
 from .tagger import Tagger
 
 _END = re.compile(r"[.?!]+$")
+CC = "discourse.assistant.command_complete"
+
+
+def gate_open(f, cc_at: int | None, spans: list[dict]) -> bool:
+    """Semantic-endpoint gate on the tagger's LATEST state (eval/gate_eval.py measures the rules on the eval set).
+
+    Open when Arc's command_complete event fired at the newest word, or when the utterance is a question whose newest
+    word ends a typed slot (entity / number span): "who founded the company Nvidia", "how tall is the Eiffel Tower".
+    Not sticky: a command_complete at an earlier word no longer counts once more words arrive. (Arc dedups the event
+    within 3 words, so it often cannot re-fire on the true last word; the slot-end alternative covers those.) The old
+    gate, (any command_complete so far) OR act_question, was open on 90% of mid-question prefixes."""
+    n = f.n
+    if cc_at is not None and cc_at == n - 1:
+        return True
+    slot_end = any(s.get("family") in ("entity", "number") and s["type"] != "entity.numeral" and s["end"] == n
+                   for s in spans)
+    return bool(f.act_question and slot_end)
+
+
+def meaning(f) -> tuple:
+    """What an answer depends on: slots + content words (incl. a carried referent). Fillers ("um"), word order and
+    intent flicker don't change it."""
+    return (tuple(f.slots), tuple(sorted(set(f.content))))
 
 
 def clean(w: str) -> str:
@@ -37,36 +61,51 @@ class Session:
         self.semantic = mode == "headstart" and config.SEMANTIC_ENDPOINT
         self.silence_ms = 0.0
         self.noise = []
-        self.last_answered_end = -1.0           # audio time of the last word of the last answered question
+        self.last_answered_end = -1.0           # audio time of the last word of the last closed utterance
         self.last_answered_words: list[str] = []
-        self.pending_final = None
-        self.final_task: asyncio.Task | None = None
+        self.pending_finals: collections.deque = collections.deque()   # closed utterances waiting for their answer
+        self.busy = False                       # an answer is being produced (finals are answered one at a time, FIFO)
+        self.final_task: asyncio.Task | None = None   # the current question's soft (semantic-endpoint) answer
         self.soft: dict | None = None        # a semantic-endpoint answer awaiting the ear's confirmation
         self.carry: dict = {}                # {"person": [...], "thing": [...]} from the last question + answer
         self.context = ""                    # last question + answer text, for the answer model
         self.ans_tagger = Tagger(domain="talk")
         self.carry_pool: dict = {}           # its documents + vectors, seeded into the next speculator
         self.ledger = lanes.Ledger()         # Tavily credits + response cache, across this session's questions
+        self.closed = False
+        self._audio_end = 0.0
         self._new_question()
 
+    def set_t0(self, t0: float):
+        """Align the session clock with audio sample 0 (wall time)."""
+        self.t0 = t0
+        self.spec.t0 = t0
+
     def _new_question(self):
+        """Fresh listening state (tagger, words, speculator) for the next utterance. Doesn't touch busy / the queue:
+        an earlier question may still be answering while this one is heard."""
         self.tagger.reset()
         self.words: list[str] = []                   # what the tagger has
         self.times: list[tuple] = []
         self.spans: list[dict] = []
         self.current: dict | None = None
-        self.events: set[str] = set()
+        self.cc_at: int | None = None                # word index of the newest command_complete event
         self.prev_intent = None
         self.frame = None
         self.audio: list[np.ndarray] = []
         self.q_audio_start: float | None = None      # audio time (s) of the first word of this question
         self.spec = Speculator(self.emit, self.mode, self.t0, ledger=self.ledger)
-        if getattr(self, "carry_pool", None):
+        if self.carry_pool:
             self.spec.seed(self.carry_pool)
-        self.spec.context = getattr(self, "context", "")
-        self.busy = False
+        self.spec.context = self.context
         self.soft = None
+        self.final_task = None
         self.words_changed_at = time.perf_counter()
+
+    @property
+    def events(self) -> set:
+        """Tagger events that hold for the CURRENT words (command_complete only if it fired at the newest word)."""
+        return {CC} if (self.cc_at is not None and self.cc_at == len(self.words) - 1) else set()
 
     # ------------------------------------------------------------------ ear events
     def on_audio(self, pcm: np.ndarray, at_s: float):
@@ -96,6 +135,12 @@ class Session:
         a = max(0, int((self.q_audio_start - 0.15 - start_s) * 16000))
         return buf[a:]
 
+    def _fresh(self, ws: list[dict]) -> list[dict]:
+        """Drop words of utterances already closed (a late or repeated partial must not reopen an answered question)."""
+        if self.last_answered_end < 0:
+            return ws
+        return [w for w in ws if w.get("start") is None or w["start"] >= self.last_answered_end - 1e-3]
+
     def _sync_words(self, ws: list[dict]):
         new = [clean(w["text"]) for w in ws]
         new = [w for w in new if w]
@@ -103,7 +148,8 @@ class Session:
         while k < min(len(new), len(self.words)) and new[k] == self.words[k]:
             k += 1
         changed = False
-        if k < len(self.words):                      # revision of words[k:]
+        revised = k < len(self.words)
+        if revised:                                  # revision of words[k:]
             self.tagger.push(new[k:], from_=k)
             changed = True
         elif len(new) > len(self.words):
@@ -113,8 +159,10 @@ class Session:
         self.times = [(w.get("start"), w.get("end")) for w in ws if clean(w["text"])]
         if changed:
             self.words_changed_at = time.perf_counter()
+            if self.cc_at is not None and self.cc_at >= k:
+                self.cc_at = None                    # the word it fired on was revised away
             r = self.tagger.poll()
-            self._apply(r, revised_from=k if k < len(self.words) else None)
+            self._apply(r, revised_from=k if revised else None)
         if ws and self.q_audio_start is None:
             self.q_audio_start = ws[0].get("start") or 0.0
         return changed, k
@@ -127,13 +175,31 @@ class Session:
         for u in r.get("utterances") or []:
             self.current = u
         for e in r.get("events") or []:
-            self.events.add(e["type"])
+            if e["type"] == CC:
+                w = e.get("word")
+                self.cc_at = w if w is not None else len(self.words) - 1
+
+    def _build(self, carry=None):
+        return framemod.build(self.words, self.spans, self.current, self.events, self.prev_intent,
+                              local_ok=bool(len(lanes.index())), carry=self.carry if carry is None else carry)
 
     def on_partial(self, ws: list[dict], now: float | None = None):
-        if self.busy:
+        """Never raises: a bad partial is reported as an error event and the ear keeps going."""
+        if self.closed:
+            return
+        try:
+            self._on_partial(ws, now)
+        except Exception as e:
+            self.emit({"t": "error", "where": "on_partial", "error": f"{type(e).__name__}: {e}"[:300]})
+
+    def _on_partial(self, ws: list[dict], now: float | None = None):
+        # words of the utterance being answered are done; anything after it is the NEXT question, heard (and
+        # speculated on) even while the previous answer is still streaming
+        ws = self._fresh(ws)
+        if not ws:
             return
         changed, k = self._sync_words(ws)
-        f = framemod.build(self.words, self.spans, self.current, self.events, self.prev_intent, local_ok=bool(len(lanes.index())), carry=self.carry)
+        f = self._build()
         if f.intent.startswith("discourse.intent."):
             self.prev_intent = (f.intent, f.intent_p)
         if changed:
@@ -150,82 +216,140 @@ class Session:
         # the words are trustworthy if they held through one ASR refresh, or if they last changed in a refresh made
         # after the speaker went quiet (that refresh already saw the whole question)
         settled = stable_ms >= config.SEM_STABLE_MS or self.words_changed_at >= speech_stop + config.SEM_COVER_S
-        nw = [framemod.norm(w) for w in self.words]
-        if (self.semantic and not self.busy and ws and f.n >= 2 and self.silence_ms >= config.SEM_SILENCE_MS
-                and settled and (f.command_complete or f.act_question) and f.has_content()
-                and (self.soft is None or self.soft["words"] != nw)):
+        sig = meaning(f)
+        if (self.semantic and not self.busy and f.n >= 2 and self.silence_ms >= config.SEM_SILENCE_MS
+                and settled and gate_open(f, self.cc_at, self.spans) and f.has_content()
+                and (self.soft is None or self.soft["sig"] != sig)):
             # semantic endpoint: the tagger says the request is complete and the speaker paused briefly. Answer now
             # (soft), but keep listening and keep the speculator warm: the ear's final confirms or extends it.
-            self.final_task = asyncio.create_task(self._soft_answer(ws, f, nw))
+            if self.final_task is not None and not self.final_task.done():
+                self.final_task.cancel()               # superseded by this longer question: one soft answer at a time
+            prev = self.soft
+            self.soft = {"words": [framemod.norm(w) for w in self.words], "sig": sig, "metric": None,
+                         "end": ws[-1].get("end") or 0.0, "failed": False}
+            self.final_task = asyncio.create_task(self._soft_answer(self.spec, self.soft, f, extended=prev is not None))
             return
         qa = self.question_audio()
         if qa is not None:
             self.spec.on_audio(qa, f.route, f.n)
 
-    async def _soft_answer(self, ws: list[dict], f, nw: list[str]):
-        last_end = ws[-1].get("end") or 0.0
-        prev = self.soft
-        self.soft = {"words": nw, "metric": None, "end": last_end}
-        if prev is not None:
-            self.emit({"t": "extended", "ms": self.spec.ms(), "words": nw})
-        self.emit({"t": "endpoint", "ms": self.spec.ms(), "speech_end_ms": round(last_end * 1000),
+    async def _soft_answer(self, spec: Speculator, soft: dict, f, extended: bool):
+        last_end = soft["end"]
+        if extended:
+            self.emit({"t": "extended", "ms": spec.ms(), "words": soft["words"]})
+        self.emit({"t": "endpoint", "ms": spec.ms(), "speech_end_ms": round(last_end * 1000),
                    "frame": f.to_json(), "by": "semantic", "soft": True})
-        m = await self.spec.finalize(f, self.t0 + last_end, close=False, by="semantic")
+        try:
+            m = await spec.finalize(f, self.t0 + last_end, close=False, by="semantic")
+        except Exception as e:
+            # a failed soft answer is "no soft answer": the ear's final answers the question normally
+            soft["failed"] = True
+            self.emit({"t": "answer_error", "error": f"{type(e).__name__}: {e}"[:300], "soft": True})
+            return None
+        if m.get("superseded"):
+            return None
         m["endpoint_by"] = "semantic"
-        if self.soft is not None and self.soft["words"] == nw:
-            self.soft["metric"] = m
+        soft["metric"] = m
         return m
 
+    # ------------------------------------------------------------------ endpoint
+    def _close_question(self, ws: list[dict]) -> dict:
+        """The ear closed an utterance: freeze what the answer needs and start listening for the next question at once
+        (its partials may arrive while this one is still being answered)."""
+        job = {"ws": ws, "spec": self.spec, "soft": self.soft, "final_task": self.final_task, "error": None}
+        try:
+            self._sync_words(ws)
+            self.tagger.endpoint()
+            self._apply(self.tagger.poll())
+            f = self._build()
+            job.update(words=list(self.words), spans=list(self.spans), current=self.current, events=self.events,
+                       prev_intent=self.prev_intent)
+            self.emit({"t": "words", "words": [{"w": w, "t0": t[0], "t1": t[1]} for w, t in zip(self.words, self.times)],
+                       "from": 0, "final": True, "ms": self.spec.ms()})
+            self.emit({"t": "frame", **f.to_json(), "final": True, "spans": [
+                {"type": s["type"], "start": s["start"], "end": s["end"], "text": s["text"]} for s in self.spans],
+                "ms": self.spec.ms()})
+        except Exception as e:
+            job["error"] = e
+        self.last_answered_end = max(self.last_answered_end, ws[-1].get("end") or 0.0)
+        self.last_answered_words = [framemod.norm(w) for w in self.words]
+        self._new_question()
+        return job
+
     async def on_final(self, ws: list[dict], early: bool = False) -> dict | None:
+        """Answer a closed utterance. Finals are answered one at a time in arrival order; a final that arrives while
+        another is answering is queued (returns None) and answered right after it by the call already running."""
+        if self.closed:
+            return None
+        ws = self._fresh(ws or [])
+        if not ws:
+            return None
+        job = self._close_question(ws)
         if self.busy:
-            if ws:
-                self.pending_final = ws      # a new utterance closed while we were answering: answer it next
+            self.pending_finals.append(job)
             return None
         self.busy = True
-        if not ws:
-            self.busy = False
-            return None
-        self._sync_words(ws)
-        self.tagger.endpoint()
-        self._apply(self.tagger.poll())
-        f = framemod.build(self.words, self.spans, self.current, self.events, self.prev_intent, local_ok=bool(len(lanes.index())), carry=self.carry)
-        self.emit({"t": "words", "words": [{"w": w, "t0": t[0], "t1": t[1]} for w, t in zip(self.words, self.times)],
-                   "from": 0, "final": True, "ms": self.spec.ms()})
-        self.emit({"t": "frame", **f.to_json(), "final": True, "spans": [
-            {"type": s["type"], "start": s["start"], "end": s["end"], "text": s["text"]} for s in self.spans],
-            "ms": self.spec.ms()})
-        nw = [framemod.norm(w) for w in self.words]
-        last_end = ws[-1].get("end") or 0.0
-        self.last_answered_end = last_end
-        self.last_answered_words = nw
-        m = None
         try:
-            if self.soft is not None and self.soft["words"] == nw:
+            m = await self._answer(job)
+            while self.pending_finals and not self.closed:
+                await self._answer(self.pending_finals.popleft())
+        finally:
+            self.busy = False
+        return m
+
+    async def _answer(self, job: dict) -> dict:
+        """Answer one closed question. Never leaves the session wedged: any failure becomes an answer_error event and a
+        failure metric, and the question's speculator is always closed."""
+        spec: Speculator = job["spec"]
+        soft, final_task = job["soft"], job["final_task"]
+        ws = job["ws"]
+        last_end = ws[-1].get("end") or 0.0
+        m = None
+        f = None
+        try:
+            if job["error"] is not None:
+                raise job["error"]
+            # build at answer time: an earlier question that finished meanwhile may have updated the carried entity
+            f = framemod.build(job["words"], job["spans"], job["current"], job["events"], job["prev_intent"],
+                               local_ok=bool(len(lanes.index())), carry=self.carry)
+            spec.context = self.context
+            if soft is not None and soft["sig"] == meaning(f):
                 # the ear confirms what we already answered at the semantic endpoint
-                if self.final_task is not None and not self.final_task.done():
-                    await self.final_task
-                m = self.soft["metric"]
+                if final_task is not None and not final_task.done():
+                    await asyncio.wait({final_task})      # (a cancelled soft task must not look like OUR cancel)
+                m = soft["metric"]                        # None if the soft answer failed or was superseded
             if m is None:
-                if self.soft is not None:
+                if soft is not None:
                     # the speaker kept going after the semantic endpoint: answer the longer question from the same,
                     # still-warm speculator (its searches/drafts kept running on the later words)
-                    self.emit({"t": "extended", "ms": self.spec.ms(), "words": nw})
-                    if self.final_task is not None and not self.final_task.done():
-                        self.final_task.cancel()
-                self.emit({"t": "endpoint", "ms": self.spec.ms(), "speech_end_ms": round(last_end * 1000),
+                    self.emit({"t": "extended", "ms": spec.ms(), "words": [framemod.norm(w) for w in job["words"]]})
+                    if final_task is not None and not final_task.done():
+                        final_task.cancel()
+                self.emit({"t": "endpoint", "ms": spec.ms(), "speech_end_ms": round(last_end * 1000),
                            "frame": f.to_json(), "by": "ear"})
-                m = await self.spec.finalize(f, self.t0 + last_end)
+                m = await spec.finalize(f, self.t0 + last_end)
                 m["endpoint_by"] = "ear"
-                m["superseded_soft"] = self.soft is not None
+                m["superseded_soft"] = soft is not None
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            err = f"{type(e).__name__}: {e}"[:300]
+            self.emit({"t": "answer_error", "error": err})
+            m = {"mode": self.mode, "question": " ".join(job.get("words") or [w["text"] for w in ws]),
+                 "endpoint_by": "ear", "path": "failed", "error": err, "failed": True}
+            self.emit({"t": "metric", **m})
         finally:
-            self.spec.close()
-        self._remember(f, m)
-        self.carry_pool = self.spec.export_pool()
+            if final_task is not None and not final_task.done():
+                final_task.cancel()
+            spec.close()
+        if not m.get("failed") and f is not None:
+            self._remember(f, m)
+            self.carry_pool = spec.export_pool()
+            # the question already being heard started with the older pool / context: bring it up to date
+            for s in [self.spec] + [j["spec"] for j in self.pending_finals]:
+                s.seed(self.carry_pool)
+                s.context = self.context
         self.history.append(m)
-        self._new_question()
-        nxt, self.pending_final = self.pending_final, None
-        if nxt:
-            await self.on_final(nxt)
         return m
 
     def _remember(self, f, m):
@@ -236,6 +360,8 @@ class Session:
                 continue
             (person if t == "person" else thing).append((t, txt))
         try:
+            if self.ans_tagger.h is None:
+                raise RuntimeError("session closed")     # never call into a destroyed native handle
             r = self.ans_tagger.tag_text(re.sub(r"\[\d+\]", "", m.get("answer") or ""))
             for sp in r.get("spans", []):
                 if sp.get("family") != "entity" or not sp["type"].startswith("entity.mention"):
@@ -253,9 +379,17 @@ class Session:
         self.context = f"Q: {f.text}\nA: {(m.get('answer') or '')[:300]}"
 
     def close(self):
+        if self.closed:
+            return
+        self.closed = True
         if self.soft is not None and self.soft.get("metric") is not None and not self.busy:
             self.history.append(self.soft["metric"])      # the ear never confirmed (stream ended): keep the answer
             self.soft = None
+        if self.final_task is not None and not self.final_task.done():
+            self.final_task.cancel()                      # an unconfirmed soft answer must not outlive the session
         self.spec.close()
+        for j in self.pending_finals:
+            j["spec"].close()
+        self.pending_finals.clear()
         self.tagger.close()
         self.ans_tagger.close()

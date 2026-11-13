@@ -74,7 +74,9 @@ class Speculator:
         self.fired_queries: dict[tuple, Fire] = {}
         self.pool: dict[str, lanes.Doc] = {}
         self.vecs: dict[str, np.ndarray] = {}
-        self.embed_tasks: set[asyncio.Task] = set()
+        self.embedding: dict[str, asyncio.Future] = {}   # doc id -> in-flight embedding (shared by concurrent fires)
+        self.carried_ids: set[str] = set()
+        self.gen = 0                                     # finalize generation: a newer finalize supersedes older ones
         self.drafts: list[Draft] = []
         self.web_used = 0
         self.local_used = 0
@@ -86,6 +88,8 @@ class Speculator:
         self.draft_busy = False
         self.closed = False
         self.answer_stream = None
+        self.last_qvec: np.ndarray | None = None
+        self.used_ids: list[str] = []
         self.context = ""                      # previous turn (question + answer), for follow-ups
 
     # ------------------------------------------------------------------ helpers
@@ -108,17 +112,18 @@ class Speculator:
                 docs = await coro_fn()
                 for d in docs:
                     d.lane = lane
-                fire.docs = docs
                 fire.t_done = time.perf_counter()
-                await self._add_docs(docs, fire)            # vectors first, then "done": drafts rank on vectors
-                fire.state = "done" if fire.state == "fired" else fire.state
+                await self._add_docs(docs)                  # vectors first, then "done": drafts rank on vectors
+                fire.docs = docs                            # (a fire cancelled mid-embed keeps none: never revived
+                fire.state = "done" if fire.state == "fired" else fire.state     # with vector-less docs)
                 self._ev(id=fire.id, lane=lane, query=query, state=fire.state, ms=self.ms(fire.t_done),
                          took=round((fire.t_done - fire.t_fire) * 1000), n=len(docs),
                          top=[d.title for d in docs[:3]], ids=[d.id for d in docs], **self._meter_ev(fire))
             except asyncio.CancelledError:
-                fire.state = "cancelled"
                 fire.t_done = time.perf_counter()
-                self._ev(id=fire.id, lane=lane, query=query, state="cancelled", ms=self.ms(fire.t_done))
+                if fire.state == "fired":               # a stale fire stays "stale" (revivable; counted as stale)
+                    fire.state = "cancelled"
+                    self._ev(id=fire.id, lane=lane, query=query, state="cancelled", ms=self.ms(fire.t_done))
                 raise
             except Exception as e:
                 fire.state = "error"
@@ -155,42 +160,74 @@ class Speculator:
                      spent=self.ledger.spent)
         return why is None
 
-    async def _add_docs(self, docs, fire):
-        new = [d for d in docs if d.id not in self.pool]
-        for d in docs:
-            self.pool.setdefault(d.id, d)
-        need = [d for d in new if d.id not in self.vecs]
+    async def _add_docs(self, docs):
+        """Give every doc a vector, then put it in the pool (the pool only ever holds ranked-ready docs).
+
+        A doc another fire is already embedding is waited for, not re-embedded; if that fire is cancelled mid-embed
+        (it went stale), the doc is embedded here instead, so a fresh fire never inherits a vector-less doc."""
+        loop = asyncio.get_running_loop()
         ix = lanes.index()
-        for d in list(need):
-            row = ix.row_of(d.id) if d.source == "local" else None
-            if row is not None:
-                self.vecs[d.id] = ix.tv[row]          # the index's own text vector: no re-embedding on the GPU
-                need.remove(d)
-        if not need:
-            return
-        # local docs come with precomputed vectors in the index; re-embedding keeps one code path and is ~30 ms
-        vec = await embed.arun(embed.encode_docs, [d.text[:600] for d in need], [d.title for d in need])
-        for d, v in zip(need, vec):
-            self.vecs[d.id] = v
+        todo = list(docs)
+        while todo:
+            need, waits = [], set()
+            for d in todo:
+                if d.id in self.vecs:
+                    self.pool.setdefault(d.id, d)
+                    continue
+                if d.id in self.embedding:
+                    waits.add(self.embedding[d.id])
+                    continue
+                row = ix.row_of(d.id) if d.source == "local" else None
+                if row is not None:
+                    self.vecs[d.id] = ix.tv[row]      # the index's own text vector: no re-embedding on the GPU
+                    self.pool.setdefault(d.id, d)
+                    continue
+                if d.id not in {x.id for x in need}:
+                    need.append(d)
+            if need:
+                fut = loop.create_future()
+                for d in need:
+                    self.embedding[d.id] = fut
+                try:
+                    vec = await embed.arun(embed.encode_docs, [d.text[:600] for d in need], [d.title for d in need])
+                    for d, v in zip(need, vec):
+                        self.vecs[d.id] = v
+                        self.pool.setdefault(d.id, d)
+                finally:
+                    for d in need:
+                        if self.embedding.get(d.id) is fut:
+                            del self.embedding[d.id]
+                    if not fut.done():
+                        fut.set_result(None)
+            if waits:
+                await asyncio.wait(waits)             # (wait, not await: our cancel must not cancel their future)
+            todo = [d for d in todo if d.id not in self.vecs]
+            if todo and not waits and not need:
+                break                                  # unreachable; guards against a spin
 
     def seed(self, pool: dict):
         """Start with the previous question's documents (already embedded): follow-ups rank them instantly."""
         for d, v in pool.values():
-            self.pool.setdefault(d.id, d)
             self.vecs.setdefault(d.id, v)
-        if pool:
-            self.carried_ids = set(pool)
+            self.pool.setdefault(d.id, d)
+        self.carried_ids |= set(pool)
 
-    def export_pool(self, k: int = 12) -> dict:
-        """The docs that fed or nearly fed this answer, for the next question."""
-        used = []
+    def export_pool(self, k: int = 12, qvec: np.ndarray | None = None) -> dict:
+        """The docs that fed or nearly fed this answer, for the next question: the answer's own sources first, then the
+        rest of the fresh results by similarity to the question (not simply the first k found)."""
+        cand: dict[str, lanes.Doc] = {}
         for x in self.fires:
             if x.used or x.state == "done":
-                used += [d for d in x.docs if d.id in self.vecs]
-        out = {}
-        for d in used[:k]:
-            out[d.id] = (d, self.vecs[d.id])
-        return out
+                for d in x.docs:
+                    if d.id in self.vecs:
+                        cand.setdefault(d.id, d)
+        qvec = qvec if qvec is not None else self.last_qvec
+        first = [i for i in self.used_ids if i in cand]
+        rest = [i for i in cand if i not in set(first)]
+        if qvec is not None and rest:
+            s = np.stack([self.vecs[i] for i in rest]) @ qvec
+            rest = [rest[j] for j in np.argsort(-s, kind="stable")]
+        return {i: (cand[i], self.vecs[i]) for i in (first + rest)[:k]}
 
     def rank(self, qvec: np.ndarray, k: int = 5, fresh_only: bool = True):
         """Top-k pool docs by cosine. Docs that only came from stale searches (a misheard or corrected-away query) are
@@ -201,7 +238,7 @@ class Speculator:
             for x in self.fires:
                 if x.state in ("done", "fired"):
                     fresh |= {d.id for d in x.docs}
-            fresh |= getattr(self, "carried_ids", set())
+            fresh |= self.carried_ids
             keep = [i for i in ids if i in fresh]
             if len(keep) >= 3:
                 ids = keep
@@ -270,6 +307,13 @@ class Speculator:
                 fire.state = "done"                 # the speaker came back to it (ASR flip-flop)
                 self._ev(id=fire.id, lane=fire.lane, query=fire.query, state="done", ms=self.ms(), revived=True)
                 continue
+            if (fire.state == "stale" and not fire.docs and fire.task is not None and fire.task.done()
+                    and fire.content and set(fire.content) <= cur
+                    and self.fired_queries.get((fire.lane, fire.query)) is fire):
+                # back to a query whose search was cancelled before its results were in: forget it so the next frame
+                # fires it again (the web lane's cache usually holds the paid-for, finished request: free + instant)
+                del self.fired_queries[(fire.lane, fire.query)]
+                continue
             if fire.state not in ("fired", "done") or fire.lane.startswith("final") or fire.lane == "audio":
                 continue
             if fire.content and not set(fire.content) <= cur:
@@ -322,60 +366,93 @@ class Speculator:
     # ------------------------------------------------------------------ endpoint
     async def finalize(self, f: Frame, t_speech_end: float, close: bool = True, by: str = "ear") -> dict:
         """Called when the question is over (close=True), or at a soft semantic endpoint (close=False: keep
-        speculating on later words; a later finalize supersedes this answer). Streams the answer; returns metrics."""
+        speculating on later words; a later finalize supersedes this answer). Streams the answer; returns metrics.
+
+        A finalize that is superseded (a newer finalize started, or the speculator was closed) stops at its next step
+        and emits nothing more: no sources, answer tokens or metric. Its metric comes back with superseded=True."""
         t_end = time.perf_counter()
+        self.gen += 1
+        gen = self.gen
+
+        def live():
+            return gen == self.gen
+
+        def emit(e):
+            if live():
+                self.emit(e)
+
         self._mark_stale(f)                       # the final words can still revise away earlier searches
         if self.answer_stream is not None:
             self.answer_stream.cancel()           # superseded soft answer
+            self.answer_stream = None
         self.closed = close
         m = {"mode": self.mode, "question": f.text, "query": f.query(), "intent": f.intent, "endpoint_by": by,
              "endpoint_lag_ms": round((t_end - t_speech_end) * 1000)}
+
+        def superseded():
+            m["superseded"] = True
+            return m
+
         q = f.query() or " ".join(f.words)
         qtext = f.resolved_text
         qvec_task = asyncio.create_task(embed.arun(embed.encode_queries, [qtext]))
         reuse_draft = None
         alt = None
-        if self.mode == "baseline":
-            alt = self._answer_race(q, f)
-            waits = []
-            if f.route in ("web", "both"):
-                waits.append(self._fire("final-web", q, f, *self._web(q, f, final=True)).task)
-            if f.route in ("local", "both") and len(lanes.index()):
-                waits.append(self._fire("final-local", q, f, lambda: lanes.local_text(q)).task)
-            await asyncio.gather(*waits, return_exceptions=True)
-            qvec = (await qvec_task)[0]
-            m["path"] = "search-after-endpoint"
-        else:
-            qvec = (await qvec_task)[0]
-            # 1) a draft that answers this question? exact meaning, or a shorter question whose answer already
-            #    contains every word the speaker added after it ("how tall is the Eiffel" -> "... Eiffel Tower")
-            reuse_draft = await self._pick_draft(f, qvec, m)
-            if reuse_draft is None:
-                # 2) the final query already fired (in flight or done)? wait for it, don't re-search
-                same = [x for x in self.fires if x.query == q and x.lane in ("web", "local")
-                        and x.state in ("fired", "done", "stale")]
-                pending = [x.task for x in same if x.state == "fired" and x.task]
-                top = self.rank(qvec, 1)
-                best = top[0][1] if top else 0.0
-                m["pool_best"] = round(best, 3)
-                if same:
-                    m["path"] = "speculative-hit"
-                    if pending:
-                        # don't let a slow lane hold the answer hostage: answer with what has landed after the cap
-                        await asyncio.wait(pending, timeout=config.PENDING_CAP_S)
-                elif best >= config.COMMIT_TAU and self._nothing_new(f):
-                    m["path"] = "pool-commit"
-                else:
-                    m["path"] = "speculative-miss"
-                    alt = self._answer_race(q, f)
-                    waits = []
-                    if f.route in ("web", "both") and self.web_used < config.WEB_BUDGET + 1:
-                        waits.append(self._fire("final-web", q, f, *self._web(q, f, final=True)).task)
-                    if f.route in ("local", "both") and len(lanes.index()):
-                        waits.append(self._fire("final-local", q, f, lambda: lanes.local_text(q)).task)
-                    await asyncio.gather(*waits, return_exceptions=True)
+        try:
+            if self.mode == "baseline":
+                alt = self._answer_race(q, f)
+                waits = []
+                if f.route in ("web", "both"):
+                    waits.append(self._fire("final-web", q, f, *self._web(q, f, final=True)).task)
+                if f.route in ("local", "both") and len(lanes.index()):
+                    waits.append(self._fire("final-local", q, f, lambda: lanes.local_text(q)).task)
+                await asyncio.gather(*waits, return_exceptions=True)
+                qvec = (await qvec_task)[0]
+                m["path"] = "search-after-endpoint"
             else:
-                m["path"] = "draft-reuse"
+                qvec = (await qvec_task)[0]
+                if not live():
+                    return superseded()
+                # 1) a draft that answers this question? exact meaning, or a shorter question whose answer already
+                #    contains every word the speaker added after it ("how tall is the Eiffel" -> "... Eiffel Tower")
+                reuse_draft = await self._pick_draft(f, qvec, m)
+                if not live():
+                    return superseded()
+                if reuse_draft is None:
+                    # 2) the final query already fired (in flight or done)? wait for it, don't re-search
+                    # (a stale fire cancelled before its results landed doesn't count: it brought nothing)
+                    same = [x for x in self.fires if x.query == q and x.lane in ("web", "local")
+                            and (x.state in ("fired", "done") or (x.state == "stale" and x.docs))]
+                    pending = [x.task for x in same if x.state == "fired" and x.task]
+                    top = self.rank(qvec, 1)
+                    best = top[0][1] if top else 0.0
+                    m["pool_best"] = round(best, 3)
+                    if same:
+                        m["path"] = "speculative-hit"
+                        if pending:
+                            # don't let a slow lane hold the answer hostage: answer with what has landed after the cap
+                            await asyncio.wait(pending, timeout=config.PENDING_CAP_S)
+                    elif best >= config.COMMIT_TAU and self._nothing_new(f):
+                        m["path"] = "pool-commit"
+                    else:
+                        m["path"] = "speculative-miss"
+                        alt = self._answer_race(q, f)
+                        waits = []
+                        if f.route in ("web", "both") and self.web_used < config.WEB_BUDGET + 1:
+                            waits.append(self._fire("final-web", q, f, *self._web(q, f, final=True)).task)
+                        if f.route in ("local", "both") and len(lanes.index()):
+                            waits.append(self._fire("final-local", q, f, lambda: lanes.local_text(q)).task)
+                        await asyncio.gather(*waits, return_exceptions=True)
+                else:
+                    m["path"] = "draft-reuse"
+        finally:
+            if not qvec_task.done():
+                qvec_task.cancel()
+            if alt is not None and not live():
+                alt.cancel()                      # superseded: nobody will race it
+        if not live():
+            return superseded()
+        self.last_qvec = qvec
         ranked = self.rank(qvec, 5)
         if reuse_draft is not None:
             st = reuse_draft.stream
@@ -390,25 +467,30 @@ class Speculator:
                 st = answer.Race(st, alt)
         t_sources = time.perf_counter()
         m["n_sources"] = len(docs)
-        self.emit({"t": "sources", "ms": self.ms(t_sources),
-                   "docs": [{**d.brief(), "score": round(sc, 3)} for d, sc in ranked]})
+        emit({"t": "sources", "ms": self.ms(t_sources),
+              "docs": [{**d.brief(), "score": round(sc, 3)} for d, sc in ranked]})
         self.answer_stream = st
-        used_ids = {d.id for d in docs}
+        self.used_ids = [d.id for d in docs]
+        used_ids = set(self.used_ids)
         for fire in self.fires:
             fire.used = any(d.id in used_ids for d in fire.docs)
-        self.emit({"t": "used", "fires": [x.id for x in self.fires if x.used], "ms": self.ms()})
+        emit({"t": "used", "fires": [x.id for x in self.fires if x.used], "ms": self.ms()})
         if close:
             for d in self.drafts:
                 if d is not reuse_draft:
                     d.stream.cancel()
         t_first = None
         async for tok in st.follow():
+            if not live():
+                break
             if t_first is None:
                 t_first = time.perf_counter()
-            self.emit({"t": "answer", "delta": tok, "ms": self.ms()})
+            emit({"t": "answer", "delta": tok, "ms": self.ms()})
+        if not live():
+            return superseded()
         t_done = time.perf_counter()
         if st.error:
-            self.emit({"t": "answer_error", "error": st.error})
+            emit({"t": "answer_error", "error": st.error})
         spec = [x for x in self.fires if not x.lane.startswith("final")]
         used_spec = [x for x in spec if x.used]
         if spec:
@@ -433,7 +515,7 @@ class Speculator:
             "sources": [d.title for d in docs],
             "error": st.error,
         })
-        self.emit({"t": "metric", **{k: v for k, v in m.items() if k != "answer"}})
+        emit({"t": "metric", **{k: v for k, v in m.items() if k != "answer"}})
         return m
 
     def _answer_race(self, q: str, f: Frame):
@@ -506,7 +588,12 @@ class Speculator:
         return None
 
     def close(self):
+        """End of this question: cancel searches, drafts and any answer still streaming (an unconfirmed soft answer
+        must not keep generating, or emitting, after the session moved on)."""
         self.closed = True
+        self.gen += 1                              # a finalize still running emits nothing more
+        if self.answer_stream is not None:
+            self.answer_stream.cancel()
         for x in self.fires:
             if x.task and not x.task.done():
                 x.task.cancel()

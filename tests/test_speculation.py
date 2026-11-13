@@ -41,7 +41,10 @@ async def fake_web(query, topic="general", **kw):
 
 
 class FakeStream:
+    """Same end-of-stream semantics as answer.Stream: done exactly once; cancel() on a finished stream is a no-op, on an
+    unfinished one (even before its task started) it ends the stream with error="cancelled"; follow() always ends."""
     instances: list["FakeStream"] = []
+    TTFT = 0.3
 
     def __init__(self, question, docs, tag="", context=""):
         self.question, self.docs, self.tag = question, list(docs), tag
@@ -51,28 +54,40 @@ class FakeStream:
         self.cancelled = False
         FakeStream.instances.append(self)
         self.task = asyncio.create_task(self._run())
+        self.task.add_done_callback(lambda t: self._finish("cancelled" if t.cancelled() else None))
+
+    def _finish(self, error=None):
+        if not self.done:
+            self.error = self.error or error
+            self.done = True
 
     async def _run(self):
-        await asyncio.sleep(0.3)  # TTFT
+        await asyncio.sleep(self.TTFT)  # TTFT
         self.t_first = time.perf_counter()
         self.tokens.append(f"Answer to {self.question}: " + " ".join(d.title for d in self.docs[:2]) + ".")
-        self.done = True
+        self._finish()
 
     async def follow(self):
-        while not self.done:
+        i = 0
+        while True:
+            if i < len(self.tokens):
+                yield self.tokens[i]
+                i += 1
+                continue
+            if self.done or self.task.done():
+                return
             await asyncio.sleep(0.01)
-        for t in self.tokens:
-            yield t
 
     def text(self):
         return "".join(self.tokens)
 
     def cancel(self):
+        if self.done:
+            return
         self.cancelled = True
         if not self.task.done():
             self.task.cancel()
-        self.done = True
-        self.error = self.error or "cancelled"
+        self._finish("cancelled")
 
 
 @pytest.fixture(autouse=True)
