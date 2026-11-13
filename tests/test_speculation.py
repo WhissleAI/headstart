@@ -315,3 +315,36 @@ def test_conversation_memory_resolves_pronouns(tagger):
     assert g.carried == "" and "apple" in g.query()          # has its own entity: no carry
     h = last("is there a good pizza place in Boston")
     assert h.carried == ""                                    # weak pronoun in a full question: no carry
+
+
+def test_elliptical_followups(tagger):
+    def fr(q, carry=None):
+        tagger.reset(); ws = q.split(); tagger.push(ws); r = tagger.poll()
+        return frame.build(ws, r.get("spans", []), r.get("current"), local_ok=False, carry=carry)
+    f1 = fr("who founded google")
+    carry = {"thing": [("organization", "google")], "person": [],
+             "prev": {"content": list(f1.content), "entities": ["google"], "intent": f1.intent, "question": f1.text}}
+    assert fr("and when", carry).query().split()[:2] == ["founded", "google"]
+    assert "when" in fr("and when", carry).query()
+    assert fr("and when was that", carry).query() == fr("and when", carry).query()
+    q = fr("what about nvidia", carry).query()
+    assert "nvidia" in q and "google" not in q and "founded" in q
+    assert fr("pizza near me", carry).followup_of == ""          # a standalone query is not a follow-up
+    assert "google" in fr("who is its ceo", carry).query()
+
+
+def test_memory_survives_across_mic_runs():
+    """Push-to-talk: each press is a new run; memory moves from the old session to the new one."""
+    async def go():
+        a = Session(lambda e: None, mode="headstart")
+        a.carry = {"thing": [("organization", "google")], "prev": {"content": ["founded", "google"],
+                   "entities": ["google"], "intent": "", "question": "who founded google"}}
+        a.context = "Q: who founded google\nA: Larry Page and Sergey Brin [1]."
+        mem = a.export_memory()
+        a.close()
+        b = Session(lambda e: None, mode="headstart")
+        b.import_memory(mem)
+        ok = b.carry["prev"]["question"] == "who founded google" and b.spec.context.startswith("Q: who founded google")
+        b.close()
+        return ok
+    assert asyncio.run(go())

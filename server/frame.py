@@ -101,6 +101,7 @@ class Frame:
     content: tuple = ()              # content words, in order, after correction handling
     corrected: bool = False
     carried: str = ""                # entity inherited from the previous question ("when was it founded")
+    followup_of: str = ""            # previous question, when this one is an elliptical follow-up ("and when?")
     route: str = "web"               # web | local | both
     act_question: bool = False
     command_complete: bool = False
@@ -158,6 +159,8 @@ class Frame:
     def resolved_text(self) -> str:
         """The question with its carried referent spelled out, for ranking and for the answer model."""
         t = self.clean_text
+        if self.followup_of:
+            return f"{t} (follow-up to: {self.followup_of})"
         return f"{t} ({self.carried})" if self.carried else t
 
     def entity_query(self) -> str:
@@ -428,10 +431,44 @@ def build(words: list[str], spans: list[dict], current: dict | None, events_seen
             if carry.get(k):
                 ent = carry[k][0]
                 break
+    # elliptical follow-ups with no pronoun: "and when?", "what about Nvidia?", "how about in 2020?", "and the CEO?"
+    prev = (carry or {}).get("prev")
+    head2 = toks[:2]
+    elliptic = bool(prev) and (toks[:1] in (["and"], ["also"]) or head2 in (["what", "about"], ["how", "about"])
+                               or (len(content) == 0 and len(toks) <= 4))
+    if elliptic and not ent:
+        pc = list(prev.get("content") or [])
+        pents = [w for e in prev.get("entities") or [] for w in e.split()]
+        swap = head2 in (["what", "about"], ["how", "about"])
+        wh = None if swap else next((t for t in toks if t in ("when", "where", "who", "why", "how", "which", "whom",
+                                                               "whose")), None)
+        if has_mention or (swap and content):
+            # "what about Nvidia": same question, new subject → swap the previous entity for the new one (the words
+            # after "about" are the new subject even when the tagger doesn't mark them in so short a phrase)
+            base = [w for w in pc if w not in pents]
+            content = base + [w for w in content if w not in base]
+        else:
+            # "and when?": the previous question's subject and verb + the new question word
+            content = pc + [w for w in content if w not in pc]
+            if prev.get("entities"):
+                f.carried = prev["entities"][0]
+                f.phrases = (prev["entities"][0],)
+        if wh and wh not in content:
+            content.append(wh)
+        f.followup_of = prev.get("question", "")
+        if not f.intent and prev.get("intent"):
+            f.intent = prev["intent"]
     if ent:
         f.carried = ent[1]
         f.phrases = (ent[1],)
         f.slots = tuple(sorted(set(f.slots) | {ent}))
+        if prev and not content:
+            # "and when was that?": a pronoun AND nothing else said → the previous question's meaning + question word
+            content = [w for w in (prev.get("content") or [])]
+            wh = next((t for t in toks if t in ("when", "where", "who", "why", "how", "which")), None)
+            if wh and wh not in content:
+                content.append(wh)
+            f.followup_of = prev.get("question", "")
         for w in reversed(ent[1].split()):
             if w not in content:
                 content.insert(0, w)

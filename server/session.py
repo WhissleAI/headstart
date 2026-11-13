@@ -426,9 +426,25 @@ class Session:
                     thing.append(item)
         except Exception:
             pass
+        q_ents = [txt for t, txt in f.slots if t not in framemod.NUMBER_TYPES]
         if person or thing:
             self.carry = {"person": person, "thing": thing}
+        # for elliptical follow-ups ("and when?", "what about Nvidia?"): the previous question's meaning
+        self.carry = {**(self.carry or {}), "prev": {"content": list(f.content), "entities": q_ents,
+                                                     "intent": f.intent, "question": f.text}}
         self.context = f"Q: {f.text}\nA: {(m.get('answer') or '')[:300]}"
+
+    def export_memory(self) -> dict:
+        """Conversation memory to carry into the next run on the same connection (push-to-talk turns)."""
+        return {"carry": self.carry, "context": self.context, "carry_pool": self.carry_pool, "at": time.time()}
+
+    def import_memory(self, mem: dict | None):
+        if not mem or time.time() - mem.get("at", 0) > config.MEMORY_TTL_S:
+            return
+        self.carry, self.context, self.carry_pool = mem["carry"], mem["context"], mem["carry_pool"]
+        if self.carry_pool:
+            self.spec.seed(self.carry_pool)
+        self.spec.context = self.context
 
     def close(self):
         if self.closed:

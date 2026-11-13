@@ -229,6 +229,8 @@ async def ws_endpoint(ws: WebSocket):
         except Exception:
             pass
 
+    memory: dict = {}          # per mode: conversation memory carried across mic runs on this connection
+
     async def end_run():
         """Stop the current run: the replay feeding it first (so nothing is fed into a flushed ear), then the run."""
         nonlocal run, task
@@ -237,6 +239,9 @@ async def ws_endpoint(ws: WebSocket):
         if run is not None:
             r, run = run, None
             await r.stop()
+            if getattr(r, "kind", "") == "mic":
+                for s in r.sessions:
+                    memory[s.mode] = s.export_memory()
 
     await send({"t": "ready", "mode": "sys", **status_payload()})
     try:
@@ -270,6 +275,12 @@ async def ws_endpoint(ws: WebSocket):
                         continue
                 modes = data.get("modes") or ["headstart", "baseline"]
                 run = Run(ws, modes, data.get("domain", "assistant"))
+                run.kind = "mic" if t == "start" else "replay"
+                if t == "start":
+                    for s in run.sessions:            # push-to-talk: follow-ups keep the conversation
+                        s.import_memory(memory.get(s.mode))
+                else:
+                    memory.clear()                    # a replay starts a fresh conversation
                 if t == "replay":
                     async def go(r=run, p=p):
                         await replay(r, p)
