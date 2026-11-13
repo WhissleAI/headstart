@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from . import answer, config, embed, lanes, narrow, rerank
+from . import answer, confidence, config, embed, lanes, narrow, rerank
 from .frame import NEWS_INTENTS, Frame
 
 _ids = itertools.count(1)
@@ -93,6 +93,8 @@ class Speculator:
         self.context = ""                      # previous turn (question + answer), for follow-ups
         self.audio_qvec: np.ndarray | None = None   # the audio lane's latest (longest) spoken-question vector
         self.audio_qdur = 0.0
+        self.last_frame: Frame | None = None
+        self.held = 0                           # fires held back on a shaky key word (SPEC_CONF)
 
     # ------------------------------------------------------------------ helpers
     def ms(self, t=None):
@@ -122,6 +124,10 @@ class Speculator:
                          took=round((fire.t_done - fire.t_fire) * 1000), n=len(docs),
                          top=[d.title for d in docs[:3]], ids=[d.id for d in docs],
                          docs=[d.brief(160) for d in docs[:5]], **self._meter_ev(fire))
+                if (config.DRAFT_ON_LAND and self.mode == "headstart" and not self.closed and not self.draft_busy
+                        and lane in ("web", "local") and self.last_frame is not None
+                        and self.last_frame.query() == query and self._conf_ok(self.last_frame)):
+                    self._maybe_draft(self.last_frame)     # draft now, not at the next ear update
             except asyncio.CancelledError:
                 fire.t_done = time.perf_counter()
                 if fire.state == "fired":               # a stale fire stays "stale" (revivable; counted as stale)
@@ -297,9 +303,20 @@ class Speculator:
         return self.rank(qvec, k)
 
     # ------------------------------------------------------------------ live updates
+    @staticmethod
+    def key_conf(f: Frame) -> float | None:
+        if not config.SPEC_CONF or not f.wconf:
+            return None
+        return confidence.key_conf(f, list(f.wconf))[0]
+
+    def _conf_ok(self, f: Frame) -> bool:
+        kc = self.key_conf(f)
+        return kc is None or kc >= config.SPEC_CONF_DRAFT
+
     def on_frame(self, f: Frame, now: float | None = None):
         if self.mode != "headstart" or self.closed:
             return
+        self.last_frame = f
         now = now or time.perf_counter()
         if f.sig != self.last_sig:
             self.last_sig, self.stable, self.sig_since = f.sig, 1, now
@@ -309,7 +326,12 @@ class Speculator:
         if f.jailbreak:
             return              # Arc flags a prompt-injection attempt: spend no speculative searches / drafts on it
         need = 1 if f.slots else config.STABLE_UPDATES        # typed spans are confident: fire on first sight
+        kc = self.key_conf(f)
+        if kc is not None and kc < config.SPEC_CONF_LO:
+            need = max(need, 2)                               # shaky decisive word: wait for one more ear update
         if f.n < config.MIN_WORDS or not f.has_content() or self.stable < need:
+            if kc is not None and self.stable < need and f.n >= config.MIN_WORDS and f.has_content():
+                self.held += 1
             return
         q = f.query()
         if not q:
@@ -322,7 +344,7 @@ class Speculator:
                 and self.local_used < config.LOCAL_BUDGET):
             self.local_used += 1
             self._fire("local", q, f, lambda q=q: lanes.local_text(q))
-        if (now - self.sig_since) * 1000 >= config.DRAFT_STABLE_MS and not self.draft_busy:
+        if (now - self.sig_since) * 1000 >= config.DRAFT_STABLE_MS and not self.draft_busy and self._conf_ok(f):
             self._maybe_draft(f)
 
     def on_audio(self, wav: np.ndarray, route: str = "both", n_words: int = 0):

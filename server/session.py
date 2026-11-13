@@ -16,7 +16,7 @@ import time
 import numpy as np
 
 from . import frame as framemod
-from . import config, lanes
+from . import config, confidence, lanes
 from .speculator import Speculator
 from .tagger import Tagger
 
@@ -105,6 +105,14 @@ class Session:
         self.soft = None
         self.final_task = None
         self.eager_wait: dict | None = None          # FLUX_SOFT=eager+arc: an eager end-of-turn waiting for Arc's cc
+        self.track = confidence.WordTrack()          # per-word revision history (server/confidence.py)
+        self.wconf: list[float] = []                 # fused per-word confidence
+        self.cc_score: float | None = None           # score of the newest command_complete event (at cc_at)
+        self.turn_ev: str | None = None              # latest Flux TurnInfo event + end_of_turn_confidence
+        self.eot_p: float | None = None
+        self._tick_synced = False
+        self.last_ws: list[dict] = []
+        self.eot_last: float | None = None           # latest fused end-of-turn score (read-out)
         self.words_changed_at = time.perf_counter()
 
     @property
@@ -169,14 +177,24 @@ class Session:
         self.times = [(w.get("start"), w.get("end")) for w in ws if clean(w["text"])]
         self.confs = [w.get("conf") for w in ws if clean(w["text"])]
         if changed:
+            h = self.track.update(new)
+            self._tick_synced = True
             self.words_changed_at = time.perf_counter()
             if self.cc_at is not None and self.cc_at >= k:
                 self.cc_at = None                    # the word it fired on was revised away
             r = self.tagger.poll()
             self._apply(r, revised_from=k if revised else None)
+            self._confs(h)
         if ws and self.q_audio_start is None:
             self.q_audio_start = ws[0].get("start") or 0.0
         return changed, k
+
+    def _confs(self, h: dict | None = None):
+        h = h or {"revs": self.track.revs, "age": self.track.age}
+        try:
+            self.wconf = confidence.word_confs(self.words, self.confs, h["revs"], h["age"], self.spans)
+        except Exception:                            # a confidence read-out must never break the words path
+            self.wconf = []
 
     def _apply(self, r: dict, revised_from=None):
         a0 = r.get("a0", 0)
@@ -189,6 +207,7 @@ class Session:
             if e["type"] == CC:
                 w = e.get("word")
                 self.cc_at = w if w is not None else len(self.words) - 1
+                self.cc_score = float(e.get("score") or 0.0)
 
     def _words_json(self) -> list[dict]:
         confs = getattr(self, "confs", None) or []
@@ -198,12 +217,17 @@ class Session:
             c = confs[i] if i < len(confs) else None
             if c is not None:
                 d["conf"] = round(float(c), 3)          # ear word confidence (Deepgram Flux / nova)
+            if i < len(self.wconf) and c is not None:
+                d["fconf"] = round(self.wconf[i], 3)    # fused: ear + revision history + tagger span (confidence.py)
             out.append(d)
         return out
 
     def _build(self, carry=None):
-        return framemod.build(self.words, self.spans, self.current, self.events, self.prev_intent,
-                              local_ok=bool(len(lanes.index())), carry=self.carry if carry is None else carry)
+        f = framemod.build(self.words, self.spans, self.current, self.events, self.prev_intent,
+                           local_ok=bool(len(lanes.index())), carry=self.carry if carry is None else carry)
+        if self.wconf and len(self.wconf) == f.n and any(c is not None for c in getattr(self, "confs", []) or []):
+            f.wconf = tuple(self.wconf)                # only when the ear gives word confidences (Flux / nova)
+        return f
 
     def on_partial(self, ws: list[dict], now: float | None = None):
         """Never raises: a bad partial is reported as an error event and the ear keeps going."""
@@ -220,6 +244,7 @@ class Session:
         ws = self._fresh(ws)
         if not ws:
             return
+        self.last_ws = ws
         changed, k = self._sync_words(ws)
         f = self._build()
         if f.intent.startswith("discourse.intent."):
@@ -307,8 +332,8 @@ class Session:
           eager+gate  only if our tagger gate agrees (+140 ms p50, premature / 3)
           off         ignore eager events"""
         mode = config.FLUX_SOFT
-        if self.closed or not self.semantic or mode == "off":
-            return
+        if self.closed or not self.semantic or mode in ("off", "fused"):
+            return                                     # fused: on_turn_tick already scored this EagerEndOfTurn
         try:
             ws = self._fresh(ws)
             if not ws:
@@ -331,6 +356,60 @@ class Session:
             self._soft(ws, f, by="eager+arc" if mode == "eager+arc" else "eager")
         except Exception as e:
             self.emit({"t": "error", "where": "on_eager", "error": f"{type(e).__name__}: {e}"[:300]})
+
+    # ------------------------------------------------------------------ fused end of turn (FLUX_SOFT=fused)
+    def on_turn_info(self, ev: str, eot_p: float | None):
+        """Flux TurnInfo header, before its words reach on_partial."""
+        self.turn_ev, self.eot_p = ev, eot_p
+        self._tick_synced = False
+
+    def eot_features(self, f, ws: list[dict]) -> dict:
+        n = len(self.words)
+        toks = [framemod.norm(w) for w in self.words]
+        end = ws[-1].get("end") or 0.0
+        slot_end = any(s.get("family") in ("entity", "number") and s["type"] != "entity.numeral" and s["end"] == n
+                       for s in self.spans)
+        a = self.arc or {}
+        cc_last = self.cc_at is not None and self.cc_at == n - 1
+        confs = getattr(self, "confs", None) or []
+        return confidence.eot_features(
+            eot=float(self.eot_p or 0.0), pause_s=max(0.0, self._audio_end - end), n_words=n, cc_last=cc_last,
+            cc_score=(self.cc_score or 0.0) if cc_last else 0.0,
+            gate=bool(gate_open(f, self.cc_at, self.spans) and f.has_content()), act_question=f.act_question,
+            slot_end=slot_end, has_content=f.has_content(), last_content=bool(toks) and toks[-1] not in framemod.STOP,
+            arc_cc_p=a.get("cc_p"), arc_cc_recent=self._arc_cc_since(end), arc_for_me=a.get("for_me"),
+            is_eager=self.turn_ev == "EagerEndOfTurn", last_conf=confs[-1] if confs else None)
+
+    def on_turn_tick(self, ev: str):
+        """After each Flux TurnInfo (its words already synced): age the revision history and, with FLUX_SOFT=fused,
+        answer (soft) when the fused end-of-turn score clears the fitted threshold (eval/fit_confidence.py: one
+        threshold on EagerEndOfTurn, a higher one on plain updates). Never raises."""
+        if self.closed or ev == "EndOfTurn" or not self.words:
+            return
+        try:
+            if not self._tick_synced:
+                self.track.update(self.words)
+                self._confs()
+                if config.FLUX_TICK and self.frame is not None and self.frame.n == len(self.words):
+                    f0 = self._build()                 # same words, fresher confidences: a speculator tick
+                    self.frame = f0
+                    self.spec.on_frame(f0)
+            self._tick_synced = False
+            if config.FLUX_SOFT != "fused" or not self.semantic or self.busy or not self.last_ws:
+                return
+            f = self.frame or self._build()
+            p = confidence.eot_score(self.eot_features(f, self.last_ws))
+            if p is None:
+                return
+            self.eot_last = p
+            thr = confidence.eot_threshold("eager" if ev == "EagerEndOfTurn" else "update")
+            if p >= thr and not self._quiet() and f.n >= 1:
+                if self.soft is None or self.soft["sig"] != meaning(f):
+                    self.emit({"t": "eot_score", "p": round(p, 3), "thr": thr, "ev": ev, "ms": self.spec.ms(),
+                               "words": list(self.words)})
+                self._soft(self.last_ws, f, by="fused")
+        except Exception as e:
+            self.emit({"t": "error", "where": "on_turn_tick", "error": f"{type(e).__name__}: {e}"[:300]})
 
     async def _soft_answer(self, spec: Speculator, soft: dict, f, extended: bool):
         last_end = soft["end"]
