@@ -73,12 +73,23 @@ def main():
                 finals.append((r["id"], fq))
             partials += [(r["id"], q) for q in spec]
     plan, seen = [], set()
-    for qid, q in finals + partials:                    # finals first: they are what an answer is built from
+    for qid, q in finals:                               # finals first: they are what an answer is built from
         k = lanes.norm_query(q)
         if k not in seen:
             seen.add(k)
             plan.append((qid, q))
-    print(f"{len(rows)} questions -> {len(finals)} final + {len(partials)} speculative queries, {len(plan)} distinct; "
+    # speculative partials only when no final already covers them (WebCache's fuzzy match would serve a final's docs):
+    # these are the pre-correction meanings ("capital canada" before "actually make that Turkey")
+    probe = lanes.WebCache(Path("/nonexistent"))
+    for _, q in plan:
+        probe.entries[lanes.norm_query(q)] = {"query": q, "docs": []}
+    for qid, q in partials:
+        k = lanes.norm_query(q)
+        if k not in seen and probe.get(q) is None:
+            seen.add(k)
+            plan.append((qid, q))
+            probe.entries[k] = {"query": q, "docs": []}
+    print(f"{len(rows)} questions -> {len(finals)} final + {len(partials)} speculative queries, {len(plan)} to record; "
           f"recording up to {a.max_calls}")
     plan = plan[: a.max_calls]
     if a.dry_run:
