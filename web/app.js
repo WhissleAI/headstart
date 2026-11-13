@@ -66,6 +66,7 @@
     resetView();
     pipeReset();
     loop();
+    if (window.HSFilm) window.HSFilm.start(kind, modes);
   }
   const primary = () => (run ? run.modes[0] : "headstart");
   function serverNow() {
@@ -143,6 +144,7 @@
 
   // ------------------------------------------------------------------ events
   function onEvent(e) {
+    if (window.HSFilm) { try { window.HSFilm.event(e); } catch (err) { console.error("film", err); } }
     if (e.mode === "sys") {
       if (e.t === "ready") {
         if (e.warm !== undefined) warm = !!e.warm;
@@ -1073,7 +1075,7 @@
     if (!file) return;
     streamToken++;                                            // abort any conversation still streaming
     if (mic.on) stopMic(true);
-    const modes = modesFor(modeSel);
+    const modes = window.HSFilm && window.HSFilm.active ? ["headstart", "baseline"] : modesFor(modeSel);
     document.querySelectorAll(".qlist button.on").forEach((n) => n.classList.remove("on"));
     if (btn) btn.classList.add("on");
     lastReplay = { item: { file }, btn, key: file };
@@ -1294,5 +1296,5 @@
   loadQuestions();
   loadResults();
   setInterval(loadResults, 30000);
-  window.__hs = { get run() { return run; } };   // for debugging in the console
+  window.__hs = { get run() { return run; }, get ready() { return wsOpen && warm; }, replay: (f) => replay(f, null) };   // for debugging in the console
 })();
