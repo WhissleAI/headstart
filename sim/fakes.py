@@ -331,7 +331,7 @@ def install(monkeypatch_setattr, world_ref: dict):
                 return np.zeros((len(args[0]), lanes.index().tv.shape[1]), np.float32)
         return fn(*args)
 
-    async def web(query, topic="general"):
+    async def web(query, topic="general", **_kw):      # accepts the Tavily lane kwargs (intent, final, ledger, meter)
         w = W()
         w.counters["web"] += 1
         await asyncio.sleep(web_ms(w.profile, w.sampler, query) / 1000)
