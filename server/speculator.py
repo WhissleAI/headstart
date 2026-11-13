@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from . import answer, config, embed, lanes
+from . import answer, config, embed, lanes, rerank
 from .frame import NEWS_INTENTS, Frame
 
 _ids = itertools.count(1)
@@ -91,6 +91,8 @@ class Speculator:
         self.last_qvec: np.ndarray | None = None
         self.used_ids: list[str] = []
         self.context = ""                      # previous turn (question + answer), for follow-ups
+        self.audio_qvec: np.ndarray | None = None   # the audio lane's latest (longest) spoken-question vector
+        self.audio_qdur = 0.0
 
     # ------------------------------------------------------------------ helpers
     def ms(self, t=None):
@@ -251,6 +253,40 @@ class Speculator:
         order = np.argsort(-s)[:k]
         return [(self.pool[ids[i]], float(s[i])) for i in order]
 
+    def rank_local(self, question: str, qvec: np.ndarray, k: int = 5):
+        """Top-k moments of the local index for a question routed to it (server/rerank.py): reciprocal-rank fusion of
+        the question's text cosine, the audio lane's spoken-question cosine (when it has landed) and a lexical + tag
+        score, over the whole index (a few hundred moments: < 1 ms). The moments join the pool with the index's own
+        vectors, so drafts, reuse checks and the next question's carry-over see them like any lane result."""
+        ix = lanes.index()
+        if not len(ix):
+            return self.rank(qvec, k)
+        ids = [d.id for d in ix.docs]
+        text_s = ix.tv @ qvec
+        audio_s = None
+        if self.audio_qvec is not None and config.RERANK_AUDIO:
+            audio_s = ix.tv @ self.audio_qvec
+            if ix.av is not None:
+                sa = ix.av @ self.audio_qvec
+                for row, v in zip(ix.av_rows, sa):
+                    audio_s[row] = max(audio_s[row], v)
+        fused = rerank.fuse(ids, text_s, question, rerank.lexicon(ix), audio_s=audio_s)[:k]
+        out = []
+        for i, _, parts in fused:
+            row = ix.row_of(i)
+            if i not in self.pool:
+                d = ix.docs[row]
+                self.pool[i] = lanes.Doc(**{**d.__dict__, "score": parts["text"], "lane": "local"})
+            self.vecs.setdefault(i, ix.tv[row])
+            out.append((self.pool[i], parts["text"]))
+        return out
+
+    def _rank_for(self, f: Frame, qvec: np.ndarray, k: int = 5):
+        """The final / draft ranking: the fused local ranker for local-routed questions, else pool cosine."""
+        if f.route == "local" and config.RERANK_LOCAL and len(lanes.index()):
+            return self.rank_local(f.resolved_text, qvec, k)
+        return self.rank(qvec, k)
+
     # ------------------------------------------------------------------ live updates
     def on_frame(self, f: Frame, now: float | None = None):
         if self.mode != "headstart" or self.closed:
@@ -297,7 +333,9 @@ class Speculator:
         w = wav.copy()
 
         async def go():
-            docs, _ = await lanes.local_audio(w)
+            docs, qa = await lanes.local_audio(w)
+            if qa is not None and np.any(qa) and dur >= self.audio_qdur:
+                self.audio_qvec, self.audio_qdur = qa, dur      # the local ranker fuses it (rank_local)
             return docs
 
         self._fire("audio", f"<{dur:.1f}s of speech>", None, go)
@@ -349,7 +387,7 @@ class Speculator:
         async def go():
             try:
                 qvec = (await embed.arun(embed.encode_queries, [f.resolved_text]))[0]
-                top = [d for d, _ in self.rank(qvec)]
+                top = [d for d, _ in self._rank_for(f, qvec)]
                 if not top or self.closed or self.last_sig != f.sig:
                     return                          # the question moved on while we embedded
                 own = {d.id for x in ready for d in x.docs}
@@ -455,7 +493,7 @@ class Speculator:
         if not live():
             return superseded()
         self.last_qvec = qvec
-        ranked = self.rank(qvec, 5)
+        ranked = self._rank_for(f, qvec, 5)
         if reuse_draft is not None:
             st = reuse_draft.stream
             docs = [self.pool[i] for i in reuse_draft.doc_ids if i in self.pool]

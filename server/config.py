@@ -67,6 +67,10 @@ DRAFT_BUDGET = int(os.environ.get("SPEC_DRAFT_BUDGET", "2" if _TAVILY else "6"))
 DRAFT_STABLE_MS = int(os.environ.get("SPEC_DRAFT_STABLE_MS", "0"))
 AUDIO_LANE = os.environ.get("SPEC_AUDIO_LANE", "1") == "1"
 COMMIT_TAU = float(os.environ.get("SPEC_COMMIT_TAU", "0.55"))
+# Local-routed questions: rank moments with server/rerank.py (text cosine + the audio lane's spoken-question
+# vector + lexical/tags) instead of pool cosine alone. Same ranker in both modes (baseline has no audio vector).
+RERANK_LOCAL = os.environ.get("RERANK_LOCAL", "1") == "1"
+RERANK_AUDIO = os.environ.get("RERANK_AUDIO", "1") == "1"
 
 # Semantic endpointing (Head Start only): answer when the tagger says the command is complete and the speaker has been
 # silent this long, instead of waiting for the ear's own pause endpoint (~450 ms on Arc).
