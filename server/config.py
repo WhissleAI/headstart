@@ -21,6 +21,14 @@ def _load_dotenv():
 
 _load_dotenv()
 
+# Where models run. local (default, so evals stay reproducible): this process loads its own copies. host: the Arc
+# Tagger runs in the shared model server at MODEL_HOST_URL (Ask the Moon's model_server, WS /v1/tag/stream), one copy
+# per machine for every app. Fails open: an unreachable host is logged loudly and the tagger loads locally.
+# Arc audio (arcmeta) and EmbeddingGemma stay local in both modes for now.
+MODELS = os.environ.get("MODELS", "local").strip().lower()
+MODEL_HOST_URL = os.environ.get("MODEL_HOST_URL", "http://127.0.0.1:8200").rstrip("/")
+MODEL_HOST_TIMEOUT_S = float(os.environ.get("MODEL_HOST_TIMEOUT_S", "2.0"))   # connect + per-reply deadline
+
 ARC_DIR = Path(os.environ.get("ARC_DIR", "/Users/karan/Desktop/work/whissle/models/arc-v1"))
 ARC_THREADS = int(os.environ.get("ARC_THREADS", "6"))
 EMBED_MODEL = os.environ.get("EMBED_MODEL", "google/embeddinggemma-2")
