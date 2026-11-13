@@ -63,8 +63,9 @@ class Session:
         rms = float(np.sqrt(np.mean(pcm * pcm))) if len(pcm) else 0.0
         self.noise.append(rms)
         self.noise = self.noise[-60:]
-        floor = float(np.percentile(self.noise, 20)) if len(self.noise) >= 5 else 0.0
-        if rms > max(0.008, 3.0 * floor):
+        # noise floor from the quietest chunks, clamped so a stretch of continuous speech can't become the "floor"
+        floor = min(float(np.percentile(self.noise, 10)), 0.01) if len(self.noise) >= 5 else 0.0
+        if rms > max(0.006, 2.5 * floor):
             self.silence_ms = 0.0
         else:
             self.silence_ms += 1000.0 * len(pcm) / 16000

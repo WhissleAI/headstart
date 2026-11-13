@@ -245,6 +245,7 @@ class Speculator:
     async def finalize(self, f: Frame, t_speech_end: float) -> dict:
         """Called when the question is over. Streams the answer through emit; returns metrics."""
         t_end = time.perf_counter()
+        self._mark_stale(f)                       # the final words can still revise away earlier searches
         self.closed = True
         m = {"mode": self.mode, "question": f.text, "query": f.query(), "intent": f.intent,
              "endpoint_lag_ms": round((t_end - t_speech_end) * 1000)}
