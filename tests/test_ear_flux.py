@@ -363,6 +363,7 @@ class FakeArc:
 
 def test_arc_meta_rides_along_and_reaches_the_readout(monkeypatch):
     fa = FakeArc()
+    e_off = []
     monkeypatch.setattr(config, "ARC_META", "mini")
     monkeypatch.setattr(ear, "arc", lambda: fa)
     no_tagger_gate(monkeypatch)
@@ -373,6 +374,7 @@ def test_arc_meta_rides_along_and_reaches_the_readout(monkeypatch):
             hs = Session(ev_hs.append, mode="headstart")
             e = flux_for(srv, [hs], ear_ev)
             await feed_audio(e, 3.2, pace=0.01)
+            e_off.append(e.meta.offset)
             await e.flush()
             e.close()
             await asyncio.sleep(0.2)
@@ -383,8 +385,9 @@ def test_arc_meta_rides_along_and_reaches_the_readout(monkeypatch):
     (st,) = fa.streams
     # external mode, words only from Flux, and never Arc's own decoder fallback
     assert st.kw["transcript"] == "external" and st.kw["fallback"] is None and st.kw["partials"] is False
-    assert st.samples == int(3.2 * SR)
-    assert st.words[-1][-1] == {"text": "Nvidia?", "start": 1.45, "end": 1.90, "is_final": True}
+    assert st.samples + round(e_off[0] * SR) == int(3.2 * SR)        # joined at its offset, then every chunk
+    w = st.words[-1][-1]                                               # Arc's own clock starts at its offset
+    assert w["text"] == "Nvidia?" and w["is_final"] and w["start"] == pytest.approx(1.45 - e_off[0])
     arc_ev = [x for x in ev_hs if x["t"] == "arc"]
     assert arc_ev and arc_ev[-1]["for_me"] == 0.97 and arc_ev[-1]["role"] == "speaker.role.device_user"
     assert any(x["cc_events"] for x in arc_ev) and any(x["cc_p"] == 0.6 for x in arc_ev)

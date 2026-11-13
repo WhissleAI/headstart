@@ -534,11 +534,11 @@ class FluxEar(DeepgramEar):
                  url: str | None = None):
         super().__init__(sinks, domain=domain, on_event=on_event, key=key, url=url or flux_url())
         self.meta = None
+        self.meta_task = None
         if arcmeta.variant() != "off":
-            try:
-                self.meta = arcmeta.ArcMeta(self._on_meta, domain=domain)
-            except Exception as e:  # noqa: BLE001 (metadata is optional: the words path never depends on it)
-                self.on_event({"t": "ear", "kind": "warning", "ear": "flux", "text": f"arc meta off: {e}"[:240]})
+            # built off the event loop (a cold model load must never stall the audio); it joins at the audio time it
+            # is ready (offset), which is sample 0 whenever the model was warmed up (server start, run_ab)
+            self.meta_task = asyncio.create_task(self._start_meta(domain))
         self.turn_index = None
         self.n_turninfo = 0
         self.eager_at: float | None = None     # audio time of the last EagerEndOfTurn of the open turn
@@ -546,6 +546,21 @@ class FluxEar(DeepgramEar):
     @property
     def model(self) -> str:
         return config.FLUX_MODEL
+
+    async def _start_meta(self, domain):
+        try:
+            if arcmeta.ready():
+                m = arcmeta.ArcMeta(self._on_meta, domain=domain, offset_s=self.at_s)
+            else:
+                m = await asyncio.get_running_loop().run_in_executor(
+                    None, lambda: arcmeta.ArcMeta(self._on_meta, domain=domain))
+                m.offset = self.at_s
+            if self.closed:
+                m.close()
+            else:
+                self.meta = m
+        except Exception as e:  # noqa: BLE001 (metadata is optional: the words path never depends on it)
+            self.on_event({"t": "ear", "kind": "warning", "ear": "flux", "text": f"arc meta off: {e}"[:240]})
 
     def _on_meta(self, m: dict):
         if self.closed:

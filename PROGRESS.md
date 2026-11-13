@@ -271,3 +271,66 @@ All 80: base P@5 .797 / top-1 .519 / nDCG .830 → default .828 / .595 / .854.
 Flags (server/config.py): NARROW_DOMAINS off|prefer|restrict, NARROW_DOMAIN_FAMILIES, NARROW_QUERY, NARROW_DATES,
 NARROW_GATE / NARROW_GATE_MIN_CONTENT, NARROW_RERANK (+ weights). Re-run: `nice -n 19 .venv/bin/python
 eval/narrow_eval.py --variants base,query_domsel --spec base,query_domsel --spec-ids sc0,sc1 --judge --answers base,query_domsel`.
+
+## Deepgram Flux ear + Arc metadata (branch flux-ear; server/ear.py FluxEar, server/arcmeta.py)
+Flux API facts, checked against the docs AND the live service (developers.deepgram.com/reference/speech-to-text/listen-flux,
+/docs/flux/state, /docs/flux/configuration, /docs/flux/voice-agent-eager-eot): `wss://api.deepgram.com/v2/listen`,
+`Authorization: Token`, `model=flux-general-en&encoding=linear16&sample_rate=16000`, `eot_threshold` 0.5–1.0 (0.7),
+`eager_eot_threshold` 0.3–0.9 (unset = no eager events; must be <= eot), `eot_timeout_ms` 500–60000 (5000), `keyterm`.
+Server sends `Connected`, then `TurnInfo` {event Update|StartOfTurn|EagerEndOfTurn|TurnResumed|EndOfTurn, turn_index,
+audio_window_*, transcript, words[{word (punctuated, cased), confidence, start, end}] — the WHOLE turn each time,
+end_of_turn_confidence, trigger on EndOfTurn: model|manual|timeout}; Update every ~240 ms of audio. Client: binary
+audio (80 ms chunks recommended), `ForceEndTurn`, `CloseStream`, `Configure`; no KeepAlive message (we send silence).
+EndOfTurn transcript == the preceding eager transcript unless a TurnResumed came between (docs; observed).
+
+Mapping: Update/StartOfTurn/TurnResumed → on_partial; EagerEndOfTurn → Session.on_eager → soft answer
+(FLUX_SOFT=eager, default); EndOfTurn → on_final (confirms the soft answer, or answers the longer question); flush →
+ForceEndTurn. Fallback to Arc on connect failure / drop (shared with the nova-3 ear). Defaults = lowest latency:
+eager 0.3 (docs min), eot 0.7, eot_timeout 1000 ms.
+
+Real Flux traces (eval/record_flux_traces.py → runs/flux_traces.jsonl, 80 questions = eval set + showcase, real time):
+- WER 0.020 (15/742 words) vs Arc Mini builtin 0.123 on the same questions.
+- EndOfTurn after the last word: p50 652 / mean 671 / p90 1091 ms (78 model, 5 timeout triggers). Arc's own pause
+  endpoint is ~470–600 ms: Flux's FINAL is not faster; its EAGER is.
+- 3/80 questions split into two turns by EndOfTurn (trigger=model, conf 0.78–0.80): "weather in London, sorry, I mean
+  Tokyo", "Boston sorry / I mean Denver", "which one's better for photos / the iPhone 17 Pro or the Pixel 10 Pro".
+  FLUX_EOT=0.85 (docs' "complex pipeline" setting) would likely avoid 2 of 3 at some confirmation latency; not default.
+
+Soft-endpoint gate on eager events (eval/flux_gate_eval.py --arc; trigger = answer start − last word end):
+| policy | p50 | mean | p90 | premature soft answers /100 q |
+|---|---|---|---|---|
+| no soft answer (EndOfTurn) | 652 | 671 | 1091 | 0 |
+| **eager (default, FLUX_SOFT=eager)** | **212** | **242** | 599 | 26.2 |
+| eager, then wait for Arc command_complete (FLUX_SOFT=eager+arc) | 230 | 280 | 627 | 11.2 |
+| eager + tagger gate (FLUX_SOFT=eager+gate) | 354 | 430 | 936 | 8.8 |
+| eager + Arc cc event within 0.6 s (no waiting) | 315 | 384 | 815 | 3.8 |
+| eager + conf>=0.5 (≈ eager_eot 0.5) | 452 | 490 | 1018 | 8.8 |
+| eager + Arc for_me>=0.5 | 234 | 264 | 613 | 25.0 (for-me doesn't help) |
+Premature = mostly self-corrections and trailing qualifiers; a premature soft answer costs an answer call and is
+superseded (the speculator stays warm), not latency. Arc's command_complete measurably helps (premature 26→11 for
++18 ms p50) → shipped as the opt-in FLUX_SOFT=eager+arc; the tagger gate costs +140 ms p50.
+
+Arc metadata without its decoder (ARC_META=mini|transcriber|off; external-transcript mode on Flux's words,
+fallback=None so Arc's builtin decoder never runs; RTF = compute / audio, M3 Pro, real Flux words):
+| variant | load | RAM (peak RSS) | CPU per 100 ms chunk | RTF | command_complete after last word |
+|---|---|---|---|---|---|
+| Arc Mini v1 (1.0.1, already loaded for the Arc ear) | 2.4 s | 0.7 GB (no extra) | 10 ms p50 / 15 max | 0.09–0.10 (0.26 live, contended) | +160–300 ms |
+| Arc v1.1 Mini (arc_transcriber 1.2.1) | 3.2 s | 1.0 GB | 10.5 / 14 ms | 0.10 | +160–200 ms; adds audio events |
+| Arc Transcriber v1.1 full, CPU, model's 10 s stream chunks | 5 s | 3.3 GB | 0 until flush, flush 0.6–1.0 s | — | only at flush |
+| Arc Transcriber, CPU, 1 s chunk / 1 s ctx | 5 s | 3.3 GB | 600–870 ms spikes | 0.39 | +1.3 s |
+| Arc Transcriber, MPS, 0.5 s chunk / 1 s ctx | 6 s | 3.1 GB | p95 81 ms, cold 1.1 s | 0.26 | +1.2–1.4 s |
+Transcriber (Parakeet-TDT 0.6B tap 12 + adapters) needs arc_transcriber ≥1.2 (local 1.0.1 can't load v1.1 configs;
+loaded as `arc_audio_t`). It "runs" in real time on MPS but its metadata lands >1 s after the words → read-out only,
+useless for endpointing. Default ARC_META=mini. Read-out: `arc` events + `frame.arc` {for_me, cc_p, cc_events, act,
+intent, speaker, role, bio, audio_events, rtf}.
+
+Real A/B EAR=flux vs EAR=arc (eval/run_ab.py, showcase sc01–sc10, WEB_BACKEND=wikipedia because the Tavily key returns
+432 "usage limit"; sc06 'current' skipped on Wikipedia → 9 q; times from the VAD speech end so both ears are comparable):
+| ear | mode | ready p50 / mean | endpoint after speech end p50 | WER | endpoint |
+|---|---|---|---|---|---|
+| arc | baseline | 2366 / 2763 | 728 | 0.037 | ear 9 |
+| arc | headstart | 2033 / 1878 | 632 | 0.037 | tagger 5, ear 4 |
+| flux | baseline | 2174 / 2063 | 688 | 0.000 | ear 9 |
+| **flux** | **headstart** | **1197 / 1167** | **244** | **0.000** | eager 9 |
+(Same 10 with the 432 Tavily key, i.e. no speculation: flux HS 1640/1830 vs arc HS 2676/2901; endpoint 261 vs 630.)
+runs/ab_ear_{arc,flux}{,_wiki}.json.

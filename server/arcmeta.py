@@ -57,6 +57,14 @@ def transcriber():
         return _t_arc
 
 
+def ready() -> bool:
+    """The model ArcMeta needs is already loaded (building a stream is then instant)."""
+    if variant() == "transcriber":
+        return _t_arc is not None
+    from . import ear
+    return ear._arc is not None
+
+
 def variant() -> str:
     v = (config.ARC_META or "off").strip().lower()
     return v if v in ("mini", "transcriber") else "off"
@@ -122,7 +130,9 @@ class ArcMeta:
         if self.closed or not ws:
             return
         ev = [{"text": w["text"], "start": float(w["start"]) - self.offset, "end": float(w["end"]) - self.offset,
-               "is_final": final} for w in ws if w.get("start") is not None]
+               "is_final": final} for w in ws if w.get("start") is not None and float(w["start"]) >= self.offset]
+        if not ev:
+            return
         self.pool.submit(self._run, self.stream.add_words, ev)
 
     async def flush(self):

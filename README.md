@@ -51,7 +51,11 @@ for the words; without a key, or if the socket fails/drops, the run falls back t
 gives the endpoints. `EagerEndOfTurn` → Head Start's soft answer at once (`FLUX_SOFT=eager`; `eager+gate` also requires
 our tagger gate; `off` ignores it), `TurnResumed` → the longer question is answered again, `EndOfTurn` → the ear's final
 (confirms the soft answer). Lowest-latency defaults: `FLUX_EAGER_EOT=0.3` (docs minimum), `FLUX_EOT=0.7`,
-`FLUX_EOT_TIMEOUT_MS=1000`; same Arc fallback as nova-3. Tuning: `DG_*` in `server/config.py`.
+`FLUX_EOT_TIMEOUT_MS=1000`; same Arc fallback as nova-3. With Flux, Arc still listens to the same audio for **metadata only**
+(`ARC_META=mini` default | `transcriber` | `off`; external-transcript mode on Flux's words, no Arc decoder): for-me,
+command_complete, act/intent, speaker role, bio/audio events, as `arc` events and `frame.arc` in the read-out.
+`FLUX_SOFT=eager+arc` waits for Arc's command_complete before the soft answer (fewer premature answers, +18 ms p50;
+`eval/flux_gate_eval.py`). Tuning: `DG_*` in `server/config.py`.
 Tavily lane knobs (`server/config.py`): `TAVILY_SPEC_DEPTH`/`TAVILY_FINAL_DEPTH` (fast), `TAVILY_SESSION_CREDITS`,
 `TAVILY_CACHE_SCOPE`, `TAVILY_ANSWER`. Measure a new key with `eval/tavily_probe.py --yes`; run keyless against the fake
 with `uvicorn --app-dir tests fake_tavily:app --port 8799` + `TAVILY_API_KEY=tvly-fake TAVILY_BASE_URL=http://127.0.0.1:8799`.
