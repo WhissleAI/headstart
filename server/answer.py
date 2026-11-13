@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 
+import httpx
 from anthropic import AsyncAnthropic
 
 from . import config
@@ -26,8 +28,92 @@ _client: AsyncAnthropic | None = None
 def client() -> AsyncAnthropic:
     global _client
     if _client is None:
-        _client = AsyncAnthropic()
+        _client = AsyncAnthropic(max_retries=config.ANSWER_MAX_RETRIES,
+                                 timeout=httpx.Timeout(60.0, connect=3.0))
     return _client
+
+
+# ------------------------------------------------------------------ reachability + extractive fallback
+# If the answer model can't be reached, the race still completes: every Stream (draft or final, both modes) answers with
+# the best-matching sentence of its top source instead, flagged fallback="extractive" (metric answer_fallback, UI badge).
+STATUS = {"status": "unknown", "last_error": None, "down_until": 0.0, "last_ok": None}
+
+
+def _ok():
+    STATUS.update(status="live", down_until=0.0, last_ok=time.time())
+
+
+def _down(err: str):
+    STATUS.update(status="down", last_error=err[:200], down_until=time.monotonic() + config.ANSWER_BREAKER_S)
+
+
+def is_down() -> bool:
+    return time.monotonic() < STATUS["down_until"]
+
+
+def health() -> dict:
+    return {"model": config.ANSWER_MODEL, "status": STATUS["status"], "live": STATUS["status"] == "live",
+            "fallback": "extractive" if config.ANSWER_FALLBACK else "none", "last_error": STATUS["last_error"]}
+
+
+def reset_status():
+    """Tests."""
+    STATUS.update(status="unknown", last_error=None, down_until=0.0, last_ok=None)
+
+
+_STOPW = set("""a an the is are was were be been of in on at to for from by with about what who whom whose which when
+where why how did do does can could would should will it its this that there tell me please and or i you""".split())
+_SENT = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9\"'(])")
+
+
+def _words(s: str) -> set:
+    """Content words, crudely stemmed (founded/founder -> found) so the question and a source sentence can meet."""
+    return {w[:5] for w in re.findall(r"[a-z0-9]+", s.lower()) if w not in _STOPW and len(w) > 1}
+
+
+_YEAR = re.compile(r"\b(1[0-9]{3}|20[0-9]{2})\b|\b(January|February|March|April|May|June|July|August|September|"
+                   r"October|November|December)\b")
+_NAME = re.compile(r"(?<!^)(?<![.!?] )\b[A-Z][a-z]+ [A-Z][a-z]+")
+
+
+def _wh_bonus(question: str, sent: str) -> float:
+    """Does the sentence have the KIND of thing asked for (who -> a name, when -> a date, how many -> a number)?"""
+    q = question.lower()
+    if re.search(r"\bwho\b", q):
+        return 1.0 if (_NAME.search(sent) or " by " in sent) else 0.0
+    if re.search(r"\bwhen\b|\bwhat year\b", q):
+        return 1.0 if _YEAR.search(sent) else 0.0
+    if re.search(r"\bhow (many|much|tall|long|old|far|big|high|deep)\b", q):
+        return 1.0 if re.search(r"\d", sent) else 0.0
+    if re.search(r"\bwhere\b", q):
+        return 0.5 if re.search(r"\b(in|at|near) [A-Z]", sent) else 0.0
+    return 0.0
+
+
+def extractive(question: str, docs) -> str | None:
+    """The sentence of the top source that best answers the question (shared content words, words of the source's
+    own title counting less since every sentence is about it, plus the kind of answer asked for), with its citation;
+    a sentence of the second or third source only if it is clearly better. None if there are no sources."""
+    q = _words(question)
+    best = None
+    for i, d in enumerate(list(docs)[:3]):
+        meta = getattr(d, "meta", None) or {}
+        text = " ".join(x for x in (meta.get("context_before"), d.text, meta.get("context_after")) if x) \
+            if meta.get("context_before") or meta.get("context_after") else d.text
+        title = _words(d.title or "")
+        sents = [x.strip() for x in _SENT.split((text or "").replace("\n", " ")) if x.strip()]
+        for j, sent in enumerate(sents):
+            shared = q & _words(sent)
+            score = (sum(0.3 if w in title else 1.0 for w in shared) + _wh_bonus(question, sent)
+                     - 0.01 * j - 0.75 * i - (3.0 if sent.rstrip().endswith("?") else 0.0))   # a question isn't an answer
+            if best is None or score > best[0]:
+                best = (score, sent, i)
+    if best is None:
+        return None
+    _, sent, i = best
+    if len(sent) > 260:
+        sent = sent[:257].rsplit(" ", 1)[0] + "…"
+    return f"{sent} [{i + 1}]"
 
 
 def model_opts(model: str) -> dict:
@@ -58,12 +144,22 @@ def build_prompt(question: str, docs, context: str = "") -> str:
 
 
 async def warm():
-    """Open the HTTPS connection (and warm the route) so the first real answer doesn't pay for it."""
+    """Open the HTTPS connection (and warm the route) so the first real answer doesn't pay for it; records whether the
+    answer model is reachable (STATUS)."""
+    await probe()
+
+
+async def probe(timeout: float = 8.0) -> dict:
+    """One 1-token request now; updates STATUS (the breaker opens if the model is unreachable)."""
+    t = time.perf_counter()
     try:
-        await client().messages.create(model=config.ANSWER_MODEL, max_tokens=1, **model_opts(config.ANSWER_MODEL),
-                                       messages=[{"role": "user", "content": "ok"}])
-    except Exception:
-        pass
+        await asyncio.wait_for(client().messages.create(
+            model=config.ANSWER_MODEL, max_tokens=1, **model_opts(config.ANSWER_MODEL),
+            messages=[{"role": "user", "content": "ok"}]), timeout)
+        _ok()
+    except Exception as e:
+        _down(f"{type(e).__name__}: {e}" if str(e) else type(e).__name__)
+    return {**health(), "probe_ms": round((time.perf_counter() - t) * 1000)}
 
 
 class Stream:
@@ -85,6 +181,8 @@ class Stream:
         self.t_done: float | None = None
         self.winner: int | None = None
         self.hedged = False
+        self.fallback: str | None = None        # "extractive" when the answer model couldn't be reached
+        self.fallback_reason: str | None = None
         self._waiters: set[asyncio.Future] = set()
         self.task = asyncio.create_task(self._run())
         self.task.add_done_callback(self._task_done)
@@ -127,6 +225,7 @@ class Stream:
                     self.winner = i
                     self.t_first = time.perf_counter()
                     won.set()
+                    _ok()
                 if self.winner != i:
                     return
                 self.tokens.append(text)
@@ -135,12 +234,16 @@ class Stream:
     async def _run(self):
         """Hedged request: if no token within HEDGE_MS, or the first request ends without producing one (an error such
         as a 529), send a duplicate and keep whichever answers first (cuts the API's time-to-first-token tail)."""
+        if config.ANSWER_FALLBACK and is_down():
+            self._extractive(f"answer model down: {STATUS['last_error']}")    # breaker open: don't wait again
+            return
         loop = asyncio.get_running_loop()
         won = asyncio.Event()
         won_w = asyncio.ensure_future(won.wait())
         tasks = [asyncio.create_task(self._one(0, won))]
         pending = set(tasks)
         hedge_at = loop.time() + config.HEDGE_MS / 1000
+        deadline = loop.time() + config.ANSWER_DEADLINE_MS / 1000 if config.ANSWER_FALLBACK else None
         first_exc: BaseException | None = None
         try:
             while pending:
@@ -149,6 +252,11 @@ class Stream:
                 timeout = None
                 if self.winner is None and not self.hedged:
                     timeout = max(0.0, hedge_at - loop.time())
+                if self.winner is None and deadline is not None:
+                    left = max(0.0, deadline - loop.time())
+                    timeout = left if timeout is None else min(timeout, left)
+                    if left <= 0:
+                        raise TimeoutError(f"no answer token in {config.ANSWER_DEADLINE_MS} ms")
                 waitset = set(pending)
                 if not won_w.done():
                     waitset.add(won_w)
@@ -176,13 +284,32 @@ class Stream:
             self._finish("cancelled")
             raise
         except Exception as e:  # network / API errors surface in the UI, never crash the session
-            self._finish(f"{type(e).__name__}: {e}"[:300])
+            err = f"{type(e).__name__}: {e}"[:300]
+            if config.ANSWER_FALLBACK and not self.tokens:
+                _down(err)
+                for t in tasks:
+                    if not t.done():
+                        t.cancel()
+                self._extractive(err)
+            else:
+                self._finish(err)
         finally:
             won_w.cancel()
             for t in tasks:
                 if not t.done():
                     t.cancel()
             self._finish()
+
+    def _extractive(self, why: str):
+        """Answer without the model: best-matching sentence of the top source, flagged (never presented as Claude's)."""
+        self.fallback, self.fallback_reason = "extractive", why[:200]
+        text = extractive(self.question, self.docs)
+        if text is None:
+            self._finish(f"answer model unreachable and no sources ({why})"[:300])
+            return
+        self.t_first = time.perf_counter()
+        self.tokens.append(text)
+        self._finish()
 
     # ------------------------------------------------------------------ consumers
     async def follow(self):
@@ -235,6 +362,14 @@ class Race:
     @property
     def hedged(self):
         return getattr(self.primary, "hedged", False)
+
+    @property
+    def fallback(self):
+        return None if self.by == "tavily" else getattr(self.primary, "fallback", None)
+
+    @property
+    def fallback_reason(self):
+        return None if self.by == "tavily" else getattr(self.primary, "fallback_reason", None)
 
     @property
     def done(self):

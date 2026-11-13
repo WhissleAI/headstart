@@ -94,3 +94,17 @@ DG_FALLBACK_REPLAY_S = float(os.environ.get("DG_FALLBACK_REPLAY_S", "10"))   # a
 DG_ARC_EVENTS = os.environ.get("DG_ARC_EVENTS", "0") == "1"  # also run Arc on Deepgram's words for its own events (CPU)
 SEM_WORDGAP_MS = int(os.environ.get("SEM_WORDGAP_MS", "600"))   # noisy rooms: ASR word gap that counts as a pause
 CHATTER_RATIO = float(os.environ.get("CHATTER_RATIO", "0.25"))   # -12 dB vs the last answered question = chatter
+
+# Degraded / offline demo mode (see DEMO_CHECKLIST.md). WEB_BACKEND=cache serves the web lane only from the recorded
+# cache; with a live backend the cache is the fallback when a live call fails (flagged "cached" in events, metric, UI).
+WEB_CACHE_PATH = Path(os.environ.get("WEB_CACHE_PATH", ROOT / "runs/web_cache.json"))
+WEB_CACHE_FALLBACK = os.environ.get("WEB_CACHE_FALLBACK", "1") == "1"   # live failure -> recorded cache
+WEB_CACHE_RECORD = os.environ.get("WEB_CACHE_RECORD", "0") == "1"       # write every live result into the cache file
+WEB_CACHE_MIN_COVER = float(os.environ.get("WEB_CACHE_MIN_COVER", "0.75"))   # fuzzy hit: share of query words covered
+WEB_LIVE_TIMEOUT_S = float(os.environ.get("WEB_LIVE_TIMEOUT_S", "3.0"))  # hard deadline on one Wikipedia call
+WEB_BREAKER_S = float(os.environ.get("WEB_BREAKER_S", "30"))     # after a live failure, go straight to the cache this long
+# Answer model unreachable -> extractive answer (best-matching sentence of the top source, flagged), both modes.
+ANSWER_FALLBACK = os.environ.get("ANSWER_FALLBACK", "1") == "1"
+ANSWER_DEADLINE_MS = int(os.environ.get("ANSWER_DEADLINE_MS", "4000"))   # no first token by then -> extractive
+ANSWER_BREAKER_S = float(os.environ.get("ANSWER_BREAKER_S", "30"))
+ANSWER_MAX_RETRIES = int(os.environ.get("ANSWER_MAX_RETRIES", "2"))     # SDK retries per request (SDK default; the hedge is another)

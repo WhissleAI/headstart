@@ -38,6 +38,7 @@ mic ─▶ Arc (streaming ASR + events) ─▶ Arc Tagger (10M, 0.7 ms/word) ─
 
 ## Run
 ```sh
+./run_demo.sh                                               # demo: prereqs, start, warm, preflight GO/NO-GO, open
 .venv/bin/python -m uvicorn server.app:app --port 8770     # warm-up ~30-60 s; open http://localhost:8770
 .venv/bin/python -m pytest -q tests                         # deterministic tests (fake lanes, LLM, Deepgram, Tavily)
 .venv/bin/python eval/run_ab.py                             # real-audio A/B → runs/ab_latest.{json,png}
@@ -50,6 +51,11 @@ Tavily lane knobs (`server/config.py`): `TAVILY_SPEC_DEPTH`/`TAVILY_FINAL_DEPTH`
 `TAVILY_CACHE_SCOPE`, `TAVILY_ANSWER`. Measure a new key with `eval/tavily_probe.py --yes`; run keyless against the fake
 with `uvicorn --app-dir tests fake_tavily:app --port 8799` + `TAVILY_API_KEY=tvly-fake TAVILY_BASE_URL=http://127.0.0.1:8799`.
 Rebuild the native tagger: see `vendor/arctag` (`cc -O3 -shared ... -framework Accelerate`, details in PROGRESS.md).
+
+Degraded mode (DEMO_CHECKLIST.md): if the live web lane fails, it serves `runs/web_cache.json` (recorded Wikipedia
+responses for the eval set; `eval/record_web_cache.py`; `WEB_BACKEND=cache` forces it); if the answer model is
+unreachable, answers are the best-matching sentence of the top source. Both modes share the fallbacks; both are
+labelled in `/api/health`, the `ready` event, the metric (`web_replayed`, `answer_fallback`) and the UI.
 
 ## Honest notes
 - Latency is measured from the end of the last spoken word (ASR word timestamps) to the first answer token, same ear,

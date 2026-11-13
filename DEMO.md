@@ -1,6 +1,7 @@
 # Head Start: 3-minute demo script
 
-Setup: `.venv/bin/python -m uvicorn server.app:app --port 8770`, open http://localhost:8770 at 1280×720, mode **Race**.
+Setup: `./run_demo.sh` (starts the server, preflights, prints GO / NO-GO, opens http://localhost:8770); 1280×720,
+mode **Race**. Full pre-demo list and recovery steps: DEMO_CHECKLIST.md.
 Warm-up takes ~40 s; check the header shows ready. Have the replay list ready in case the room mic is bad.
 
 1. **Problem (20 s).** "Every voice assistant waits for you to stop, then searches, then thinks: two seconds of dead
@@ -20,4 +21,6 @@ Warm-up takes ~40 s; check the header shows ready. Have the replay list ready in
 
 Lines for judges: "10-million-parameter tagger in C, ~1 ms per word, on the laptop: routing for free."
 "Speculation is budgeted (≤6 web calls per question) and every miss is shown on the timeline."
-Backup: if Wi-Fi fails, the local-moments questions still work offline except for the answer model.
+Backup: if Wi-Fi fails, local-moments questions still work (retrieval is on the laptop); the web lane serves the
+recorded cache (`runs/web_cache.json`) and, without the answer model, answers are extracted from the top source. Both
+are labelled in the UI (yellow "Degraded mode" banner). `./run_demo.sh --offline` starts in cached-web mode.

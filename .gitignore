@@ -2,7 +2,8 @@
 __pycache__/
 *.npz
 .venv/
-runs/
+runs/*
+!runs/web_cache.json
 models/arctag/*.onnx
 vendor/arctag/*.dylib
 index/data/
