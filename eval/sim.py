@@ -38,7 +38,7 @@ async def main():
     for q in qs:
         for mode in ("baseline", "headstart"):
             m, ev = await run_question(q, mode)
-            print(f"{mode:9s} ready={m['ready_ms']:5d}ms sources={m['sources_ms']:5d}ms done={m['done_ms']:5d} path={m.get('path')} web={m['web_calls']} fires={m['spec_fires']} used={m['spec_used']} drafts={m['drafts']} reused={m['draft_reused']}/{m.get('draft_match','')} | {m['answer'][:90]!r}")
+            print(f"{mode:9s} ready={m['ready_ms']:5d}ms sources={m['sources_ms']:5d}ms done={m['done_ms']:5d} path={m.get('path')} web={m['web_calls']} cr={m.get('credits', 0):g} fires={m['spec_fires']} used={m['spec_used']} drafts={m['drafts']} reused={m['draft_reused']}/{m.get('draft_match','')} | {m['answer'][:90]!r}")
         print()
 
 if __name__ == "__main__":
