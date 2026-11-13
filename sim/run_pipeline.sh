@@ -4,8 +4,9 @@
 set -e
 cd "$(dirname "$0")/.."
 PY=.venv/bin/python
-W=${WORKERS:-6}; N=${N:-0}   # N=0: full grid
-OMP_NUM_THREADS=4 $PY -m sim.simulate --prefetch --seeds 3 2>&1 | grep -E "prefetch"
+export OMP_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1   # tiny matmuls: threads only oversubscribe
+W=${WORKERS:-6}; N=${N:-2500}   # N=0: full grid (5184)
+$PY -m sim.simulate --prefetch --seeds 3 2>&1 | grep -E "prefetch"
 $PY -m sim.simulate --validate --seeds 10 2>&1 | grep -vi warn | grep -v "Loading weights"
 for P in wikipedia tavily; do
   $PY -m sim.sweep --profile $P --n $N --seeds 2 --workers $W
