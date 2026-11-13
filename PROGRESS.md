@@ -334,3 +334,43 @@ Real A/B EAR=flux vs EAR=arc (eval/run_ab.py, showcase sc01–sc10, WEB_BACKEND=
 | **flux** | **headstart** | **1197 / 1167** | **244** | **0.000** | eager 9 |
 (Same 10 with the 432 Tavily key, i.e. no speculation: flux HS 1640/1830 vs arc HS 2676/2901; endpoint 261 vs 630.)
 runs/ab_ear_{arc,flux}{,_wiki}.json.
+
+## Shared model host (MODELS=host) — branch feat/model-host-client
+One copy of each model per machine: Head Start can use Ask the Moon's model server (`model_server/`, default
+`http://127.0.0.1:8200`) instead of loading its own Arc Tagger. `MODELS=local` stays the default so evals reproduce.
+- `MODELS=host` + `MODEL_HOST_URL`: `Tagger(...)` returns a `RemoteTagger` (same methods: push / endpoint / poll /
+  tag_text / info / reset / set / close, `.h is None` once closed) backed by `WS /v1/tag/stream?domain=&emit=&asr=`,
+  one dedicated native handle per socket in the model server. push / endpoint / reset / set are pipelined (no wait);
+  poll / tag_text / info wait for the reply, and a failed pipelined op raises there. Sync client: `websockets.sync`.
+- Fail open: a host that refuses, 404/403s the route or has no tagger is logged loudly (`[tagger] !!! ... using the
+  LOCAL Arc Tagger`) and the native tagger loads; the host is not retried for the rest of the process. A full host
+  (close 1013, `TAG_STREAM_MAX`=16 handles; a session holds 2) falls back for that one tagger and retries next time.
+- Not handled: the host dying mid-session. The next poll raises (the session sees an error), it doesn't re-feed a
+  local handle. Replaying the ops since the last reset onto a native handle would fix it but would re-emit events.
+
+Overhead, `eval/model_host_bench.py` (M3 Pro, localhost, 30 reps of a 16-word question, ms per call):
+| call | native p50 | host p50 | added p50 | native p95 | host p95 |
+|---|---|---|---|---|---|
+| push + poll, per word | 0.96 | 2.04 | +1.08 | 1.34 | 4.35 |
+| revision push + poll | 1.30 | 2.30 | +1.00 | 1.85 | 3.12 |
+| endpoint + poll | 0.05 | 0.76 | +0.70 | 0.06 | 1.04 |
+| empty poll (pure round trip) | 0.02 | 0.39 | +0.38 | 0.02 | 0.72 |
+| tag_text (answer re-read) | 2.44 | 3.38 | +0.94 | 2.86 | 5.07 |
+So ~0.4 ms per round trip and ~1 ms per push+poll step (the push runs on a server worker thread; poll runs inline).
+Against Flux updates every ~240 ms that is noise; it never touches the endpoint path beyond one poll.
+
+Tests: `tests/test_model_host.py` (host tagger == native on a push / revision / endpoint / reset / tag_text script;
+bad option raises; unreachable host falls back). Full suite: `MODELS=local` 140 passed (+1 passed, 2 host tests
+skipped when no stream-capable host), `MODELS=host MODEL_HOST_URL=http://127.0.0.1:8215` 143 passed (124 tagger
+sockets opened against the model server).
+
+Still loaded in this process in both modes — what moving each needs:
+- **Arc audio metadata** (`server/arcmeta.py`, Arc v1 Mini / Arc Transcriber, plus the Arc ear itself in
+  `server/ear.py`): the model server's `WS /v1/stream` (agent B, `app/arcmeta.py` / `app/routes_meta.py`) — binary PCM
+  frames in, `{t:"arc"}` metadata out, external-transcript mode taking Flux's words (`ArcMeta.words(ws, final)`), plus a
+  `flush` op. Then an `ArcMeta` client with the same feed / words / flush / close and the same fail-open.
+- **EmbeddingGemma** (`server/embed.py`, MPS doc model + CPU query model): `POST /v1/embed` taking
+  `{kind: query|doc|audio, texts | titles | audio(b64 f32 16k)}` → normalized float32 vectors (base64, 768-d), with the
+  same prompts (`SearchQuery`, `Document`, `title: … | text: …`) so vectors match the prebuilt index. `embed.encode_*`
+  become HTTP calls in host mode; `embed.arun` already runs them off the loop. Query embeds are on the speculation
+  path, so measure: a keep-alive httpx client should add ~1 ms to a ~10-20 ms encode.

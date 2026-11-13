@@ -59,6 +59,9 @@ command_complete, act/intent, speaker role, bio/audio events, as `arc` events an
 Tavily lane knobs (`server/config.py`): `TAVILY_SPEC_DEPTH`/`TAVILY_FINAL_DEPTH` (fast), `TAVILY_SESSION_CREDITS`,
 `TAVILY_CACHE_SCOPE`, `TAVILY_ANSWER`. Measure a new key with `eval/tavily_probe.py --yes`; run keyless against the fake
 with `uvicorn --app-dir tests fake_tavily:app --port 8799` + `TAVILY_API_KEY=tvly-fake TAVILY_BASE_URL=http://127.0.0.1:8799`.
+Shared models: `MODELS=host` (default `local`) runs the Arc Tagger in Ask the Moon's model server at `MODEL_HOST_URL`
+(default `http://127.0.0.1:8200`, `WS /v1/tag/stream`) instead of in this process; an unreachable host falls back to
+the local tagger with a loud log. Overhead ~0.4 ms per round trip (PROGRESS.md, `eval/model_host_bench.py`).
 Rebuild the native tagger: see `vendor/arctag` (`cc -O3 -shared ... -framework Accelerate`, details in PROGRESS.md).
 
 Degraded mode (DEMO_CHECKLIST.md): if the live web lane fails, it serves `runs/web_cache.json` (recorded Wikipedia

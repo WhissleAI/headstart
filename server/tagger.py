@@ -1,14 +1,26 @@
-"""ctypes binding to libarctag (Arc Tagger v0.3, native C backend, int8).
+"""ctypes binding to libarctag (Arc Tagger v0.3, native C backend, int8), or the shared model host's copy.
 
 One handle per stream: a handle is not thread-safe. Each call costs about 1-3 ms per word on the native backend.
+
+MODELS=host: `Tagger(...)` returns a RemoteTagger instead, same methods, backed by one dedicated handle in the model
+server (WS {MODEL_HOST_URL}/v1/tag/stream). Ops that return nothing (push, endpoint, reset, set) are pipelined; poll /
+tag_text / info wait for the reply, and a failed pipelined op raises there. If the host can't be reached the
+constructor logs loudly and returns a native Tagger (fail open), and stops trying the host for this process.
 """
 from __future__ import annotations
 
 import ctypes
 import json
+import logging
 import os
+import socket
 import threading
 from pathlib import Path
+from urllib.parse import urlencode
+
+from . import config
+
+log = logging.getLogger("headstart.tagger")
 
 ROOT = Path(__file__).resolve().parent.parent
 LIB_PATH = Path(os.environ.get("ARCTAG_LIB", ROOT / "vendor/arctag/libarctag.dylib"))
@@ -59,6 +71,13 @@ class Tagger:
     push(words, from_=None, endpoint=False) appends words, or replaces words[from_:] (a revision), then poll()
     returns what changed: spans ending after a0, new events, closed utterances and the running read-out (`current`).
     """
+
+    def __new__(cls, *args, **kwargs):
+        if cls is Tagger and config.MODELS == "host" and not _HOST["down"]:
+            r = _connect_remote(*args, **kwargs)
+            if r is not None:
+                return r   # not a Tagger subclass, so Tagger.__init__ doesn't run on it
+        return super().__new__(cls)
 
     def __init__(self, domain: str = "assistant", asr: str = "unknown", model_dir: Path = MODEL_DIR,
                  emit: str = "entity,number,pii,events,intent,act,safety,state", options: dict | None = None):
@@ -129,6 +148,104 @@ class Tagger:
         if self.h:
             self.L.arctag_destroy(self.h)
             self.h = None
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
+# --- MODELS=host: the shared model server's tagger --------------------------------------------------------------------
+
+_HOST = {"down": False}
+
+
+def _connect_remote(*args, **kwargs):
+    try:
+        return RemoteTagger(*args, **kwargs)
+    except Exception as e:   # fail open: this process loads its own tagger instead
+        refused = "1013" not in str(e)   # 1013 = host's handle cap is full: try the host again next time
+        if refused:
+            _HOST["down"] = True
+        log.error("MODELS=host but the model host at %s is unusable (%s: %s); falling back to the LOCAL Arc Tagger%s",
+                  config.MODEL_HOST_URL, type(e).__name__, e, " for the rest of this process" if refused else "")
+        print(f"[tagger] !!! MODELS=host: model host {config.MODEL_HOST_URL} unusable ({type(e).__name__}: {e}); "
+              f"using the LOCAL Arc Tagger", flush=True)
+        return None
+
+
+class RemoteTagger:
+    """Tagger's API over WS /v1/tag/stream: one dedicated handle in the model server for the life of this object."""
+
+    def __init__(self, domain: str = "assistant", asr: str = "unknown", model_dir: Path = MODEL_DIR,
+                 emit: str = "entity,number,pii,events,intent,act,safety,state", options: dict | None = None,
+                 url: str | None = None):
+        from websockets.sync.client import connect
+
+        base = (url or config.MODEL_HOST_URL).replace("https://", "wss://").replace("http://", "ws://")
+        q = {"domain": domain, "asr": asr}
+        if emit:
+            q["emit"] = emit
+        self.timeout = config.MODEL_HOST_TIMEOUT_S
+        self.ws = connect(f"{base}/v1/tag/stream?{urlencode(q)}", open_timeout=self.timeout,
+                          compression=None, max_size=None)
+        try:
+            self.ws.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        except OSError:
+            pass
+        hello = json.loads(self.ws.recv(timeout=self.timeout))   # ConnectionClosed (1013 full, 1008 bad domain)
+        if hello.get("op") != "ready":
+            self.ws.close()
+            raise RuntimeError(f"model host: unexpected hello {hello!r}")
+        self.h = self.ws        # non-None while open (callers check `.h is None` for closed), like the native handle
+        self.domain = domain
+        for k, v in (options or {}).items():
+            self.set(k, v)
+        if options:
+            self.info()         # surface a bad option now, as the native constructor would
+
+    def _send(self, m: dict):
+        if self.h is None:
+            raise RuntimeError("tagger closed")
+        self.ws.send(json.dumps(m))
+
+    def _req(self, m: dict) -> dict:
+        self._send(m)
+        r = json.loads(self.ws.recv(timeout=self.timeout))
+        if r.get("op") == "error":
+            raise ValueError(f"model host tagger: {r.get('error')}")
+        return r
+
+    def set(self, key: str, value: str):
+        self._send({"op": "set", "key": key, "value": str(value)})
+
+    def tag_text(self, text: str) -> dict:
+        return self._req({"op": "tag_text", "text": text})
+
+    def push(self, words: list, from_: int | None = None, endpoint: bool = False):
+        self._send({"op": "push", "words": list(words), "from": None if from_ is None else int(from_),
+                    "endpoint": bool(endpoint)})
+
+    def endpoint(self):
+        self._send({"op": "endpoint"})
+
+    def poll(self) -> dict:
+        return self._req({"op": "poll"})
+
+    def info(self) -> dict:
+        return self._req({"op": "info"})
+
+    def reset(self):
+        self._send({"op": "reset"})
+
+    def close(self):
+        if self.h is not None:
+            self.h = None
+            try:
+                self.ws.close()
+            except Exception:
+                pass
 
     def __del__(self):
         try:
